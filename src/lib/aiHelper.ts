@@ -8,9 +8,15 @@ interface GenerateAIOptions {
 
 export async function generateAIContent({
   prompt,
-  model = "gemini-2.5-flash",
+  model = "gemini-3.6-flash",
   manualApiKey,
 }: GenerateAIOptions): Promise<string> {
+  // Normalize model name to avoid deprecated models like gemini-2.5-flash or gemini-1.5-flash
+  let targetModel = model;
+  if (!targetModel || targetModel.includes("2.5") || targetModel.includes("1.5") || targetModel.includes("2.0")) {
+    targetModel = "gemini-3.6-flash";
+  }
+
   // 1. Try Backend API Route first
   try {
     const res = await fetch("/api/ai/generate", {
@@ -18,7 +24,7 @@ export async function generateAIContent({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         prompt,
-        model,
+        model: targetModel,
         manualApiKey: manualApiKey || undefined,
       }),
     });
@@ -52,14 +58,9 @@ export async function generateAIContent({
   if (apiKey && apiKey.trim()) {
     try {
       const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
-      // Clean model name for GenAI SDK if necessary
-      let cleanModel = model;
-      if (cleanModel.includes("3.6-flash") || cleanModel.includes("3.1-pro")) {
-        cleanModel = "gemini-2.5-flash";
-      }
 
       const response = await ai.models.generateContent({
-        model: cleanModel,
+        model: targetModel,
         contents: prompt,
       });
 

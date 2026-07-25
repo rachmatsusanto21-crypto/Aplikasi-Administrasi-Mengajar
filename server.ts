@@ -16,6 +16,11 @@ app.post("/api/ai/generate", async (req, res) => {
   try {
     const { prompt, model = "gemini-3.6-flash", manualApiKey, systemInstruction } = req.body;
 
+    let targetModel = model;
+    if (!targetModel || targetModel.includes("2.5") || targetModel.includes("1.5") || targetModel.includes("2.0")) {
+      targetModel = "gemini-3.6-flash";
+    }
+
     const apiKey = manualApiKey || process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
@@ -34,7 +39,7 @@ app.post("/api/ai/generate", async (req, res) => {
     });
 
     const response = await ai.models.generateContent({
-      model: model,
+      model: targetModel,
       contents: prompt,
       config: systemInstruction
         ? {
