@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { CPTPItem, AISettings } from "../../types";
 import { BookOpen, Sparkles, Plus, Trash2, Edit2, Download, Printer, Search, Check, X } from "lucide-react";
 import { exportToCSV } from "../../lib/storage";
+import { generateAIContent } from "../../lib/aiHelper";
 
 interface CurriculumCPTPViewProps {
   cptpItems: CPTPItem[];
@@ -122,19 +123,14 @@ Format keluaran HARUS berupa JSON murni tanpa markdown lain:
   ]
 }`;
 
-      const res = await fetch("/api/ai/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt,
-          model: aiSettings?.selectedAgent || "gemini-3.6-flash",
-          manualApiKey: aiSettings?.manualApiKey || undefined,
-        }),
+      const result = await generateAIContent({
+        prompt,
+        model: aiSettings?.selectedAgent || "gemini-3.6-flash",
+        manualApiKey: aiSettings?.manualApiKey || undefined,
       });
 
-      const data = await res.json();
-      if (data.result) {
-        let cleanText = data.result.trim();
+      if (result) {
+        let cleanText = result.trim();
         if (cleanText.startsWith("```json")) cleanText = cleanText.slice(7);
         if (cleanText.endsWith("```")) cleanText = cleanText.slice(0, -3);
 

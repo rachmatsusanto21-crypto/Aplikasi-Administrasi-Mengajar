@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Bot, Key, Sparkles, X, Check, Globe } from "lucide-react";
 import { AISettings } from "../types";
+import { generateAIContent } from "../lib/aiHelper";
 
 interface AIAgentModalProps {
   isOpen: boolean;
@@ -38,23 +39,14 @@ export const AIAgentModal: React.FC<AIAgentModalProps> = ({
     setIsTesting(true);
     setTestResult(null);
     try {
-      const res = await fetch("/api/ai/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: "Sapa guru dengan ramah dan konfirmasi bahwa agen AI telah siap bekerja dalam 1 kalimat pendek.",
-          model: selectedAgent,
-          manualApiKey: manualApiKey || undefined,
-        }),
+      const result = await generateAIContent({
+        prompt: "Sapa guru dengan ramah dan konfirmasi bahwa agen AI telah siap bekerja dalam 1 kalimat pendek.",
+        model: selectedAgent,
+        manualApiKey: manualApiKey || undefined,
       });
-      const data = await res.json();
-      if (res.ok && data.result) {
-        setTestResult(`✅ Koneksi AI Berhasil! (${data.result.trim()})`);
-      } else {
-        setTestResult(`❌ Gagal: ${data.error || "Gagal menghubungi API AI"}`);
-      }
+      setTestResult(`✅ Koneksi AI Berhasil! (${result.trim()})`);
     } catch (err: any) {
-      setTestResult(`❌ Gagal: ${err.message}`);
+      setTestResult(`❌ ${err.message}`);
     } finally {
       setIsTesting(false);
     }

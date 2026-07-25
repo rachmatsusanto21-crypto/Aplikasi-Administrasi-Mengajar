@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { TeachingModule, AISettings, SchoolIdentity, Student, ActivityTableRow, RubrikFormatifItem, RubrikSumatifItem, KisiKisiItem, SoalItem, RefleksiItem } from "../../types";
 import { Sparkles, Trash2, Download, Printer, Layers, FileText, CheckCircle2, UserCheck, HelpCircle } from "lucide-react";
 import { exportDataToJSON } from "../../lib/storage";
+import { generateAIContent } from "../../lib/aiHelper";
 
 interface TeachingModuleGeneratorViewProps {
   schoolIdentity: SchoolIdentity;
@@ -501,19 +502,14 @@ Format Output HARUS berupa JSON murni tanpa markdown lain:
   ]
 }`;
 
-      const res = await fetch("/api/ai/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt,
-          model: aiSettings?.selectedAgent || "gemini-3.6-flash",
-          manualApiKey: aiSettings?.manualApiKey || undefined,
-        }),
+      const result = await generateAIContent({
+        prompt,
+        model: aiSettings?.selectedAgent || "gemini-3.6-flash",
+        manualApiKey: aiSettings?.manualApiKey || undefined,
       });
 
-      const data = await res.json();
-      if (data.result) {
-        let cleanText = data.result.trim();
+      if (result) {
+        let cleanText = result.trim();
         if (cleanText.startsWith("```json")) cleanText = cleanText.slice(7);
         if (cleanText.endsWith("```")) cleanText = cleanText.slice(0, -3);
 
@@ -548,7 +544,75 @@ Format Output HARUS berupa JSON murni tanpa markdown lain:
         setIsAiModalOpen(false);
       }
     } catch (err: any) {
-      alert("Gagal merumuskan modul dengan AI: " + err.message);
+      const wantTemplate = confirm(
+        `Gagal merumuskan modul secara otomatis:\n${err.message}\n\n` +
+        `Apakah Anda ingin membuat Modul Ajar Standar Kurikulum Merdeka secara langsung (Standar Tanpa AI)?`
+      );
+
+      if (wantTemplate) {
+        const fallbackRawMod = {
+          id: "mod_" + Date.now(),
+          title: `Modul Ajar Kurikulum Merdeka - ${materi}`,
+          moduleType,
+          subject,
+          targetClass,
+          approach,
+          learningModel,
+          allocationJP,
+          generalInfo: {
+            instansi: schoolIdentity.schoolName || "SD Negeri 1 Merdeka",
+            faseKelas: `${targetClass}`,
+            elemen: "Pemahaman Konsep & Keterampilan Proses",
+            kompetensiAwal: `Siswa memiliki pemahaman dasar mengenai materi ${materi}.`,
+            profilPancasila: "Beriman, Bertakwa kepada Tuhan YME, Bergotong Royong, Bernalar Kritis, Mandiri",
+            sarpras: "Buku Paket, Proyektor, Kartu Gambar, LKPD, Laptop",
+            targetSiswa: "Siswa Reguler / Tipikal (28-32 Murid)",
+            metodePembelajaran: `${learningModel} dengan Pendekatan ${approach}`,
+          },
+          coreComponent: {
+            tujuanPembelajaran: `1. Peserta didik mampu memahami konsep utama ${materi} secara mendalam.\n2. Peserta didik mampu mengaplikasikan pemahaman tentang ${materi} dalam menyelesaikan soal dan persoalan kehidupan sehari-hari.`,
+            pemahamanBermakna: `Pemahaman tentang ${materi} membantu peserta didik berpikir logis, analitis, dan solutif dalam kehidupan sehari-hari.`,
+            pertanyaanPemantik: `1. Pernahkah kalian menemui contoh ${materi} di lingkungan sekitar?\n2. Bagaimana cara kalian menyelesaikan permasalahan terkait ${materi}?`,
+            persiapanPembelajaran: "Membuat rencana modul, menyiapkan lembar kerja peserta didik (LKPD), alat peraga, dan instrumen asesmen.",
+          },
+          activitiesTable: [
+            {
+              tahap: "Pendahuluan (15 Menit)",
+              kegiatanSiswaGuru: "Guru membuka pelajaran dengan salam, berdoa bersama, memeriksa kehadiran, dan melakukan apersepsi terkait materi sebelumnya. Guru menyampaikan tujuan pembelajaran dan pertanyaan pemantik.",
+              alokasiWaktu: "15 Menit",
+            },
+            {
+              tahap: "Kegiatan Inti (50 Menit)",
+              kegiatanSiswaGuru: `Guru menjelaskan materi ${materi} dengan alat peraga/media. Siswa dibagi menjadi beberapa kelompok heterogen untuk berdiskusi mengerjakan LKPD. Guru membimbing kelompok dan mengobservasi keaktifan siswa. Masing-masing kelompok mempresentasikan hasil diskusi di depan kelas.`,
+              alokasiWaktu: "50 Menit",
+            },
+            {
+              tahap: "Penutup (15 Menit)",
+              kegiatanSiswaGuru: "Guru bersama siswa menyimpulkan poin-poin penting pembelajaran. Guru memberikan umpan balik, kuis singkat/asesmen formatif, serta refleksi perasaan belajar siswa sebelum ditutup dengan doa.",
+              alokasiWaktu: "15 Menit",
+            },
+          ],
+          assessment: {
+            sikap: "Observasi Profil Pelajar Pancasila (Gotong royong, Bernalar kritis, Mandiri)",
+            pengetahuan: "Tes Tertulis (Pilihan Ganda & Uraian) pada Kuis / Asesmen Sumatif",
+            keterampilan: "Penilaian Kinerja / Unjuk Kerja Diskusi Kelompok dan Presentasi LKPD",
+          },
+          lkpdText: `LEMBAR KERJA PESERTA DIDIK (LKPD)\nMateri: ${materi}\n\nNama Kelompok: ........................\nAnggota: 1. ......... 2. ......... 3. ......... 4. .........\n\nPETUNJUK:\n1. Bacalah petunjuk soal dengan cermat.\n2. Diskusikan bersama teman sekelompokmu untuk menyelesaikan pertanyaan di bawah ini.\n3. Tuliskan jawaban pada tempat yang telah disediakan.\n\nSOAL DISKUSI:\n1. Jelaskan pemahaman kalian mengenai materi ${materi}!\n2. Berikan 3 contoh penerapan ${materi} dalam kehidupan sehari-hari!`,
+          refleksiGuru: [
+            { no: 1, pertanyaan: "Apakah seluruh peserta didik mencapai Tujuan Pembelajaran?", catatan: "Sesuai observasi & asesmen formatif" },
+            { no: 2, pertanyaan: "Kendala apa yang dihadapi selama kegiatan pembelajaran?", catatan: "Manajemen waktu saat diskusi" },
+          ],
+          refleksiSiswa: [
+            { no: 1, pertanyaan: "Bagian materi mana yang paling kamu sukai?", catatan: "Saat diskusi kelompok dan praktikum" },
+            { no: 2, pertanyaan: "Apakah kamu memahami penjelasan materi hari ini?", catatan: "Sangat memahami" },
+          ],
+        };
+
+        const newMod = ensureModuleStructure(fallbackRawMod);
+        onSaveModules([newMod, ...teachingModules]);
+        setSelectedModule(newMod);
+        setIsAiModalOpen(false);
+      }
     } finally {
       setIsGenerating(false);
     }
