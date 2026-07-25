@@ -1,0 +1,423 @@
+import React, { useState } from "react";
+import { DailyTeachingLog } from "../../types";
+import { BookOpen, Plus, Trash2, Edit2, Printer, Download, Search, Calendar, FileText } from "lucide-react";
+import { exportToCSV } from "../../lib/storage";
+
+interface DailyTeachingLogViewProps {
+  logs: DailyTeachingLog[];
+  onSaveLogs: (updated: DailyTeachingLog[]) => void;
+  onOpenPrint: (title: string, subtitle: string, content: React.ReactNode) => void;
+}
+
+export const DailyTeachingLogView: React.FC<DailyTeachingLogViewProps> = ({
+  logs,
+  onSaveLogs,
+  onOpenPrint,
+}) => {
+  const [search, setSearch] = useState("");
+  const [selectedSubject, setSelectedSubject] = useState("Semua");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const [form, setForm] = useState<Partial<DailyTeachingLog>>({
+    date: new Date().toISOString().slice(0, 10),
+    subject: "Bahasa Indonesia",
+    classGrade: "Kelas IV (Fase B)",
+    attendanceSummary: "Hadir: 26, Sakit: 1, Izin: 0, Alpa: 0",
+  });
+
+  const subjects = [
+    "Bahasa Indonesia",
+    "Matematika",
+    "IPAS",
+    "Pancasila",
+    "Seni Budaya",
+    "PJOK",
+  ];
+
+  const filteredLogs = logs.filter((l) => {
+    const matchSubject = selectedSubject === "Semua" || l.subject === selectedSubject;
+    const s = (search || "").toLowerCase();
+    const matchSearch =
+      (l.material || "").toLowerCase().includes(s) ||
+      (l.tpDescription || "").toLowerCase().includes(s) ||
+      (l.notes || "").toLowerCase().includes(s);
+    return matchSubject && matchSearch;
+  });
+
+  const handleOpenAdd = () => {
+    setEditingId(null);
+    setForm({
+      date: new Date().toISOString().slice(0, 10),
+      subject: "Bahasa Indonesia",
+      classGrade: "Kelas IV (Fase B)",
+      material: "",
+      tpDescription: "",
+      attendanceSummary: "Hadir: 26, Sakit: 0, Izin: 0, Alpa: 0",
+      notes: "",
+      reflection: "",
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (log: DailyTeachingLog) => {
+    setEditingId(log.id);
+    setForm(log);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm("Hapus catatan jurnal mengajar harian ini?")) {
+      onSaveLogs(logs.filter((l) => l.id !== id));
+    }
+  };
+
+  const handleSaveForm = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.material || !form.tpDescription) return;
+
+    if (editingId) {
+      onSaveLogs(
+        logs.map((l) => (l.id === editingId ? ({ ...l, ...form } as DailyTeachingLog) : l))
+      );
+    } else {
+      const newLog: DailyTeachingLog = {
+        id: "dtl_" + Date.now(),
+        date: form.date || new Date().toISOString().slice(0, 10),
+        subject: form.subject || "Bahasa Indonesia",
+        classGrade: form.classGrade || "Kelas IV",
+        material: form.material || "",
+        tpDescription: form.tpDescription || "",
+        attendanceSummary: form.attendanceSummary || "Nir-Absen",
+        notes: form.notes || "",
+        reflection: form.reflection || "",
+      };
+      onSaveLogs([...logs, newLog]);
+    }
+    setIsModalOpen(false);
+  };
+
+  const handleExportCSV = () => {
+    const headers = ["No", "Tanggal", "Mata Pelajaran", "Kelas", "Materi / Topik", "Tujuan Pembelajaran (TP)", "Kehadiran", "Catatan & Kendala", "Refleksi Guru"];
+    const rows = filteredLogs.map((l, idx) => [
+      idx + 1,
+      l.date,
+      l.subject,
+      l.classGrade,
+      l.material,
+      l.tpDescription,
+      l.attendanceSummary,
+      l.notes,
+      l.reflection,
+    ]);
+    exportToCSV(headers, rows, "Jurnal_Mengajar_Harian");
+  };
+
+  const handlePrint = () => {
+    onOpenPrint(
+      "JURNAL MENGAJAR HARIAN GURU KELAS",
+      "Dokumentasi Kegiatan Pembelajaran Tatap Muka Harian",
+      (
+        <table className="w-full border-collapse border border-slate-300 text-xs">
+          <thead>
+            <tr className="bg-slate-100 font-bold text-slate-800">
+              <th className="border border-slate-300 p-2 w-8 text-center">No</th>
+              <th className="border border-slate-300 p-2 text-center w-20">Tanggal</th>
+              <th className="border border-slate-300 p-2 text-left w-24">Materi & Mapel</th>
+              <th className="border border-slate-300 p-2 text-left">Tujuan Pembelajaran (TP)</th>
+              <th className="border border-slate-300 p-2 text-left w-32">Ringkasan Kehadiran</th>
+              <th className="border border-slate-300 p-2 text-left">Catatan & Refleksi Guru</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredLogs.map((l, idx) => (
+              <tr key={l.id} className="odd:bg-white even:bg-slate-50">
+                <td className="border border-slate-300 p-2 text-center">{idx + 1}</td>
+                <td className="border border-slate-300 p-2 text-center font-mono">{l.date}</td>
+                <td className="border border-slate-300 p-2">
+                  <span className="font-bold text-slate-900 block">{l.subject}</span>
+                  <span className="text-[10px] text-slate-500 block">{l.material}</span>
+                </td>
+                <td className="border border-slate-300 p-2">{l.tpDescription}</td>
+                <td className="border border-slate-300 p-2 text-slate-700 font-mono text-[10px]">{l.attendanceSummary}</td>
+                <td className="border border-slate-300 p-2">
+                  <p className="font-medium text-slate-800">{l.notes}</p>
+                  <p className="italic text-emerald-800 text-[10px] mt-0.5">Refleksi: {l.reflection}</p>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+            <FileText className="w-6 h-6 text-emerald-600" />
+            Jurnal Mengajar Harian Guru
+          </h2>
+          <p className="text-xs text-slate-500 mt-1">
+            Pencatatan realisasi pelaksanaan pembelajaran harian, ketercapaian TP, dan refleksi
+          </p>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={handleOpenAdd}
+            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Tambah Jurnal Harian
+          </button>
+          <button
+            onClick={handleExportCSV}
+            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300"
+          >
+            <Download className="w-4 h-4" />
+          </button>
+          <button
+            onClick={handlePrint}
+            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300"
+          >
+            <Printer className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Filter & Search */}
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center space-x-2 overflow-x-auto py-1">
+          <button
+            onClick={() => setSelectedSubject("Semua")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              selectedSubject === "Semua"
+                ? "bg-emerald-600 text-white shadow-xs"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            Semua Mapel
+          </button>
+          {subjects.map((sub) => (
+            <button
+              key={sub}
+              onClick={() => setSelectedSubject(sub)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                selectedSubject === sub
+                  ? "bg-emerald-600 text-white font-bold shadow-xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              {sub}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative w-full max-w-xs">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Cari materi / refleksi..."
+            className="w-full pl-9 pr-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+          />
+        </div>
+      </div>
+
+      {/* Log Cards List */}
+      <div className="space-y-4">
+        {filteredLogs.length === 0 ? (
+          <div className="bg-white p-12 text-center text-slate-400 text-xs rounded-2xl border border-slate-200">
+            Belum ada jurnal mengajar harian. Klik tombol <b>Tambah Jurnal Harian</b> di atas!
+          </div>
+        ) : (
+          filteredLogs.map((log) => (
+            <div
+              key={log.id}
+              className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-emerald-300 transition-all space-y-3"
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <div className="flex items-center space-x-3">
+                  <span className="px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-900 font-bold text-[11px]">
+                    {log.subject}
+                  </span>
+                  <span className="text-xs font-mono font-semibold text-slate-500">
+                    {log.date}
+                  </span>
+                  <span className="text-xs text-slate-400">• {log.classGrade}</span>
+                </div>
+
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={() => handleOpenEdit(log)}
+                    className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(log.id)}
+                    className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div className="space-y-1">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Materi & Tujuan Pembelajaran (TP)
+                  </span>
+                  <p className="font-bold text-slate-900 text-sm">{log.material}</p>
+                  <p className="text-slate-600 leading-relaxed">{log.tpDescription}</p>
+                </div>
+
+                <div className="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <span className="text-[10px] font-mono text-emerald-800 bg-emerald-100/60 px-2 py-0.5 rounded font-bold inline-block">
+                    {log.attendanceSummary}
+                  </span>
+                  <div>
+                    <span className="font-bold text-slate-800 block">Catatan Kegiatan & Kendala:</span>
+                    <p className="text-slate-600">{log.notes || "-"}</p>
+                  </div>
+                  <div>
+                    <span className="font-bold text-emerald-900 block">Refleksi Guru:</span>
+                    <p className="text-emerald-800 italic">{log.reflection || "-"}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Modal Add/Edit */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <h3 className="font-bold text-base text-slate-900">
+              {editingId ? "Edit Jurnal Mengajar Harian" : "Tambah Jurnal Mengajar Harian Baru"}
+            </h3>
+
+            <form onSubmit={handleSaveForm} className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1">Tanggal</label>
+                  <input
+                    type="date"
+                    required
+                    value={form.date || ""}
+                    onChange={(e) => setForm((prev) => ({ ...prev, date: e.target.value }))}
+                    className="w-full p-2 border rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">Mata Pelajaran</label>
+                  <select
+                    value={form.subject || "Bahasa Indonesia"}
+                    onChange={(e) => setForm((prev) => ({ ...prev, subject: e.target.value }))}
+                    className="w-full p-2 border rounded-lg bg-white font-semibold"
+                  >
+                    {subjects.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1">Kelas / Fase</label>
+                  <input
+                    type="text"
+                    value={form.classGrade || "Kelas IV (Fase B)"}
+                    onChange={(e) => setForm((prev) => ({ ...prev, classGrade: e.target.value }))}
+                    className="w-full p-2 border rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">Ringkasan Kehadiran</label>
+                  <input
+                    type="text"
+                    value={form.attendanceSummary || ""}
+                    onChange={(e) => setForm((prev) => ({ ...prev, attendanceSummary: e.target.value }))}
+                    className="w-full p-2 border rounded-lg"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1">Materi / Sub-Materi Pokok</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Contoh: Menyimak Cerita Rakyat & Amanat"
+                  value={form.material || ""}
+                  onChange={(e) => setForm((prev) => ({ ...prev, material: e.target.value }))}
+                  className="w-full p-2 border rounded-lg font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1">Tujuan Pembelajaran (TP)</label>
+                <textarea
+                  rows={2}
+                  required
+                  placeholder="Isikan deskripsi TP yang diajarkan hari ini..."
+                  value={form.tpDescription || ""}
+                  onChange={(e) => setForm((prev) => ({ ...prev, tpDescription: e.target.value }))}
+                  className="w-full p-2 border rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1">Catatan Kegiatan & Kendala Pembelajaran</label>
+                <textarea
+                  rows={2}
+                  placeholder="Proses belajar, respon murid, atau kendala..."
+                  value={form.notes || ""}
+                  onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
+                  className="w-full p-2 border rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1">Refleksi Guru (Perbaikan Selanjutnya)</label>
+                <textarea
+                  rows={2}
+                  placeholder="Catatan tindak lanjut perbaikan pengajaran..."
+                  value={form.reflection || ""}
+                  onChange={(e) => setForm((prev) => ({ ...prev, reflection: e.target.value }))}
+                  className="w-full p-2 border rounded-lg"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 text-slate-700 font-semibold rounded-lg"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-emerald-600 text-white font-bold rounded-lg"
+                >
+                  Simpan Jurnal Mengajar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
