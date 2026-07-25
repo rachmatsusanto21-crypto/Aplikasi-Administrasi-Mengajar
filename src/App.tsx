@@ -390,6 +390,22 @@ export default function App() {
         config={gasConfig}
         onSaveConfig={setGasConfig}
         onClose={() => setIsGasModalOpen(false)}
+        allData={{
+          schoolIdentity,
+          students,
+          attendanceRecords,
+          cptpItems,
+          incidents,
+          grades,
+          timetable,
+          guestBook,
+          incidentalJournals,
+          dailyLogs,
+          calendarEvents,
+          protaList,
+          promesList,
+          teachingModules,
+        }}
       />
 
       <PrintModal

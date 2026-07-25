@@ -1,26 +1,45 @@
 import React, { useState, useEffect } from "react";
-import { FileSpreadsheet, Code2, Copy, Check, ExternalLink, RefreshCw, X, Database } from "lucide-react";
+import { FileSpreadsheet, Copy, Check, RefreshCw, X, Database, AlertTriangle, HelpCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { GASConfig } from "../types";
 
 interface GoogleSheetsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  sheetsUrl: string;
-  onUpdateSheetsUrl: (url: string) => void;
-  onSyncAllData: () => Promise<boolean>;
+  config?: GASConfig;
+  onSaveConfig?: (config: GASConfig) => void;
+  sheetsUrl?: string;
+  onUpdateSheetsUrl?: (url: string) => void;
+  onSyncAllData?: () => Promise<boolean>;
+  allData?: any;
 }
 
 export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
   isOpen,
   onClose,
-  sheetsUrl,
+  config,
+  onSaveConfig,
+  sheetsUrl: propSheetsUrl,
   onUpdateSheetsUrl,
   onSyncAllData,
+  allData,
 }) => {
   const [copied, setCopied] = useState(false);
   const [gasScript, setGasScript] = useState<string>("");
   const [loadingScript, setLoadingScript] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
+  const [showTroubleshooting, setShowTroubleshooting] = useState(false);
+
+  const activeSheetsUrl = propSheetsUrl ?? config?.webAppUrl ?? "";
+
+  const handleUrlChange = (url: string) => {
+    if (onUpdateSheetsUrl) {
+      onUpdateSheetsUrl(url);
+    }
+    if (onSaveConfig && config) {
+      onSaveConfig({ ...config, webAppUrl: url });
+    }
+  };
 
   useEffect(() => {
     if (isOpen && !gasScript) {
@@ -42,17 +61,60 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
   };
 
   const handleSyncNow = async () => {
+    if (!activeSheetsUrl || !activeSheetsUrl.trim()) {
+      setSyncStatus("⚠️ Masukkan Web App Deployment URL terlebih dahulu.");
+      return;
+    }
+
     setSyncing(true);
     setSyncStatus(null);
+
     try {
-      const success = await onSyncAllData();
-      if (success) {
-        setSyncStatus("✅ Seluruh data berhasil tersimpan & tersinkronisasi ke Google Sheet!");
+      if (onSyncAllData) {
+        const success = await onSyncAllData();
+        if (success) {
+          setSyncStatus("✅ Seluruh data berhasil tersimpan & tersinkronisasi ke Google Sheet!");
+        } else {
+          setSyncStatus("⚠️ Gagal terhubung. Pastikan URL Web App sudah tepat dan hak akses diset ke 'Siapa Saja' (Anyone).");
+        }
       } else {
-        setSyncStatus("⚠️ Gagal terhubung ke Google Sheet Web App URL. Pastikan URL sudah tepat.");
+        // Direct fetch handling with safe text parsing
+        const cleanUrl = activeSheetsUrl.trim();
+        const payload = {
+          action: "syncAll",
+          sheet: "MasterData",
+          data: allData || {},
+          timestamp: new Date().toISOString(),
+        };
+
+        const res = await fetch(cleanUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8",
+          },
+          body: JSON.stringify(payload),
+        });
+
+        const textResponse = await res.text();
+
+        try {
+          const json = JSON.parse(textResponse);
+          if (json.status === "success" || json.result === "success") {
+            setSyncStatus("✅ Seluruh data berhasil tersimpan & tersinkronisasi ke Google Sheet!");
+          } else {
+            setSyncStatus(`⚠️ Respon Apps Script: ${json.message || json.error || "Gagal sinkronisasi"}`);
+          }
+        } catch {
+          if (textResponse.includes("<!DOCTYPE") || textResponse.includes("<html") || textResponse.startsWith("The page")) {
+            setSyncStatus("❌ Gagal: Unexpected token 'T', \"The page c\"... is not valid JSON. Google Apps Script mengembalikan halaman HTML/Login. Buka panduan Solusi di bawah!");
+            setShowTroubleshooting(true);
+          } else {
+            setSyncStatus(`❌ Respon server bukan JSON: "${textResponse.slice(0, 80)}..."`);
+          }
+        }
       }
     } catch (err: any) {
-      setSyncStatus(`❌ Kesalahan: ${err.message}`);
+      setSyncStatus(`❌ Kesalahan koneksi: ${err.message}`);
     } finally {
       setSyncing(false);
     }
@@ -70,7 +132,7 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
             <div>
               <h3 className="font-bold text-lg leading-tight">Integrasi Google Sheets & Google Apps Script</h3>
               <p className="text-xs text-emerald-100">
-                Ekspor, Sinkronkan, atau Gunakan Google Sheet sebagai Database Utama
+                Hubungkan Google Sheet sebagai Database Utama & Tempat Penyimpanan Data Administrasi
               </p>
             </div>
           </div>
@@ -83,7 +145,7 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
         </div>
 
         {/* Content Body */}
-        <div className="p-6 space-y-6 overflow-y-auto flex-1 text-slate-700">
+        <div className="p-6 space-y-5 overflow-y-auto flex-1 text-slate-700">
           {/* Step 1: Apps Script Generator */}
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
             <div className="flex items-center justify-between mb-2">
@@ -92,7 +154,7 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
                   1
                 </span>
                 <h4 className="font-bold text-slate-800 text-sm">
-                  Google Apps Script Generator (Code.gs)
+                  Salin Kode Google Apps Script (Code.gs)
                 </h4>
               </div>
               <button
@@ -105,9 +167,9 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
               </button>
             </div>
             <p className="text-xs text-slate-600 mb-3">
-              Buka Google Sheet Anda &gt; menu <b>Ekstensi</b> &gt; <b>Apps Script</b>, lalu tempel kode di bawah ini untuk membuat Web App backend otomatis:
+              Buka Google Sheet Anda &gt; klik menu <b>Ekstensi</b> &gt; <b>Apps Script</b>. Hapus kode lama lalu tempel kode di bawah ini:
             </p>
-            <div className="relative bg-slate-900 rounded-lg p-3 overflow-x-auto max-h-48 border border-slate-800">
+            <div className="relative bg-slate-900 rounded-lg p-3 overflow-x-auto max-h-40 border border-slate-800">
               {loadingScript ? (
                 <div className="text-slate-400 text-xs py-4 text-center">Memuat skrip Apps Script...</div>
               ) : (
@@ -125,44 +187,88 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
                 2
               </span>
               <h4 className="font-bold text-slate-800 text-sm">
-                Hubungkan Web App URL Google Sheets
+                Isikan Google Sheets Web App Deployment URL
               </h4>
             </div>
             <p className="text-xs text-slate-600 mb-2.5">
-              Setelah mendeploy Apps Script sebagai <i>Web App (Siapa saja / Anyone)</i>, masukkan URL hasil deployment di bawah ini:
+              Masukkan <b>Web App URL</b> yang Anda dapatkan setelah klik <b>Deploy / Terapkan</b> di Google Apps Script (pilih <i>Akses: Siapa Saja / Anyone</i>):
             </p>
             <div className="flex gap-2">
               <input
                 type="text"
-                value={sheetsUrl}
-                onChange={(e) => onUpdateSheetsUrl(e.target.value)}
+                value={activeSheetsUrl}
+                onChange={(e) => handleUrlChange(e.target.value)}
                 placeholder="https://script.google.com/macros/s/AKfycb.../exec"
-                className="flex-1 px-3.5 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 bg-white"
+                className="flex-1 px-3.5 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 bg-white font-mono text-slate-800"
               />
               <button
                 type="button"
                 onClick={handleSyncNow}
-                disabled={syncing || !sheetsUrl}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 transition-colors shadow-sm"
+                disabled={syncing || !activeSheetsUrl}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 transition-colors shadow-sm whitespace-nowrap"
               >
                 {syncing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Database className="w-3.5 h-3.5" />}
                 {syncing ? "Menyinkronkan..." : "Sinkronkan Sekarang"}
               </button>
             </div>
+
             {syncStatus && (
-              <p
-                className={`text-xs mt-2.5 font-semibold ${
-                  syncStatus.startsWith("✅") ? "text-emerald-700" : "text-amber-700"
+              <div
+                className={`text-xs mt-3 p-3 rounded-lg border font-medium ${
+                  syncStatus.startsWith("✅")
+                    ? "bg-emerald-100/70 border-emerald-300 text-emerald-900"
+                    : "bg-rose-50 border-rose-200 text-rose-900"
                 }`}
               >
                 {syncStatus}
-              </p>
+              </div>
             )}
           </div>
 
-          {/* Guidelines note */}
-          <div className="text-xs text-slate-500 bg-amber-50 p-3.5 rounded-lg border border-amber-200/80">
-            💡 <b>Tips Administrasi Guru:</b> Anda juga dapat mengunduh format CSV / Excel di setiap modul halaman secara langsung untuk disimpan di laptop maupun Google Drive pribadi.
+          {/* Troubleshooting Section for Unexpected token T */}
+          <div className="bg-amber-50 rounded-xl border border-amber-200 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowTroubleshooting(!showTroubleshooting)}
+              className="w-full p-3.5 text-left flex items-center justify-between font-bold text-xs text-amber-900 hover:bg-amber-100/50 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600" />
+                Cara Mengatasi Error: <i>Unexpected token 'T', "The page c"... is not valid JSON</i>
+              </span>
+              {showTroubleshooting ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+
+            {showTroubleshooting && (
+              <div className="p-4 pt-0 text-xs text-amber-950 space-y-2.5 border-t border-amber-200/60 mt-1">
+                <p className="font-semibold text-rose-800">
+                  Penyebab Error: Google Apps Script mengembalikan halaman HTML Login/Akses Ditolak bukannya data JSON. Hal ini terjadi karena setting izin akses di Google Apps Script belum benar.
+                </p>
+                <div className="space-y-2 bg-white/80 p-3 rounded-lg border border-amber-200">
+                  <p className="font-bold text-slate-800">Langkah Perbaikan (Wajib Dilakukan di Google Apps Script):</p>
+                  <ol className="list-decimal list-inside space-y-1.5 text-slate-700 pl-1">
+                    <li>
+                      Buka Google Apps Script Editor Anda (menu <b>Ekstensi &gt; Apps Script</b> di Google Sheet).
+                    </li>
+                    <li>
+                      Klik tombol biru <b>Terapkan (Deploy)</b> di pojok kanan atas &gt; pilih <b>Kelola Deployment (Manage deployments)</b> atau <b>Deployment Baru</b>.
+                    </li>
+                    <li>
+                      Pada kolom <b>Akses (Who has access / Siapa yang memiliki akses)</b>, PASTIKAN memilih: <span className="bg-emerald-100 text-emerald-900 font-bold px-1.5 py-0.5 rounded">Siapa saja (Anyone)</span>. <i>Jangan pilih "Hanya saya" atau "Pemilik akun".</i>
+                    </li>
+                    <li>
+                      Pastikan URL yang disalin berakhiran <code className="bg-slate-100 px-1 font-bold text-indigo-700">/exec</code>, BUKAN <code className="bg-slate-100 px-1 text-rose-600 font-bold">/dev</code>.
+                    </li>
+                    <li>
+                      Jika sebelumnya Anda mengedit kode Apps Script, Anda Wajib melakukan <b>Deployment Baru (New Deployment)</b> agar perubahan kodenya aktif.
+                    </li>
+                    <li>
+                      Salin ulang URL Web App terbaru tersebut dan tempelkan pada kolom di atas, lalu klik <b>Sinkronkan Sekarang</b>.
+                    </li>
+                  </ol>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -180,3 +286,4 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
     </div>
   );
 };
+
