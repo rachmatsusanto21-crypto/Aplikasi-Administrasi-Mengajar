@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { FileSpreadsheet, Copy, Check, RefreshCw, X, Database, AlertTriangle, HelpCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { GASConfig } from "../types";
+import { DEFAULT_GAS_CODE } from "../lib/gasScriptConstant";
 
 interface GoogleSheetsModalProps {
   isOpen: boolean;
@@ -24,7 +25,7 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
   allData,
 }) => {
   const [copied, setCopied] = useState(false);
-  const [gasScript, setGasScript] = useState<string>("");
+  const [gasScript, setGasScript] = useState<string>(DEFAULT_GAS_CODE);
   const [loadingScript, setLoadingScript] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
@@ -42,13 +43,19 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
   };
 
   useEffect(() => {
-    if (isOpen && !gasScript) {
-      setLoadingScript(true);
+    if (isOpen) {
       fetch("/api/gas/script")
         .then((res) => res.text())
-        .then((text) => setGasScript(text))
-        .catch((err) => console.error("Error fetching GAS script:", err))
-        .finally(() => setLoadingScript(false));
+        .then((text) => {
+          if (text && (text.startsWith("/**") || text.includes("function doGet"))) {
+            setGasScript(text);
+          } else {
+            setGasScript(DEFAULT_GAS_CODE);
+          }
+        })
+        .catch(() => {
+          setGasScript(DEFAULT_GAS_CODE);
+        });
     }
   }, [isOpen]);
 
