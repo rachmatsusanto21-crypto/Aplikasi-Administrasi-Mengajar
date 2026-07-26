@@ -41,8 +41,8 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-2 sm:p-4 animate-fadeIn">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full flex flex-col max-h-[95vh] overflow-hidden border border-slate-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-2 sm:p-4 animate-fadeIn print-overlay">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full flex flex-col max-h-[95vh] overflow-hidden border border-slate-200 print-dialog">
         {/* Modal Controls Bar (Hidden during window.print) */}
         <div className="bg-slate-900 text-white p-4 flex flex-wrap items-center justify-between gap-3 no-print border-b border-slate-800">
           <div className="flex items-center space-x-2">

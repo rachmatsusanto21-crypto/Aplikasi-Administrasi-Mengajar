@@ -1,3 +1,111 @@
 @import "tailwindcss";
 
 @variant dark (&:where(.dark, .dark *));
+
+/* Global Print Styles for Full Multi-Page Document Printing */
+@media print {
+  /* Hide all non-printable elements on screen */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* Make printable area and its entire content visible */
+  .printable-area,
+  .printable-area * {
+    visibility: visible !important;
+  }
+
+  /* Reset modal overlays and bounds during print */
+  .print-overlay,
+  .print-dialog {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Flow printable area as a standard document filling all printed pages */
+  .printable-area {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 10mm 10mm !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Force all internal containers, tables, and wrappers to expand without scrollbars or clipped heights */
+  .printable-area div,
+  .printable-area section,
+  .printable-area main,
+  .printable-area table,
+  .printable-area tbody,
+  .printable-area tr,
+  .printable-area td {
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+  }
+
+  /* Hide elements marked no-print explicitly */
+  .no-print,
+  .no-print * {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Root page settings */
+  html, body {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Table and page break optimizations */
+  table {
+    page-break-inside: auto;
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  tfoot {
+    display: table-footer-group !important;
+  }
+
+  .break-inside-avoid {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  @page {
+    size: auto;
+    margin: 10mm;
+  }
+}
+

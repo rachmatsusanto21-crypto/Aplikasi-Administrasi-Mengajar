@@ -289,6 +289,7 @@ export type NavModule =
   | "curriculum"
   | "discipline"
   | "grades"
+  | "learning_analysis"
   | "timetable"
   | "incidental"
   | "daily_log"

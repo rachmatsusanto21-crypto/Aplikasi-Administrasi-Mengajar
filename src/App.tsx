@@ -61,6 +61,7 @@ import { DailyTeachingLogView } from "./components/modules/DailyTeachingLogView"
 import { AcademicCalendarView } from "./components/modules/AcademicCalendarView";
 import { ProtaPromesView } from "./components/modules/ProtaPromesView";
 import { TeachingModuleGeneratorView } from "./components/modules/TeachingModuleGeneratorView";
+import { LearningAnalysisView } from "./components/modules/LearningAnalysisView";
 
 export default function App() {
   const [activeModule, setActiveModule] = useState<NavModule>("identity");
@@ -358,6 +359,17 @@ export default function App() {
                 onAddSubject={handleAddCustomSubject}
                 onSaveGrades={setGrades}
                 onSaveDailyGrades={setDailyGrades}
+                onOpenPrint={handleOpenPrint}
+              />
+            )}
+
+            {activeModule === "learning_analysis" && (
+              <LearningAnalysisView
+                students={students}
+                cptpItems={cptpItems}
+                grades={grades}
+                dailyGrades={dailyGrades}
+                subjects={subjects}
                 onOpenPrint={handleOpenPrint}
               />
             )}

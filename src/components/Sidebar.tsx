@@ -15,6 +15,7 @@ import {
   X,
   Layers,
   CheckCircle2,
+  TrendingUp,
 } from "lucide-react";
 import { NavModule } from "../types";
 
@@ -53,6 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: "Pencatatan & Jurnal",
       items: [
         { id: "grades" as NavModule, label: "Rekap Nilai & Leger", icon: GraduationCap },
+        { id: "learning_analysis" as NavModule, label: "Analisis Hasil Belajar", icon: TrendingUp, highlight: true },
         { id: "discipline" as NavModule, label: "Pelanggaran & BK", icon: ShieldAlert },
         { id: "timetable" as NavModule, label: "Jadwal Pelajaran", icon: CalendarDays },
         { id: "daily_log" as NavModule, label: "Jurnal Mengajar Harian", icon: ClipboardList },
