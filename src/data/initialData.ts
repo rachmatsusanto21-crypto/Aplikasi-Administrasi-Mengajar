@@ -15,6 +15,7 @@ import {
   PromesItem,
   ModulAjar,
   AISettings,
+  UserAccount,
 } from "../types";
 
 export const initialSchoolIdentity: SchoolIdentity = {
@@ -417,6 +418,45 @@ export const initialGASConfig = {
   autoSync: false,
 };
 
+export const initialUsers: UserAccount[] = [
+  {
+    id: "usr-1",
+    name: "Rachmat Susanto, S.Pd.",
+    nip: "198811202014021003",
+    email: "rachmatsusanto21@guru.sd.belajar.id",
+    role: "Guru Kelas",
+    status: "Aktif",
+    phone: "081234567890",
+  },
+  {
+    id: "usr-2",
+    name: "Kepala Sekolah SDN Pisangcandi 1",
+    nip: "197501012000031001",
+    email: "kepala.pisangcandi1@sd.belajar.id",
+    role: "Kepala Sekolah",
+    status: "Aktif",
+    phone: "082198765432",
+  },
+  {
+    id: "usr-3",
+    name: "Budi Santoso, S.Kom.",
+    nip: "199203152019031005",
+    email: "operator.pisangcandi1@gmail.com",
+    role: "Operator Sekolah",
+    status: "Aktif",
+    phone: "085712345678",
+  },
+  {
+    id: "usr-4",
+    name: "Siti Rahmawati, S.Pd.SD",
+    nip: "199005122018012004",
+    email: "siti.rahmawati@guru.sd.belajar.id",
+    role: "Guru Mapel",
+    status: "Aktif",
+    phone: "081398761234",
+  },
+];
+
 // Aliases for uppercase imports
 export const INITIAL_SCHOOL_IDENTITY = initialSchoolIdentity;
 export const INITIAL_STUDENTS = initialStudents;
@@ -434,3 +474,4 @@ export const INITIAL_PROMES = initialPromes;
 export const INITIAL_TEACHING_MODULES = initialModulAjar;
 export const INITIAL_AI_SETTINGS = initialAISettings;
 export const INITIAL_GAS_CONFIG = initialGASConfig;
+export const INITIAL_USERS = initialUsers;

@@ -3,6 +3,17 @@ export type SemesterType = "Ganjil" | "Genap";
 export type LearningModelType = "PjBL" | "PBL" | "Discovery Learning" | "Inquiry" | "Cooperative Learning" | "Deep Learning (Mindful, Meaningful, Joyful)" | "STEM" | "Kombinasi";
 export type ModulCategoryType = "Intrakurikuler" | "Kokurikuler (P5)";
 
+export interface UserAccount {
+  id: string;
+  name: string;
+  nip: string;
+  email: string;
+  role: "Guru Kelas" | "Guru Mapel" | "Operator Sekolah" | "Kepala Sekolah" | "Admin Kurikulum";
+  status: "Aktif" | "Non-Aktif";
+  avatarUrl?: string;
+  phone?: string;
+}
+
 export interface SchoolIdentity {
   schoolName: string;
   npsn: string;

@@ -18,6 +18,7 @@ import {
   AISettings,
   GASConfig,
   NavModule,
+  UserAccount,
 } from "./types";
 import { DEFAULT_SUBJECTS } from "./constants/subjects";
 import {
@@ -37,6 +38,7 @@ import {
   INITIAL_TEACHING_MODULES,
   INITIAL_AI_SETTINGS,
   INITIAL_GAS_CONFIG,
+  INITIAL_USERS,
 } from "./data/initialData";
 import { loadFromStorage, saveToStorage } from "./lib/storage";
 
@@ -47,6 +49,7 @@ import { AIAgentModal } from "./components/AIAgentModal";
 import { GoogleSheetsModal } from "./components/GoogleSheetsModal";
 import { BackupModal } from "./components/BackupModal";
 import { PrintModal } from "./components/PrintModal";
+import { UserManagementModal } from "./components/UserManagementModal";
 
 // Modules
 import { SchoolIdentityView } from "./components/modules/SchoolIdentityView";
@@ -71,6 +74,7 @@ export default function App() {
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isGasModalOpen, setIsGasModalOpen] = useState(false);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
+  const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
   const [printState, setPrintState] = useState<{
     isOpen: boolean;
     title: string;
@@ -79,6 +83,9 @@ export default function App() {
   }>({ isOpen: false, title: "", subtitle: "", content: null });
 
   // App State with Persistence
+  const [users, setUsers] = useState<UserAccount[]>(() =>
+    loadFromStorage("usersList", INITIAL_USERS)
+  );
   const [schoolIdentity, setSchoolIdentity] = useState<SchoolIdentity>(() =>
     loadFromStorage("schoolIdentity", INITIAL_SCHOOL_IDENTITY)
   );
@@ -165,6 +172,10 @@ export default function App() {
   useEffect(() => {
     saveToStorage("schoolIdentity", schoolIdentity);
   }, [schoolIdentity]);
+
+  useEffect(() => {
+    saveToStorage("usersList", users);
+  }, [users]);
 
   useEffect(() => {
     saveToStorage("students", students);
@@ -287,6 +298,7 @@ export default function App() {
         onOpenAiModal={() => setIsAiModalOpen(true)}
         onOpenSheetsModal={() => setIsGasModalOpen(true)}
         onOpenBackupModal={() => setIsBackupModalOpen(true)}
+        onOpenUsersModal={() => setIsUsersModalOpen(true)}
       />
 
       <div className="flex flex-1 overflow-hidden relative">
@@ -506,6 +518,13 @@ export default function App() {
           promesList,
           teachingModules,
         }}
+      />
+
+      <UserManagementModal
+        isOpen={isUsersModalOpen}
+        onClose={() => setIsUsersModalOpen(false)}
+        users={users}
+        onSaveUsers={setUsers}
       />
 
       <PrintModal

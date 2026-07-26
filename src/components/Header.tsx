@@ -7,6 +7,7 @@ import {
   Sun,
   Moon,
   Database,
+  Users,
 } from "lucide-react";
 import { SchoolIdentity, AISettings } from "../types";
 
@@ -18,6 +19,7 @@ interface HeaderProps {
   onOpenAiModal: () => void;
   onOpenSheetsModal: () => void;
   onOpenBackupModal?: () => void;
+  onOpenUsersModal?: () => void;
   onToggleSidebar: () => void;
 }
 
@@ -29,6 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAiModal,
   onOpenSheetsModal,
   onOpenBackupModal,
+  onOpenUsersModal,
   onToggleSidebar,
 }) => {
   const selectedAgent = aiSettings?.selectedAgent || "gemini-3.6-flash";
@@ -81,6 +84,19 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
+          {/* User Management Button */}
+          {onOpenUsersModal && (
+            <button
+              type="button"
+              onClick={onOpenUsersModal}
+              title="Kelola Data User & Pengguna Pengampu"
+              className="p-1.5 sm:px-2.5 sm:py-1.5 bg-indigo-50 dark:bg-indigo-950/70 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800 rounded text-xs font-bold flex items-center gap-1.5 transition-colors"
+            >
+              <Users className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <span className="hidden md:inline">Data User</span>
+            </button>
+          )}
+
           {/* Theme Toggle Button */}
           <button
             type="button"

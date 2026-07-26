@@ -1,5 +1,15 @@
-import React, { useRef } from "react";
-import { Printer, X, FileText } from "lucide-react";
+import React, { useRef, useState } from "react";
+import {
+  Printer,
+  X,
+  FileText,
+  Edit3,
+  Check,
+  RotateCcw,
+  Sliders,
+  FileCheck,
+  FileCode,
+} from "lucide-react";
 import { SchoolIdentity } from "../types";
 import { KopSurat } from "./KopSurat";
 import { exportHtmlToDoc } from "../lib/exportDoc";
@@ -23,7 +33,48 @@ export const PrintModal: React.FC<PrintModalProps> = ({
 }) => {
   const contentRef = useRef<HTMLDivElement>(null);
 
+  // Document Section Selection
+  const [documentScope, setDocumentScope] = useState<
+    "ALL" | "HEADER_TITLE" | "BODY_ONLY" | "SIGNATURE_ONLY"
+  >("ALL");
+
+  // Paper Size & Orientation
+  const [paperSize, setPaperSize] = useState<"A4" | "F4" | "Letter" | "Legal">("A4");
+  const [orientation, setOrientation] = useState<"portrait" | "landscape">("portrait");
+
+  // Margin Configuration (in mm)
+  const [marginPreset, setMarginPreset] = useState<"normal" | "narrow" | "moderate" | "custom">("normal");
+  const [marginTop, setMarginTop] = useState<number>(20);
+  const [marginBottom, setMarginBottom] = useState<number>(20);
+  const [marginLeft, setMarginLeft] = useState<number>(20);
+  const [marginRight, setMarginRight] = useState<number>(20);
+
+  // Interactive Live Edit Mode
+  const [isEditable, setIsEditable] = useState<boolean>(false);
+  const [isEdited, setIsEdited] = useState<boolean>(false);
+
   if (!isOpen) return null;
+
+  // Handle preset margin changes
+  const handlePresetChange = (preset: "normal" | "narrow" | "moderate" | "custom") => {
+    setMarginPreset(preset);
+    if (preset === "normal") {
+      setMarginTop(20);
+      setMarginBottom(20);
+      setMarginLeft(20);
+      setMarginRight(20);
+    } else if (preset === "narrow") {
+      setMarginTop(10);
+      setMarginBottom(10);
+      setMarginLeft(10);
+      setMarginRight(10);
+    } else if (preset === "moderate") {
+      setMarginTop(15);
+      setMarginBottom(15);
+      setMarginLeft(15);
+      setMarginRight(15);
+    }
+  };
 
   const handlePrint = () => {
     window.print();
@@ -33,91 +84,271 @@ export const PrintModal: React.FC<PrintModalProps> = ({
     if (contentRef.current) {
       exportHtmlToDoc({
         htmlContent: contentRef.current.innerHTML,
-        filename: `${title.replace(/[^a-zA-Z0-0_]/g, "_")}.doc`,
+        filename: `${title.replace(/[^a-zA-Z0-9_]/g, "_")}.doc`,
         title,
         schoolIdentity,
       });
     }
   };
 
+  // Dimension helpers for paper preview box
+  const getPaperDimensionsClass = () => {
+    if (orientation === "landscape") {
+      return "max-w-5xl w-full";
+    }
+    return "max-w-4xl w-full";
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-2 sm:p-4 animate-fadeIn print-overlay">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full flex flex-col max-h-[95vh] overflow-hidden border border-slate-200 print-dialog">
-        {/* Modal Controls Bar (Hidden during window.print) */}
-        <div className="bg-slate-900 text-white p-4 flex flex-wrap items-center justify-between gap-3 no-print border-b border-slate-800">
-          <div className="flex items-center space-x-2">
-            <Printer className="w-5 h-5 text-emerald-400" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-2 sm:p-4 animate-fadeIn print-overlay overflow-y-auto">
+      <div className={`bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl shadow-2xl ${getPaperDimensionsClass()} flex flex-col max-h-[96vh] overflow-hidden border border-slate-200 dark:border-slate-800 print-dialog`}>
+        {/* Modal Header & Actions Bar (Hidden on window.print) */}
+        <div className="bg-slate-900 text-white p-3.5 sm:p-4 flex flex-wrap items-center justify-between gap-3 no-print border-b border-slate-800 shrink-0">
+          <div className="flex items-center space-x-2.5">
+            <div className="p-2 bg-emerald-500/20 rounded-xl border border-emerald-500/30">
+              <Printer className="w-5 h-5 text-emerald-400" />
+            </div>
             <div>
-              <h3 className="font-bold text-sm">Pratinjau Cetak / Ekspor Dokumen</h3>
-              <p className="text-[11px] text-slate-400">{title}</p>
+              <h3 className="font-extrabold text-sm sm:text-base">Pratinjau Cetak & Pengaturan Dokumen</h3>
+              <p className="text-xs text-slate-400">{title}</p>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
+
+          <div className="flex items-center gap-2">
+            {/* Live Editable Toggle Button */}
+            <button
+              onClick={() => setIsEditable(!isEditable)}
+              className={`px-3 py-1.5 font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition-all shadow-xs ${
+                isEditable
+                  ? "bg-amber-500 text-slate-950 hover:bg-amber-400 ring-2 ring-amber-300"
+                  : "bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700"
+              }`}
+              title="Aktifkan mode edit langsung pada pratinjau teks/tabel sebelum dicetak"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              <span>{isEditable ? "Mode Edit Aktif (Klik Teks)" : "Edit Teks Pratinjau"}</span>
+            </button>
+
+            {/* Word Export Button */}
             <button
               onClick={handleExportDoc}
-              className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 transition-colors shadow-md"
+              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition-colors shadow-xs"
               title="Unduh sebagai dokumen Word (.doc / .docx)"
             >
-              <FileText className="w-4 h-4" />
-              Simpan Word (.docx)
+              <FileText className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Simpan Word (.docx)</span>
             </button>
+
+            {/* Print / PDF Button */}
             <button
               onClick={handlePrint}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 transition-colors shadow-md"
-              title="Cetak atau Simpan sebagai PDF via dialog cetak browser"
+              className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition-colors shadow-xs"
+              title="Cetak atau Simpan sebagai PDF"
             >
-              <Printer className="w-4 h-4" />
-              Cetak / PDF
+              <Printer className="w-3.5 h-3.5" />
+              <span>Cetak / PDF</span>
             </button>
+
             <button
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Document Body (Visible in modal & print layout) */}
-        <div className="p-8 sm:p-12 overflow-y-auto flex-1 bg-white text-slate-900 printable-area font-sans">
-          {/* Kop Surat Resmi */}
-          <KopSurat schoolIdentity={schoolIdentity} />
-
-          {/* Document Title & Metadata */}
-          <div className="text-center mb-6">
-            <h3 className="text-lg font-bold uppercase underline tracking-wider text-slate-900">
-              {title}
-            </h3>
-            {subtitle && <p className="text-xs text-slate-600 font-medium mt-1">{subtitle}</p>}
-            <div className="flex justify-between items-center text-xs text-slate-700 mt-3 pt-2 border-t border-slate-200">
-              <div>
-                <b>Tahun Pelajaran:</b> {schoolIdentity.academicYear} | <b>Semester:</b> {schoolIdentity.semester}
-              </div>
-              <div>
-                <b>Kelas/Fase:</b> {schoolIdentity.gradeClass} ({schoolIdentity.phase})
-              </div>
-            </div>
+        {/* Print Configuration Control Panel (No-Print Toolbar) */}
+        <div className="bg-slate-100 dark:bg-slate-950/80 p-3 border-b border-slate-200 dark:border-slate-800 no-print flex flex-wrap items-center justify-between gap-3 text-xs font-semibold shrink-0">
+          {/* Document Section Selector */}
+          <div className="flex items-center gap-2">
+            <label className="text-slate-600 dark:text-slate-400 font-bold whitespace-nowrap flex items-center gap-1">
+              <FileCheck className="w-3.5 h-3.5 text-indigo-500" />
+              Cetak Bagian:
+            </label>
+            <select
+              value={documentScope}
+              onChange={(e) => setDocumentScope(e.target.value as any)}
+              className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg font-bold text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="ALL">Semua Bagian (Lengkap)</option>
+              <option value="HEADER_TITLE">Hanya Kop & Judul Dokumen</option>
+              <option value="BODY_ONLY">Hanya Isi Utama / Tabel Data</option>
+              <option value="SIGNATURE_ONLY">Hanya Lembar Tanda Tangan</option>
+            </select>
           </div>
 
-          {/* Document Dynamic Content */}
-          <div ref={contentRef} className="my-4 text-xs sm:text-sm leading-relaxed text-slate-900">
-            {children}
+          {/* Paper Size & Orientation */}
+          <div className="flex items-center gap-2">
+            <label className="text-slate-600 dark:text-slate-400 font-bold whitespace-nowrap">
+              Kertas:
+            </label>
+            <select
+              value={paperSize}
+              onChange={(e) => setPaperSize(e.target.value as any)}
+              className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg font-bold text-slate-800 dark:text-slate-200"
+            >
+              <option value="A4">A4 (210 x 297 mm)</option>
+              <option value="F4">F4 / Folio (215 x 330 mm)</option>
+              <option value="Letter">Letter (216 x 279 mm)</option>
+              <option value="Legal">Legal (216 x 356 mm)</option>
+            </select>
+
+            <select
+              value={orientation}
+              onChange={(e) => setOrientation(e.target.value as any)}
+              className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg font-bold text-slate-800 dark:text-slate-200"
+            >
+              <option value="portrait">Tegak (Portrait)</option>
+              <option value="landscape">Mendatar (Landscape)</option>
+            </select>
           </div>
 
-          {/* Signature Block */}
-          <div className="mt-12 pt-6 grid grid-cols-2 gap-8 text-center text-xs text-slate-900 break-inside-avoid">
-            <div>
-              <p>Mengetahui,</p>
-              <p className="font-semibold mb-16">Kepala Sekolah {schoolIdentity.schoolName}</p>
-              <p className="font-bold underline uppercase">{schoolIdentity.headmasterName}</p>
-              <p className="text-[11px] text-slate-700">NIP. {schoolIdentity.headmasterNip}</p>
-            </div>
-            <div>
-              <p>{schoolIdentity.regency || schoolIdentity.district || "Malang"}, {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</p>
-              <p className="font-semibold mb-16">Guru Kelas / Mata Pelajaran</p>
-              <p className="font-bold underline uppercase">{schoolIdentity.teacherName}</p>
-              <p className="text-[11px] text-slate-700">NIP. {schoolIdentity.teacherNip}</p>
-            </div>
+          {/* Margin Editor Controls */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <label className="text-slate-600 dark:text-slate-400 font-bold whitespace-nowrap flex items-center gap-1">
+              <Sliders className="w-3.5 h-3.5 text-indigo-500" />
+              Margin:
+            </label>
+
+            {/* Presets */}
+            <select
+              value={marginPreset}
+              onChange={(e) => handlePresetChange(e.target.value as any)}
+              className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg font-bold text-slate-800 dark:text-slate-200"
+            >
+              <option value="normal">Normal (20mm)</option>
+              <option value="narrow">Sempit (10mm)</option>
+              <option value="moderate">Sedang (15mm)</option>
+              <option value="custom">Kustom mm</option>
+            </select>
+
+            {/* Custom Margin Inputs */}
+            {marginPreset === "custom" && (
+              <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1 rounded-lg border border-slate-300 dark:border-slate-700">
+                <span className="text-[11px] text-slate-500">Atas:</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={50}
+                  value={marginTop}
+                  onChange={(e) => setMarginTop(Number(e.target.value))}
+                  className="w-10 text-center font-bold bg-transparent border-b border-slate-400"
+                />
+                <span className="text-[11px] text-slate-500">Bawah:</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={50}
+                  value={marginBottom}
+                  onChange={(e) => setMarginBottom(Number(e.target.value))}
+                  className="w-10 text-center font-bold bg-transparent border-b border-slate-400"
+                />
+                <span className="text-[11px] text-slate-500">Kiri:</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={50}
+                  value={marginLeft}
+                  onChange={(e) => setMarginLeft(Number(e.target.value))}
+                  className="w-10 text-center font-bold bg-transparent border-b border-slate-400"
+                />
+                <span className="text-[11px] text-slate-500">Kanan:</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={50}
+                  value={marginRight}
+                  onChange={(e) => setMarginRight(Number(e.target.value))}
+                  className="w-10 text-center font-bold bg-transparent border-b border-slate-400"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Live Edit Mode Banner Notification */}
+        {isEditable && (
+          <div className="no-print bg-amber-500/20 dark:bg-amber-950/50 border-b border-amber-500/40 p-2 text-center text-xs text-amber-900 dark:text-amber-200 font-bold flex items-center justify-center gap-2">
+            <Edit3 className="w-4 h-4 text-amber-600 dark:text-amber-400 animate-bounce" />
+            <span>
+              Mode Edit Aktif: Anda dapat mengklik dan mengubah teks/tabel secara langsung di area pratinjau di bawah ini sebelum dicetak!
+            </span>
+          </div>
+        )}
+
+        {/* Printable Paper Canvas */}
+        <div className="p-4 sm:p-8 overflow-y-auto flex-1 bg-slate-200 dark:bg-slate-950 flex justify-center">
+          <div
+            style={{
+              paddingTop: `${marginTop}mm`,
+              paddingBottom: `${marginBottom}mm`,
+              paddingLeft: `${marginLeft}mm`,
+              paddingRight: `${marginRight}mm`,
+            }}
+            className={`bg-white text-slate-900 shadow-xl rounded-sm w-full printable-area font-sans transition-all min-h-[297mm] ${
+              isEditable
+                ? "ring-4 ring-amber-400 ring-offset-2 outline-none cursor-text"
+                : ""
+            }`}
+            contentEditable={isEditable}
+            suppressContentEditableWarning={true}
+            onInput={() => setIsEdited(true)}
+          >
+            {/* Kop Surat Resmi */}
+            {(documentScope === "ALL" || documentScope === "HEADER_TITLE") && (
+              <KopSurat schoolIdentity={schoolIdentity} />
+            )}
+
+            {/* Document Title & Metadata */}
+            {(documentScope === "ALL" || documentScope === "HEADER_TITLE") && (
+              <div className="text-center mb-6">
+                <h3 className="text-lg font-bold uppercase underline tracking-wider text-slate-900">
+                  {title}
+                </h3>
+                {subtitle && <p className="text-xs text-slate-600 font-medium mt-1">{subtitle}</p>}
+                <div className="flex justify-between items-center text-xs text-slate-700 mt-3 pt-2 border-t border-slate-200">
+                  <div>
+                    <b>Tahun Pelajaran:</b> {schoolIdentity.academicYear} | <b>Semester:</b> {schoolIdentity.semester}
+                  </div>
+                  <div>
+                    <b>Kelas/Fase:</b> {schoolIdentity.gradeClass} ({schoolIdentity.phase})
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Document Dynamic Content */}
+            {(documentScope === "ALL" || documentScope === "BODY_ONLY") && (
+              <div ref={contentRef} className="my-4 text-xs sm:text-sm leading-relaxed text-slate-900">
+                {children}
+              </div>
+            )}
+
+            {/* Signature Block */}
+            {(documentScope === "ALL" || documentScope === "SIGNATURE_ONLY") && (
+              <div className="mt-12 pt-6 grid grid-cols-2 gap-8 text-center text-xs text-slate-900 break-inside-avoid">
+                <div>
+                  <p>Mengetahui,</p>
+                  <p className="font-semibold mb-16">Kepala Sekolah {schoolIdentity.schoolName}</p>
+                  <p className="font-bold underline uppercase">{schoolIdentity.headmasterName}</p>
+                  <p className="text-xs text-slate-700">NIP. {schoolIdentity.headmasterNip}</p>
+                </div>
+                <div>
+                  <p>
+                    {schoolIdentity.regency || schoolIdentity.district || "Malang"},{" "}
+                    {new Date().toLocaleDateString("id-ID", {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </p>
+                  <p className="font-semibold mb-16">Guru Kelas / Mata Pelajaran</p>
+                  <p className="font-bold underline uppercase">{schoolIdentity.teacherName}</p>
+                  <p className="text-xs text-slate-700">NIP. {schoolIdentity.teacherNip}</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

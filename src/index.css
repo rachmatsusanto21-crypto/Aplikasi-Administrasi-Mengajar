@@ -43,12 +43,25 @@
   border-color: #334155 !important; /* slate-700 */
 }
 
-.dark input,
-.dark select,
-.dark textarea {
+/* Fix select option & dropdown menu colors in dark mode */
+.dark option {
   background-color: #0f172a !important;
   color: #f8fafc !important;
-  border-color: #475569 !important;
+}
+
+.dark .bg-white\/80,
+.dark .bg-white\/90,
+.dark .bg-white\/95 {
+  background-color: rgba(30, 41, 59, 0.95) !important;
+  color: #f8fafc !important;
+}
+
+/* Ensure minimum 12px legible font size across menus, tables & inputs */
+.text-\[9px\],
+.text-\[10px\],
+.text-\[11px\] {
+  font-size: 0.75rem !important; /* 12px minimum */
+  line-height: 1rem !important;
 }
 
 .dark table thead tr {
