@@ -116,22 +116,24 @@ export const TimetableScheduleView: React.FC<TimetableScheduleViewProps> = ({
     e.preventDefault();
     if (!form.subject) return;
 
-    if (editingId) {
-      const updated = timetable.map((t) =>
-        t.id === editingId ? ({ ...t, ...form } as TimetableSlot) : t
-      );
-      onSaveTimetable(updated);
-    } else {
-      const newSlot: TimetableSlot = {
-        id: "tt_" + Date.now(),
-        day: form.day as any,
-        period: form.period || 1,
-        timeRange: form.timeRange || "07.00 - 07.35",
-        subject: form.subject || "",
-        roomOrTeacher: form.roomOrTeacher || "",
-      };
-      onSaveTimetable([...timetable, newSlot]);
-    }
+    const targetDay = form.day as string;
+    const targetPeriod = form.period || 1;
+
+    // Remove any existing slot with same ID or same (day, period) to prevent duplicate rows
+    const cleaned = (timetable || []).filter(
+      (t) => t.id !== editingId && !(t.day === targetDay && t.period === targetPeriod)
+    );
+
+    const savedSlot: TimetableSlot = {
+      id: editingId || "tt_" + Date.now(),
+      day: targetDay as any,
+      period: targetPeriod,
+      timeRange: form.timeRange || getDefaultTimeRange(targetPeriod),
+      subject: form.subject || "",
+      roomOrTeacher: form.roomOrTeacher || "",
+    };
+
+    onSaveTimetable([...cleaned, savedSlot]);
     setIsModalOpen(false);
   };
 

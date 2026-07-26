@@ -131,10 +131,25 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
       };
     });
 
-    timetable.forEach((slot) => {
-      if (slot.subject && subjectDaySlots[slot.subject]) {
-        if (subjectDaySlots[slot.subject][slot.day] !== undefined) {
-          subjectDaySlots[slot.subject][slot.day] += 1; // 1 JP per slot
+    // Normalize subject strings to eliminate whitespace/casing mismatches
+    const normalizeSub = (str: string) => (str || "").toLowerCase().trim().replace(/\s+/g, " ");
+
+    // Deduplicate slots by unique key `${slot.day}_${slot.period}` to prevent duplicate entries
+    const uniqueSlotsMap = new Map<string, TimetableSlot>();
+    (timetable || []).forEach((slot) => {
+      if (slot.day && slot.period && slot.subject && slot.subject.trim() !== "") {
+        const key = `${slot.day.trim()}_${slot.period}`;
+        uniqueSlotsMap.set(key, slot);
+      }
+    });
+
+    uniqueSlotsMap.forEach((slot) => {
+      const slotSubNorm = normalizeSub(slot.subject);
+      const matchedSub = subjects.find((s) => normalizeSub(s) === slotSubNorm);
+      if (matchedSub && subjectDaySlots[matchedSub]) {
+        const dayKey = slot.day.trim();
+        if (subjectDaySlots[matchedSub][dayKey] !== undefined) {
+          subjectDaySlots[matchedSub][dayKey] += 1; // 1 JP per period slot
         }
       }
     });
