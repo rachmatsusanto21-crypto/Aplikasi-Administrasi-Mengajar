@@ -1,59 +1,102 @@
 @import "tailwindcss";
 
-@variant dark (&:where(.dark, .dark *));
-
-/* Comprehensive Dark Mode Legibility Rules */
-.dark body {
-  background-color: #0f172a !important; /* slate-900 */
-  color: #f8fafc !important; /* slate-50 */
+@theme {
+  --color-brand-primary: #F5F7FA;
+  --color-brand-secondary: #5B53A2;
+  --color-brand-accent: #56A4B3;
+  --color-brand-background: #F5F1F8;
+  --color-brand-text: #1A2825;
 }
 
-/* Ensure white cards become dark slate containers with visible text in Dark Mode */
+@variant dark (&:where(.dark, .dark *));
+
+.dark {
+  --color-brand-primary: #5A057B;
+  --color-brand-secondary: #23042F;
+  --color-brand-accent: #8F25B7;
+  --color-brand-background: #F6F1F8;
+  --color-brand-text: #241A28;
+}
+
+/* Base Body Styles */
+body {
+  background-color: var(--color-brand-background);
+  color: var(--color-brand-text);
+}
+
+.dark body {
+  background-color: #23042F !important; /* brand-secondary */
+  color: #F6F1F8 !important; /* brand-background */
+}
+
+/* Ensure white cards & containers adapt seamlessly in Dark Mode using brand palette */
 .dark .bg-white {
-  background-color: #1e293b !important; /* slate-800 */
-  color: #f8fafc !important;
+  background-color: #320743 !important;
+  color: #F6F1F8 !important;
+}
+
+.dark .bg-slate-900,
+.dark .bg-slate-950 {
+  background-color: #23042F !important;
+  color: #F6F1F8 !important;
+}
+
+.dark .bg-slate-800 {
+  background-color: #3C0951 !important;
+  color: #F6F1F8 !important;
 }
 
 .dark .bg-slate-50,
+.dark .bg-slate-100,
 .dark .bg-slate-100/50,
 .dark .bg-slate-50/50,
 .dark .bg-slate-50/60 {
-  background-color: #0f172a !important; /* slate-900 */
-  color: #f1f5f9 !important;
+  background-color: #2A0439 !important;
+  color: #F6F1F8 !important;
 }
 
 .dark .text-slate-900,
 .dark .text-slate-800,
 .dark .text-slate-700 {
-  color: #f8fafc !important;
+  color: #F6F1F8 !important;
 }
 
 .dark .text-slate-600,
 .dark .text-slate-500 {
-  color: #cbd5e1 !important;
+  color: #E6D8EE !important;
 }
 
 .dark .text-slate-400 {
-  color: #94a3b8 !important;
+  color: #CDAEDD !important;
 }
 
+.dark .border-slate-800,
+.dark .border-slate-700,
 .dark .border-slate-200,
 .dark .border-slate-100,
 .dark .border-slate-300 {
-  border-color: #334155 !important; /* slate-700 */
+  border-color: #5A057B !important; /* brand-primary */
 }
 
-/* Fix select option & dropdown menu colors in dark mode */
+/* Fix select option, inputs & dropdown menu colors in dark mode */
 .dark option {
-  background-color: #0f172a !important;
-  color: #f8fafc !important;
+  background-color: #23042F !important;
+  color: #F6F1F8 !important;
+}
+
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: #3C0951 !important;
+  color: #F6F1F8 !important;
+  border-color: #8F25B7 !important;
 }
 
 .dark .bg-white\/80,
 .dark .bg-white\/90,
 .dark .bg-white\/95 {
-  background-color: rgba(30, 41, 59, 0.95) !important;
-  color: #f8fafc !important;
+  background-color: rgba(35, 4, 47, 0.95) !important;
+  color: #F6F1F8 !important;
 }
 
 /* Ensure minimum 12px legible font size across menus, tables & inputs */
@@ -65,12 +108,12 @@
 }
 
 .dark table thead tr {
-  background-color: #0f172a !important;
-  color: #f8fafc !important;
+  background-color: #5A057B !important; /* brand-primary */
+  color: #F6F1F8 !important;
 }
 
 .dark table tbody tr:hover {
-  background-color: #334155 !important;
+  background-color: #480663 !important;
 }
 
 /* Global Print Styles for Full Multi-Page Document Printing */
