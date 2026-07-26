@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { Student, IncidentRecord } from "../../types";
-import { ShieldAlert, Plus, Search, Trash2, Edit2, Printer, Download, CheckCircle, AlertTriangle, Heart, BarChart2, UserCheck, X } from "lucide-react";
+import { ShieldAlert, Plus, Search, Trash2, Edit2, Printer, Download, CheckCircle, AlertTriangle, Heart, BarChart2, UserCheck, X, FileText } from "lucide-react";
 import { exportToCSV } from "../../lib/storage";
+import { exportHtmlToDoc } from "../../lib/exportDoc";
 
 interface DisciplineBKViewProps {
   students: Student[];
@@ -122,6 +123,49 @@ export const DisciplineBKView: React.FC<DisciplineBKViewProps> = ({
       inc.status,
     ]);
     exportToCSV(headers, rows, "Catatan_BK_Dan_Pelanggaran");
+  };
+
+  const handleExportDoc = () => {
+    const tableHtml = `
+      <table border="1" cellpadding="5" cellspacing="0" style="width:100%; border-collapse:collapse; font-size:10pt;">
+        <thead>
+          <tr style="background-color:#f3f4f6; font-weight:bold;">
+            <th style="border:1px solid #333; padding:5px; text-align:center;">No</th>
+            <th style="border:1px solid #333; padding:5px; text-align:center;">Tanggal</th>
+            <th style="border:1px solid #333; padding:5px; text-align:left;">Nama Murid</th>
+            <th style="border:1px solid #333; padding:5px; text-align:center;">Jenis</th>
+            <th style="border:1px solid #333; padding:5px; text-align:center;">Kategori</th>
+            <th style="border:1px solid #333; padding:5px; text-align:left;">Kejadian/Perilaku</th>
+            <th style="border:1px solid #333; padding:5px; text-align:left;">Tindakan/Solusi</th>
+            <th style="border:1px solid #333; padding:5px; text-align:center;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filteredIncidents
+            .map(
+              (inc, idx) => `
+            <tr>
+              <td style="border:1px solid #333; padding:5px; text-align:center;">${idx + 1}</td>
+              <td style="border:1px solid #333; padding:5px; text-align:center;">${inc.date}</td>
+              <td style="border:1px solid #333; padding:5px;">${getStudentName(inc.studentId)}</td>
+              <td style="border:1px solid #333; padding:5px; text-align:center;">${inc.type}</td>
+              <td style="border:1px solid #333; padding:5px; text-align:center;">${inc.category}</td>
+              <td style="border:1px solid #333; padding:5px;">${inc.description}</td>
+              <td style="border:1px solid #333; padding:5px;">${inc.actionTaken}</td>
+              <td style="border:1px solid #333; padding:5px; text-align:center;">${inc.status}</td>
+            </tr>
+          `
+            )
+            .join("")}
+        </tbody>
+      </table>
+    `;
+
+    exportHtmlToDoc({
+      htmlContent: tableHtml,
+      filename: "Catatan_Kedisiplinan_BK.doc",
+      title: "JURNAL CATATAN KEDISIPLINAN & BIMBINGAN KONSELING",
+    });
   };
 
   // Printable Classical Rekap Report
@@ -310,10 +354,19 @@ export const DisciplineBKView: React.FC<DisciplineBKViewProps> = ({
 
           <button
             onClick={handleExportCSV}
-            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 flex items-center gap-1"
-            title="Export CSV"
+            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 flex items-center gap-1.5"
+            title="Ekspor ke Excel / CSV"
           >
             <Download className="w-4 h-4" />
+            Excel / CSV
+          </button>
+          <button
+            onClick={handleExportDoc}
+            className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors"
+            title="Simpan dalam bentuk Word (.docx / .doc)"
+          >
+            <FileText className="w-4 h-4 text-blue-600" />
+            Simpan Word (.docx)
           </button>
         </div>
       </div>

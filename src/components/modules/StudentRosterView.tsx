@@ -1,7 +1,8 @@
 import React, { useState, useRef } from "react";
 import { Student } from "../../types";
-import { Users, Plus, Trash2, Edit2, Download, Upload, Search, Printer, Check, X, UserPlus, Columns } from "lucide-react";
+import { Users, Plus, Trash2, Edit2, Download, Upload, Search, Printer, Check, X, UserPlus, Columns, FileText } from "lucide-react";
 import { exportToCSV, exportDataToJSON } from "../../lib/storage";
+import { exportHtmlToDoc } from "../../lib/exportDoc";
 
 interface StudentRosterViewProps {
   students: Student[];
@@ -217,6 +218,45 @@ export const StudentRosterView: React.FC<StudentRosterViewProps> = ({
     exportToCSV(headers, rows, "Daftar_Murid_Kelas");
   };
 
+  const handleExportDoc = () => {
+    const tableHtml = `
+      <table border="1" cellpadding="5" cellspacing="0" style="width:100%; border-collapse:collapse; font-size:10pt;">
+        <thead>
+          <tr style="background-color:#f3f4f6; font-weight:bold;">
+            <th style="border:1px solid #333; padding:5px; text-align:center;">No</th>
+            <th style="border:1px solid #333; padding:5px; text-align:center;">NIS</th>
+            <th style="border:1px solid #333; padding:5px; text-align:center;">NISN</th>
+            <th style="border:1px solid #333; padding:5px; text-align:left;">Nama Lengkap Murid</th>
+            <th style="border:1px solid #333; padding:5px; text-align:center;">JK</th>
+            ${customColumns.map((col) => `<th style="border:1px solid #333; padding:5px; text-align:left;">${col}</th>`).join("")}
+          </tr>
+        </thead>
+        <tbody>
+          ${students
+            .map(
+              (s, idx) => `
+            <tr>
+              <td style="border:1px solid #333; padding:5px; text-align:center;">${idx + 1}</td>
+              <td style="border:1px solid #333; padding:5px; text-align:center;">${s.nis || "-"}</td>
+              <td style="border:1px solid #333; padding:5px; text-align:center;">${s.nisn || "-"}</td>
+              <td style="border:1px solid #333; padding:5px;">${s.name}</td>
+              <td style="border:1px solid #333; padding:5px; text-align:center;">${s.gender}</td>
+              ${customColumns.map((col) => `<td style="border:1px solid #333; padding:5px;">${s.customFields?.[col] || "-"}</td>`).join("")}
+            </tr>
+          `
+            )
+            .join("")}
+        </tbody>
+      </table>
+    `;
+
+    exportHtmlToDoc({
+      htmlContent: tableHtml,
+      filename: "Daftar_Induk_Murid.doc",
+      title: "DAFTAR INDUK MURID KELAS",
+    });
+  };
+
   const handlePrint = () => {
     onOpenPrint(
       "DAFTAR INDUK MURID KELAS",
@@ -310,16 +350,26 @@ export const StudentRosterView: React.FC<StudentRosterViewProps> = ({
           <button
             onClick={handleExportCSV}
             className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl flex items-center gap-1.5 border border-slate-300"
+            title="Ekspor ke Excel / CSV"
           >
             <Download className="w-4 h-4" />
-            Export CSV
+            Excel / CSV
+          </button>
+          <button
+            onClick={handleExportDoc}
+            className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors"
+            title="Simpan dalam bentuk Word (.docx / .doc)"
+          >
+            <FileText className="w-4 h-4 text-blue-600" />
+            Simpan Word (.docx)
           </button>
           <button
             onClick={handlePrint}
-            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl flex items-center gap-1.5 border border-slate-300"
+            className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-colors"
+            title="Cetak Laporan / PDF"
           >
             <Printer className="w-4 h-4" />
-            Cetak
+            Cetak / PDF
           </button>
         </div>
       </div>

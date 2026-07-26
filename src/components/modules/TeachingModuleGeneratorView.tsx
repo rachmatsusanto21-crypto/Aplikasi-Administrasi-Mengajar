@@ -3,6 +3,8 @@ import { TeachingModule, AISettings, SchoolIdentity, Student, ActivityTableRow, 
 import { Sparkles, Trash2, Download, Printer, Layers, FileText, CheckCircle2, UserCheck, HelpCircle } from "lucide-react";
 import { exportDataToJSON } from "../../lib/storage";
 import { generateAIContent } from "../../lib/aiHelper";
+import { exportHtmlToDoc } from "../../lib/exportDoc";
+import { KopSurat } from "../KopSurat";
 
 interface TeachingModuleGeneratorViewProps {
   schoolIdentity: SchoolIdentity;
@@ -634,24 +636,27 @@ Format Output HARUS berupa JSON murni tanpa markdown lain:
     }
   };
 
+  const handleExportDoc = () => {
+    if (!activeModule) return;
+    onOpenPrint(
+      `MODUL AJAR KURIKULUM MERDEKA (${(activeModule.moduleType || "INTRAKURIKULER").toUpperCase()})`,
+      `${activeModule.subject} - ${activeModule.targetClass} | Model: ${activeModule.learningModel}`,
+      renderDocumentContent(activeModule)
+    );
+  };
+
   // Render document component shared for Preview and Print
   const renderDocumentContent = (mod: TeachingModule) => {
     const studentGrades = getFullStudentGradeList(students);
 
     return (
       <div className="space-y-6 text-[12px] font-sans leading-normal text-slate-900 bg-white p-2">
-        {/* Document Header */}
-        <div className="text-center border-b-2 border-slate-900 pb-3 space-y-1">
-          <h2 className="font-bold text-sm uppercase tracking-wide">
-            MODUL AJAR KURIKULUM MERDEKA ({mod.moduleType.toUpperCase()})
-          </h2>
-          <p className="font-semibold text-[12px]">
-            {schoolIdentity?.schoolName || "SATUAN PENDIDIKAN DUKUNGAN"} • KELAS/FASE: {mod.targetClass.toUpperCase()}
-          </p>
-          <p className="text-[12px] text-slate-700">
-            MATA PELAJARAN / TEMA: <b>{mod.subject}</b> | ALOKASI WAKTU: <b>{mod.allocationJP}</b>
-          </p>
-        </div>
+        {/* Kop Surat Resmi */}
+        <KopSurat
+          schoolIdentity={schoolIdentity}
+          title={`MODUL AJAR KURIKULUM MERDEKA (${mod.moduleType.toUpperCase()})`}
+          subtitle={`${mod.subject} • ${mod.targetClass} | ALOKASI WAKTU: ${mod.allocationJP}`}
+        />
 
         {/* I. INFORMASI UMUM */}
         <div className="border border-slate-300 rounded p-3 space-y-2 bg-slate-50/50">
@@ -1132,7 +1137,7 @@ Format Output HARUS berupa JSON murni tanpa markdown lain:
                   <h3 className="text-lg font-bold text-slate-900">{activeModule.title}</h3>
                 </div>
 
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={handleExportJSON}
                     className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 flex items-center gap-1"
@@ -1141,11 +1146,28 @@ Format Output HARUS berupa JSON murni tanpa markdown lain:
                     Ekspor JSON
                   </button>
                   <button
+                    onClick={() => {
+                      if (activeModule) {
+                        exportHtmlToDoc({
+                          htmlContent: document.querySelector(".printable-area")?.innerHTML || "",
+                          filename: `Modul_Ajar_${activeModule.title.replace(/[^a-zA-Z0-9_]/g, "_")}.doc`,
+                          title: `MODUL AJAR KURIKULUM MERDEKA (${(activeModule.moduleType || "INTRAKURIKULER").toUpperCase()})`,
+                          schoolIdentity,
+                        });
+                      }
+                    }}
+                    className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-1.5"
+                    title="Simpan Modul Ajar dalam bentuk Word DOC / DOCX"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Simpan Word (.docx)
+                  </button>
+                  <button
                     onClick={handlePrint}
                     className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-1.5"
                   >
                     <Printer className="w-4 h-4" />
-                    Cetak Modul Ajar
+                    Cetak / PDF
                   </button>
                 </div>
               </div>

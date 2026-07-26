@@ -15,7 +15,11 @@ export interface SchoolIdentity {
   email: string;
   phone: string;
   logoUrl: string;
+  logoLeftUrl?: string;
+  logoRightUrl?: string;
   academicYear: string;
+  academicYearStartDate?: string; // YYYY-MM-DD
+  academicYearEndDate?: string;   // YYYY-MM-DD
   semester: SemesterType;
   phase: PhaseType;
   gradeClass: string;
@@ -74,6 +78,19 @@ export interface GradeRecord {
   tpScores: Record<string, number>; // tpCode -> score (e.g. "TP1": 85)
   midSummative?: number;
   finalSummative?: number;
+}
+
+export type GradeAssessmentType = "Tugas" | "Ulangan Harian" | "STS" | "SAS";
+
+export interface DailyGradeEntry {
+  id: string;
+  studentId: string;
+  subject: string;
+  tpCode: string;
+  tpDescription?: string;
+  assessmentType: GradeAssessmentType;
+  dateFormatted: string; // dd/m format, e.g. "25/7"
+  score: number;
 }
 
 export interface TimetableSlot {

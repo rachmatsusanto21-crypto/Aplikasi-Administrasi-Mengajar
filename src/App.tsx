@@ -6,6 +6,7 @@ import {
   CPTPItem,
   IncidentRecord,
   GradeRecord,
+  DailyGradeEntry,
   TimetableSlot,
   GuestBookEntry,
   IncidentalJournalEntry,
@@ -18,6 +19,7 @@ import {
   GASConfig,
   NavModule,
 } from "./types";
+import { DEFAULT_SUBJECTS } from "./constants/subjects";
 import {
   INITIAL_SCHOOL_IDENTITY,
   INITIAL_STUDENTS,
@@ -43,6 +45,7 @@ import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { AIAgentModal } from "./components/AIAgentModal";
 import { GoogleSheetsModal } from "./components/GoogleSheetsModal";
+import { BackupModal } from "./components/BackupModal";
 import { PrintModal } from "./components/PrintModal";
 
 // Modules
@@ -66,6 +69,7 @@ export default function App() {
   // Modals
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isGasModalOpen, setIsGasModalOpen] = useState(false);
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
   const [printState, setPrintState] = useState<{
     isOpen: boolean;
     title: string;
@@ -92,6 +96,16 @@ export default function App() {
   const [grades, setGrades] = useState<GradeRecord[]>(() =>
     loadFromStorage("grades", INITIAL_GRADES)
   );
+  const [dailyGrades, setDailyGrades] = useState<DailyGradeEntry[]>(() =>
+    loadFromStorage("dailyGrades", [])
+  );
+  const [subjects, setSubjects] = useState<string[]>(() => {
+    const loaded = loadFromStorage<string[]>("customSubjects", []);
+    const combined = Array.from(
+      new Set([...DEFAULT_SUBJECTS, ...(Array.isArray(loaded) ? loaded : [])])
+    );
+    return combined;
+  });
   const [timetable, setTimetable] = useState<TimetableSlot[]>(() =>
     loadFromStorage("timetable", INITIAL_TIMETABLE)
   );
@@ -172,6 +186,24 @@ export default function App() {
   }, [grades]);
 
   useEffect(() => {
+    saveToStorage("dailyGrades", dailyGrades);
+  }, [dailyGrades]);
+
+  useEffect(() => {
+    saveToStorage(
+      "customSubjects",
+      subjects.filter((s) => !DEFAULT_SUBJECTS.includes(s))
+    );
+  }, [subjects]);
+
+  const handleAddCustomSubject = (newSubject: string) => {
+    const trimmed = newSubject.trim();
+    if (trimmed && !subjects.includes(trimmed)) {
+      setSubjects((prev) => [...prev, trimmed]);
+    }
+  };
+
+  useEffect(() => {
     saveToStorage("timetable", timetable);
   }, [timetable]);
 
@@ -224,6 +256,24 @@ export default function App() {
     setPrintState((prev) => ({ ...prev, isOpen: false }));
   };
 
+  const handleRestoreData = (newData: Record<string, any>) => {
+    if (newData.schoolIdentity) setSchoolIdentity(newData.schoolIdentity);
+    if (newData.students) setStudents(newData.students);
+    if (newData.attendanceRecords) setAttendanceRecords(newData.attendanceRecords);
+    if (newData.cptpItems) setCPTPItems(newData.cptpItems);
+    if (newData.incidents) setIncidents(newData.incidents);
+    if (newData.grades) setGrades(newData.grades);
+    if (newData.timetable) setTimetable(newData.timetable);
+    if (newData.guestBook) setGuestBook(newData.guestBook);
+    if (newData.incidentalJournals) setIncidentalJournals(newData.incidentalJournals);
+    if (newData.dailyLogs) setDailyLogs(newData.dailyLogs);
+    if (newData.calendarEvents) setCalendarEvents(newData.calendarEvents);
+    if (newData.protaList) setProtaList(newData.protaList);
+    if (newData.promesList) setPromesList(newData.promesList);
+    if (newData.teachingModules) setTeachingModules(newData.teachingModules);
+    alert("Data berhasil dipulihkan!");
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col font-sans text-slate-900 dark:text-slate-100 antialiased selection:bg-emerald-500 selection:text-white transition-colors duration-200">
       {/* Top Header Navigation */}
@@ -235,6 +285,7 @@ export default function App() {
         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         onOpenAiModal={() => setIsAiModalOpen(true)}
         onOpenSheetsModal={() => setIsGasModalOpen(true)}
+        onOpenBackupModal={() => setIsBackupModalOpen(true)}
       />
 
       <div className="flex flex-1 overflow-hidden relative">
@@ -281,6 +332,8 @@ export default function App() {
               <CurriculumCPTPView
                 cptpItems={cptpItems}
                 aiSettings={aiSettings}
+                subjects={subjects}
+                onAddSubject={handleAddCustomSubject}
                 onSaveCPTP={setCPTPItems}
                 onOpenPrint={handleOpenPrint}
               />
@@ -300,7 +353,11 @@ export default function App() {
                 students={students}
                 cptpItems={cptpItems}
                 grades={grades}
+                dailyGrades={dailyGrades}
+                subjects={subjects}
+                onAddSubject={handleAddCustomSubject}
                 onSaveGrades={setGrades}
+                onSaveDailyGrades={setDailyGrades}
                 onOpenPrint={handleOpenPrint}
               />
             )}
@@ -333,7 +390,12 @@ export default function App() {
 
             {activeModule === "calendar" && (
               <AcademicCalendarView
+                schoolIdentity={schoolIdentity}
                 events={calendarEvents}
+                timetable={timetable}
+                subjects={subjects}
+                incidentalJournals={incidentalJournals}
+                onUpdateSchoolIdentity={setSchoolIdentity}
                 onSaveEvents={setCalendarEvents}
                 onOpenPrint={handleOpenPrint}
               />
@@ -343,6 +405,8 @@ export default function App() {
               <ProtaPromesView
                 protaList={protaList}
                 promesList={promesList}
+                cptpItems={cptpItems}
+                subjects={subjects}
                 onSaveProta={setProtaList}
                 onSavePromes={setPromesList}
                 onOpenPrint={handleOpenPrint}
@@ -390,6 +454,30 @@ export default function App() {
         config={gasConfig}
         onSaveConfig={setGasConfig}
         onClose={() => setIsGasModalOpen(false)}
+        allData={{
+          schoolIdentity,
+          students,
+          attendanceRecords,
+          cptpItems,
+          incidents,
+          grades,
+          timetable,
+          guestBook,
+          incidentalJournals,
+          dailyLogs,
+          calendarEvents,
+          protaList,
+          promesList,
+          teachingModules,
+        }}
+      />
+
+      <BackupModal
+        isOpen={isBackupModalOpen}
+        onClose={() => setIsBackupModalOpen(false)}
+        schoolIdentity={schoolIdentity}
+        gasConfig={gasConfig}
+        onRestoreData={handleRestoreData}
         allData={{
           schoolIdentity,
           students,

@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { Student, AttendanceRecord, AttendanceStatus } from "../../types";
-import { UserCheck, Calendar, CheckCircle2, Save, Printer, Download, Filter, Search } from "lucide-react";
+import { UserCheck, Calendar, CheckCircle2, Save, Printer, Download, Filter, Search, FileText } from "lucide-react";
 import { exportToCSV } from "../../lib/storage";
+import { exportHtmlToDoc } from "../../lib/exportDoc";
 
 interface BulkAttendanceViewProps {
   students: Student[];
@@ -140,6 +141,47 @@ export const BulkAttendanceView: React.FC<BulkAttendanceViewProps> = ({
       return [idx + 1, s.nis, s.name, stats.S, stats.I, stats.A, logs || "Hadir Penuh"];
     });
     exportToCSV(headers, rows, "Rekap_Presensi_Murid");
+  };
+
+  const handleExportRekapDoc = () => {
+    const tableHtml = `
+      <table border="1" cellpadding="5" cellspacing="0" style="width:100%; border-collapse:collapse; font-size:10pt;">
+        <thead>
+          <tr style="background-color:#f3f4f6; font-weight:bold;">
+            <th style="border:1px solid #333; padding:5px; text-align:center;">No</th>
+            <th style="border:1px solid #333; padding:5px; text-align:left;">Nama Siswa</th>
+            <th style="border:1px solid #333; padding:5px; text-align:center;">S</th>
+            <th style="border:1px solid #333; padding:5px; text-align:center;">I</th>
+            <th style="border:1px solid #333; padding:5px; text-align:center;">A</th>
+            <th style="border:1px solid #333; padding:5px; text-align:left;">Tanggal & Penyebab Absen</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${students
+            .map((s, idx) => {
+              const stats = getStudentStats(s.id);
+              const logs = getFormattedDateReasonLog(s.id).join(", ");
+              return `
+            <tr>
+              <td style="border:1px solid #333; padding:5px; text-align:center;">${idx + 1}</td>
+              <td style="border:1px solid #333; padding:5px;">${s.name}</td>
+              <td style="border:1px solid #333; padding:5px; text-align:center;">${stats.S || "-"}</td>
+              <td style="border:1px solid #333; padding:5px; text-align:center;">${stats.I || "-"}</td>
+              <td style="border:1px solid #333; padding:5px; text-align:center;">${stats.A || "-"}</td>
+              <td style="border:1px solid #333; padding:5px;">${logs || "Hadir Penuh"}</td>
+            </tr>
+          `;
+            })
+            .join("")}
+        </tbody>
+      </table>
+    `;
+
+    exportHtmlToDoc({
+      htmlContent: tableHtml,
+      filename: "Rekap_Presensi_Murid.doc",
+      title: "REKAPITULASI PRESENSI KEHADIRAN SISWA",
+    });
   };
 
   const handlePrintRekap = () => {
@@ -366,20 +408,30 @@ export const BulkAttendanceView: React.FC<BulkAttendanceViewProps> = ({
               </select>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={handleExportRekapCSV}
                 className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 flex items-center gap-1"
+                title="Ekspor ke Excel / CSV"
               >
                 <Download className="w-3.5 h-3.5" />
-                Ekspor CSV
+                Excel / CSV
+              </button>
+              <button
+                onClick={handleExportRekapDoc}
+                className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors"
+                title="Simpan dalam bentuk Word (.docx / .doc)"
+              >
+                <FileText className="w-3.5 h-3.5 text-blue-600" />
+                Simpan Word (.docx)
               </button>
               <button
                 onClick={handlePrintRekap}
-                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 flex items-center gap-1"
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-sm flex items-center gap-1.5 transition-colors"
+                title="Cetak Laporan / PDF"
               >
                 <Printer className="w-3.5 h-3.5" />
-                Cetak Rekap Absen
+                Cetak / PDF
               </button>
             </div>
           </div>

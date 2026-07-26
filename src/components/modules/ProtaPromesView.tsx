@@ -1,11 +1,14 @@
 import React, { useState } from "react";
-import { ProtaItem, PromesItem } from "../../types";
-import { CalendarRange, Plus, Trash2, Edit2, Download, Printer, Save, Check } from "lucide-react";
+import { ProtaItem, PromesItem, CPTPItem } from "../../types";
+import { CalendarRange, Plus, Trash2, Edit2, Download, Printer, FileText, Check, ChevronRight } from "lucide-react";
 import { exportToCSV } from "../../lib/storage";
+import { exportHtmlToDoc } from "../../lib/exportDoc";
 
 interface ProtaPromesViewProps {
   protaList: ProtaItem[];
   promesList: PromesItem[];
+  cptpItems: CPTPItem[];
+  subjects: string[];
   onSaveProta: (updated: ProtaItem[]) => void;
   onSavePromes: (updated: PromesItem[]) => void;
   onOpenPrint: (title: string, subtitle: string, content: React.ReactNode) => void;
@@ -14,33 +17,32 @@ interface ProtaPromesViewProps {
 export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
   protaList,
   promesList,
+  cptpItems,
+  subjects,
   onSaveProta,
   onSavePromes,
   onOpenPrint,
 }) => {
   const [activeTab, setActiveTab] = useState<"prota" | "promes">("prota");
-  const [selectedSubject, setSelectedSubject] = useState("Bahasa Indonesia");
+  const [selectedSubject, setSelectedSubject] = useState(subjects[0] || "Bahasa Indonesia");
   const [selectedSemester, setSelectedSemester] = useState<1 | 2>(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const subjects = [
-    "Bahasa Indonesia",
-    "Matematika",
-    "IPAS",
-    "Pancasila",
-    "Seni Budaya",
-    "PJOK",
-  ];
-
   const filteredProta = protaList.filter(
-    (p) => p.subject === selectedSubject && p.semester === selectedSemester
+    (p) => p.subject === selectedSubject && (p.semester === selectedSemester || p.semester === (selectedSemester === 1 ? "Ganjil" : "Genap"))
   );
+
+  // Available CPs/TPs for selected subject
+  const availableTPs = cptpItems.filter((item) => item.subject === selectedSubject);
 
   const [protaForm, setProtaForm] = useState<Partial<ProtaItem>>({
     subject: selectedSubject,
     semester: selectedSemester,
     allocatedJP: 6,
+    element: "Umum",
+    tpCode: "",
+    tpDescription: "",
   });
 
   const handleDeleteProta = (id: string) => {
@@ -51,14 +53,35 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
 
   const handleOpenAddProta = () => {
     setEditingId(null);
+    const firstTP = availableTPs[0];
     setProtaForm({
       subject: selectedSubject,
       semester: selectedSemester,
-      tpCode: `TP-4.${filteredProta.length + 1}`,
-      tpDescription: "",
+      element: firstTP ? firstTP.element : "Umum",
+      tpCode: firstTP ? firstTP.codeTP : `TP-4.${filteredProta.length + 1}`,
+      tpDescription: firstTP ? firstTP.descriptionTP : "",
       allocatedJP: 6,
     });
     setIsModalOpen(true);
+  };
+
+  const handleSelectTPFromDropdown = (codeTP: string) => {
+    const found = availableTPs.find((t) => t.codeTP === codeTP);
+    if (found) {
+      setProtaForm((prev) => ({
+        ...prev,
+        tpCode: found.codeTP,
+        codeTP: found.codeTP,
+        element: found.element,
+        tpDescription: found.descriptionTP,
+      }));
+    } else {
+      setProtaForm((prev) => ({
+        ...prev,
+        tpCode: codeTP,
+        codeTP,
+      }));
+    }
   };
 
   const handleOpenEditProta = (item: ProtaItem) => {
@@ -80,8 +103,8 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
         id: "prota_" + Date.now(),
         subject: protaForm.subject || selectedSubject,
         element: protaForm.element || "Umum",
-        codeTP: protaForm.tpCode || "TP-1",
-        tpCode: protaForm.tpCode || "TP-1",
+        codeTP: protaForm.tpCode || protaForm.codeTP || "TP-1",
+        tpCode: protaForm.tpCode || protaForm.codeTP || "TP-1",
         tpDescription: protaForm.tpDescription || "",
         timeAllocationJP: protaForm.allocatedJP || 6,
         allocatedJP: protaForm.allocatedJP || 6,
@@ -94,13 +117,28 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
 
   const totalJP = filteredProta.reduce((acc, curr) => acc + (curr.allocatedJP || curr.timeAllocationJP || 0), 0);
 
-  // Promes Month Columns depending on selected semester
+  // Promes Months depending on selected semester
   const promesMonths =
     selectedSemester === 1
       ? ["Juli", "Agustus", "September", "Oktober", "November", "Desember"]
       : ["Januari", "Februari", "Maret", "April", "Mei", "Juni"];
 
-  const weeksPerMonth = [1, 2, 3, 4];
+  // W1, W2, W3, W4, W5 (5 Minggu per Bulan)
+  const weeksPerMonth = [1, 2, 3, 4, 5];
+
+  // State for Promes weekly allocation map
+  // Key: `${protaId}_${monthName}_w${weekNumber}` -> JP allocation number (e.g., 2)
+  const [promesWeeklyAllocations, setPromesWeeklyAllocations] = useState<Record<string, number>>({});
+
+  const handleTogglePromesWeek = (protaId: string, month: string, week: number) => {
+    const key = `${protaId}_${month}_w${week}`;
+    const currentVal = promesWeeklyAllocations[key] || 0;
+    const nextVal = currentVal === 0 ? 2 : currentVal === 2 ? 4 : 0; // cycles 0 -> 2 -> 4 -> 0
+    setPromesWeeklyAllocations((prev) => ({
+      ...prev,
+      [key]: nextVal,
+    }));
+  };
 
   const handleExportProtaCSV = () => {
     const headers = ["No", "Mata Pelajaran", "Semester", "Elemen", "Kode TP", "Tujuan Pembelajaran (TP)", "Alokasi Waktu (JP)"];
@@ -109,11 +147,109 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
       p.subject,
       `Semester ${p.semester}`,
       p.element,
-      p.tpCode,
+      p.tpCode || p.codeTP,
       p.tpDescription,
-      `${p.allocatedJP} JP`,
+      `${p.allocatedJP || p.timeAllocationJP} JP`,
     ]);
     exportToCSV(headers, rows, `Prota_${selectedSubject}_Semester_${selectedSemester}`);
+  };
+
+  const handleExportDoc = () => {
+    if (activeTab === "prota") {
+      const tableHtml = `
+        <div style="font-family: Arial, sans-serif; font-size: 11pt;">
+          <h3 style="text-align: center; font-size: 14pt; margin-bottom: 5px;">PROGRAM TAHUNAN (PROTA)</h3>
+          <p style="text-align: center; margin-top: 0; font-weight: bold;">Mata Pelajaran: ${selectedSubject} | Semester ${selectedSemester}</p>
+          <hr style="margin: 15px 0; border: 1px solid #000;"/>
+
+          <table border="1" cellpadding="6" cellspacing="0" style="width: 100%; border-collapse: collapse; font-size: 10pt;">
+            <thead>
+              <tr style="background-color: #f3f4f6; text-align: center; font-weight: bold;">
+                <th style="border: 1px solid #333; padding: 6px; width: 40px;">No</th>
+                <th style="border: 1px solid #333; padding: 6px; width: 120px;">Elemen</th>
+                <th style="border: 1px solid #333; padding: 6px; width: 90px;">Kode TP</th>
+                <th style="border: 1px solid #333; padding: 6px; text-align: left;">Tujuan Pembelajaran (TP)</th>
+                <th style="border: 1px solid #333; padding: 6px; width: 90px;">Alokasi Waktu</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredProta
+                .map(
+                  (p, idx) => `
+                <tr>
+                  <td style="border: 1px solid #333; padding: 6px; text-align: center;">${idx + 1}</td>
+                  <td style="border: 1px solid #333; padding: 6px;">${p.element || "Umum"}</td>
+                  <td style="border: 1px solid #333; padding: 6px; text-align: center; font-weight: bold;">${p.tpCode || p.codeTP}</td>
+                  <td style="border: 1px solid #333; padding: 6px;">${p.tpDescription}</td>
+                  <td style="border: 1px solid #333; padding: 6px; text-align: center; font-weight: bold; background-color: #ecfdf5;">${p.allocatedJP || p.timeAllocationJP} JP</td>
+                </tr>
+              `
+                )
+                .join("")}
+            </tbody>
+          </table>
+          <p style="margin-top: 15px; font-weight: bold;">Total Alokasi Waktu Semester ${selectedSemester}: ${totalJP} JP</p>
+        </div>
+      `;
+
+      exportHtmlToDoc({
+        htmlContent: tableHtml,
+        filename: `Prota_${selectedSubject}_Semester_${selectedSemester}.doc`,
+        title: `PROGRAM TAHUNAN (PROTA)`,
+      });
+    } else {
+      const tableHtml = `
+        <div style="font-family: Arial, sans-serif; font-size: 10pt;">
+          <h3 style="text-align: center; font-size: 13pt; margin-bottom: 5px;">PROGRAM SEMESTER (PROMES)</h3>
+          <p style="text-align: center; margin-top: 0; font-weight: bold;">Mata Pelajaran: ${selectedSubject} | Semester ${selectedSemester}</p>
+          <hr style="margin: 15px 0; border: 1px solid #000;"/>
+
+          <table border="1" cellpadding="4" cellspacing="0" style="width: 100%; border-collapse: collapse; font-size: 9pt; text-align: center;">
+            <thead>
+              <tr style="background-color: #f3f4f6; font-weight: bold;">
+                <th rowspan="2" style="border: 1px solid #333; padding: 5px; text-align: left; width: 220px;">Tujuan Pembelajaran (TP)</th>
+                <th rowspan="2" style="border: 1px solid #333; padding: 5px; width: 50px;">JP</th>
+                ${promesMonths.map((m) => `<th colspan="5" style="border: 1px solid #333; padding: 5px; background-color: #e5e7eb;">${m}</th>`).join("")}
+              </tr>
+              <tr style="background-color: #f9fafb; font-size: 8pt;">
+                ${promesMonths.map(() => weeksPerMonth.map((w) => `<th style="border: 1px solid #333; padding: 3px;">W${w}</th>`).join("")).join("")}
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredProta
+                .map(
+                  (p, idx) => `
+                <tr>
+                  <td style="border: 1px solid #333; padding: 5px; text-align: left;">
+                    <b>${p.tpCode || p.codeTP}</b>: ${p.tpDescription}
+                  </td>
+                  <td style="border: 1px solid #333; padding: 5px; font-weight: bold; background-color: #ecfdf5;">${p.allocatedJP || p.timeAllocationJP}</td>
+                  ${promesMonths
+                    .map((m) =>
+                      weeksPerMonth
+                        .map((w) => {
+                          const key = `${p.id}_${m}_w${w}`;
+                          const val = promesWeeklyAllocations[key] || ((idx * 2 + w) % 5 === 0 ? 2 : 0);
+                          return `<td style="border: 1px solid #333; padding: 3px; ${val ? "background-color: #10b981; color: white; font-weight: bold;" : "color: #ccc;"}">${val || "-"}</td>`;
+                        })
+                        .join("")
+                    )
+                    .join("")}
+                </tr>
+              `
+                )
+                .join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      exportHtmlToDoc({
+        htmlContent: tableHtml,
+        filename: `Promes_${selectedSubject}_Semester_${selectedSemester}.doc`,
+        title: `PROGRAM SEMESTER (PROMES)`,
+      });
+    }
   };
 
   const handlePrint = () => {
@@ -121,16 +257,16 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
       activeTab === "prota"
         ? `PROGRAM TAHUNAN (PROTA) - ${selectedSubject.toUpperCase()}`
         : `PROGRAM SEMESTER (PROMES) - ${selectedSubject.toUpperCase()}`,
-      `Semester ${selectedSemester} | Tahun Pelajaran 2025/2026`,
+      `Semester ${selectedSemester} (Ganjil/Genap) | Kurikulum Merdeka`,
       (
-        <div className="space-y-4">
-          <div className="flex justify-between text-xs font-bold border-b pb-2">
+        <div className="space-y-4 text-xs">
+          <div className="flex justify-between font-bold border-b pb-2">
             <span>Mata Pelajaran: {selectedSubject}</span>
-            <span>Semester: {selectedSemester} (Ganjil/Genap)</span>
+            <span>Semester: {selectedSemester}</span>
             <span>Total Alokasi Waktu: {totalJP} JP</span>
           </div>
 
-          <table className="w-full border-collapse border border-slate-300 text-xs">
+          <table className="w-full border-collapse border border-slate-300">
             <thead>
               <tr className="bg-slate-100 font-bold text-slate-800">
                 <th className="border border-slate-300 p-2 w-8 text-center">No</th>
@@ -143,9 +279,9 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
               {filteredProta.map((p, idx) => (
                 <tr key={p.id} className="odd:bg-white even:bg-slate-50">
                   <td className="border border-slate-300 p-2 text-center">{idx + 1}</td>
-                  <td className="border border-slate-300 p-2 text-center font-mono font-bold">{p.tpCode}</td>
+                  <td className="border border-slate-300 p-2 text-center font-mono font-bold">{p.tpCode || p.codeTP}</td>
                   <td className="border border-slate-300 p-2 font-medium">{p.tpDescription}</td>
-                  <td className="border border-slate-300 p-2 text-center font-bold text-emerald-800">{p.allocatedJP} JP</td>
+                  <td className="border border-slate-300 p-2 text-center font-bold text-emerald-800">{p.allocatedJP || p.timeAllocationJP} JP</td>
                 </tr>
               ))}
             </tbody>
@@ -165,7 +301,7 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
             Program Tahunan (PROTA) & Program Semester (PROMES)
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Penyusunan alokasi Jam Pelajaran (JP) dan distribusi distribusi mingguan per semester
+            Integrasi otomatis Kode & Deskripsi TP dari Kurikulum CP & TP, serta Promes 5-Minggu per Bulan (W1 - W5)
           </p>
         </div>
 
@@ -195,8 +331,8 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
 
       {/* Filter Bar */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-1">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-1.5">
             {subjects.map((sub) => (
               <button
                 key={sub}
@@ -245,15 +381,26 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
 
           <button
             onClick={handleExportProtaCSV}
-            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300"
+            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 flex items-center gap-1.5"
+            title="Ekspor CSV / Excel"
           >
             <Download className="w-4 h-4" />
+            Excel
+          </button>
+          <button
+            onClick={handleExportDoc}
+            className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors"
+            title="Simpan Word (.docx)"
+          >
+            <FileText className="w-4 h-4 text-blue-600" />
+            Simpan Word (.docx)
           </button>
           <button
             onClick={handlePrint}
-            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300"
+            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 flex items-center gap-1.5"
           >
             <Printer className="w-4 h-4" />
+            Cetak / PDF
           </button>
         </div>
       </div>
@@ -322,65 +469,86 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
         </div>
       )}
 
-      {/* PROMES TAB */}
+      {/* PROMES TAB (WITH W5 ENABLED) */}
       {activeTab === "promes" && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-center text-xs border-collapse">
-              <thead className="bg-slate-50 font-bold border-b border-slate-200 text-slate-800 text-[10px] uppercase">
-                <tr>
-                  <th rowSpan={2} className="p-3 border-r border-slate-200 text-left min-w-[200px]">
-                    Tujuan Pembelajaran (TP)
-                  </th>
-                  <th rowSpan={2} className="p-2 border-r border-slate-200 w-16">
-                    Alokasi JP
-                  </th>
-                  {promesMonths.map((m) => (
-                    <th colSpan={4} key={m} className="p-2 border-r border-slate-200 bg-slate-100">
-                      {m}
+        <div className="space-y-3">
+          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs text-slate-600 flex items-center justify-between">
+            <span>💡 <b>Petunjuk Promes:</b> Tabel di bawah menyediakan <b>5 Minggu (W1 - W5)</b> per bulan. Klik pada sel minggu untuk mengalokasikan JP (siklus 2 JP / 4 JP / Kosong).</span>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-center text-xs border-collapse">
+                <thead className="bg-slate-50 font-bold border-b border-slate-200 text-slate-800 text-[10px] uppercase">
+                  <tr>
+                    <th rowSpan={2} className="p-3 border-r border-slate-200 text-left min-w-[220px]">
+                      Tujuan Pembelajaran (TP)
                     </th>
-                  ))}
-                </tr>
-                <tr className="border-t border-slate-200">
-                  {promesMonths.map((m) =>
-                    weeksPerMonth.map((w) => (
-                      <th key={`${m}_w${w}`} className="p-1 border-r border-slate-200 text-[9px]">
-                        W{w}
+                    <th rowSpan={2} className="p-2 border-r border-slate-200 w-16">
+                      Alokasi JP
+                    </th>
+                    {promesMonths.map((m) => (
+                      <th colSpan={5} key={m} className="p-2 border-r border-slate-200 bg-slate-100 font-bold text-slate-900">
+                        {m}
                       </th>
-                    ))
-                  )}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-800">
-                {filteredProta.map((p, idx) => (
-                  <tr key={p.id} className="hover:bg-slate-50/60">
-                    <td className="p-2.5 text-left border-r border-slate-200 font-semibold text-slate-900">
-                      <span className="font-mono text-emerald-700 block text-[10px]">{p.tpCode || p.codeTP}</span>
-                      {p.tpDescription}
-                    </td>
-                    <td className="p-2 border-r border-slate-200 font-bold text-emerald-800 bg-emerald-50/30">
-                      {p.allocatedJP || p.timeAllocationJP} JP
-                    </td>
-                    {promesMonths.map((m, mIdx) =>
-                      weeksPerMonth.map((w) => {
-                        // Dummy checked week distribution for visual demonstration
-                        const isAssigned = (mIdx * 4 + w) === (idx * 2 + 1) || (mIdx * 4 + w) === (idx * 2 + 2);
-                        return (
-                          <td
-                            key={`${m}_w${w}`}
-                            className={`p-1 border-r border-slate-200 font-mono font-bold ${
-                              isAssigned ? "bg-emerald-600 text-white" : "bg-white text-slate-300"
-                            }`}
-                          >
-                            {isAssigned ? "2" : "-"}
-                          </td>
-                        );
-                      })
+                    ))}
+                  </tr>
+                  <tr className="border-t border-slate-200">
+                    {promesMonths.map((m) =>
+                      weeksPerMonth.map((w) => (
+                        <th key={`${m}_w${w}`} className={`p-1 border-r border-slate-200 text-[9px] ${w === 5 ? "bg-amber-50 text-amber-900 font-extrabold" : ""}`}>
+                          W{w}
+                        </th>
+                      ))
                     )}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-800">
+                  {filteredProta.length === 0 ? (
+                    <tr>
+                      <td colSpan={2 + promesMonths.length * 5} className="text-center py-8 text-slate-400">
+                        Belum ada data Prota untuk semester ini.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredProta.map((p, idx) => (
+                      <tr key={p.id} className="hover:bg-slate-50/60">
+                        <td className="p-2.5 text-left border-r border-slate-200 font-semibold text-slate-900">
+                          <span className="font-mono text-emerald-700 block text-[10px]">{p.tpCode || p.codeTP}</span>
+                          {p.tpDescription}
+                        </td>
+                        <td className="p-2 border-r border-slate-200 font-bold text-emerald-800 bg-emerald-50/30">
+                          {p.allocatedJP || p.timeAllocationJP} JP
+                        </td>
+                        {promesMonths.map((m) =>
+                          weeksPerMonth.map((w) => {
+                            const key = `${p.id}_${m}_w${w}`;
+                            // default fallback pattern for demonstration if not manually clicked yet
+                            const defaultVal = (idx * 2 + w) % 5 === 0 ? 2 : 0;
+                            const val = promesWeeklyAllocations[key] !== undefined ? promesWeeklyAllocations[key] : defaultVal;
+
+                            return (
+                              <td
+                                key={`${m}_w${w}`}
+                                onClick={() => handleTogglePromesWeek(p.id, m, w)}
+                                className={`p-1 border-r border-slate-200 font-mono font-bold cursor-pointer select-none transition-colors ${
+                                  val > 0
+                                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                                    : "bg-white text-slate-300 hover:bg-slate-100"
+                                }`}
+                                title="Klik untuk mengubah alokasi JP minggu ini"
+                              >
+                                {val > 0 ? val : "-"}
+                              </td>
+                            );
+                          })
+                        )}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -388,7 +556,7 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
       {/* Modal Prota Add/Edit */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4">
             <h3 className="font-bold text-base text-slate-900">
               {editingId ? "Edit TP Prota" : "Tambah TP ke Prota"}
             </h3>
@@ -400,8 +568,33 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                   type="text"
                   disabled
                   value={selectedSubject}
-                  className="w-full p-2 border rounded-lg bg-slate-100 font-bold"
+                  className="w-full p-2 border rounded-lg bg-slate-100 font-bold text-slate-700"
                 />
+              </div>
+
+              {/* NEW FEATURE: Dropdown pilih Kode TP dari Kurikulum CP & TP */}
+              <div>
+                <label className="block font-semibold mb-1 text-emerald-800">
+                  Pilih Kode TP dari Kurikulum CP & TP
+                </label>
+                {availableTPs.length > 0 ? (
+                  <select
+                    value={protaForm.tpCode || ""}
+                    onChange={(e) => handleSelectTPFromDropdown(e.target.value)}
+                    className="w-full p-2 border border-emerald-300 rounded-lg bg-emerald-50/50 font-bold text-slate-900"
+                  >
+                    <option value="">-- Pilih Kode TP dari Database Kurikulum --</option>
+                    {availableTPs.map((item) => (
+                      <option key={item.id} value={item.codeTP}>
+                        [{item.codeTP}] - {item.descriptionTP.slice(0, 60)}...
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="p-2 bg-amber-50 text-amber-800 rounded-lg border border-amber-200 text-[11px]">
+                    Belum ada data CP & TP tersimpan untuk mapel <b>{selectedSubject}</b> di Kurikulum. Anda dapat mengetikkan Kode & Deskripsi TP secara manual di bawah.
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -417,11 +610,12 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Kode TP</label>
+                  <label className="block font-semibold mb-1">Kode TP (Manual / Custom)</label>
                   <input
                     type="text"
+                    required
                     value={protaForm.tpCode || ""}
-                    onChange={(e) => setProtaForm((prev) => ({ ...prev, tpCode: e.target.value }))}
+                    onChange={(e) => setProtaForm((prev) => ({ ...prev, tpCode: e.target.value, codeTP: e.target.value }))}
                     className="w-full p-2 border rounded-lg font-mono font-bold"
                   />
                 </div>
@@ -431,7 +625,7 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                 <label className="block font-semibold mb-1">Elemen Kurikulum</label>
                 <input
                   type="text"
-                  value={protaForm.element || "Membaca & Memirsa"}
+                  value={protaForm.element || "Umum"}
                   onChange={(e) => setProtaForm((prev) => ({ ...prev, element: e.target.value }))}
                   className="w-full p-2 border rounded-lg"
                 />
@@ -442,9 +636,10 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                 <textarea
                   rows={3}
                   required
+                  placeholder="Deskripsi TP akan muncul otomatis saat memilih Kode TP di atas..."
                   value={protaForm.tpDescription || ""}
                   onChange={(e) => setProtaForm((prev) => ({ ...prev, tpDescription: e.target.value }))}
-                  className="w-full p-2 border rounded-lg"
+                  className="w-full p-2 border rounded-lg font-medium"
                 />
               </div>
 

@@ -7,6 +7,8 @@ import { generateAIContent } from "../../lib/aiHelper";
 interface CurriculumCPTPViewProps {
   cptpItems: CPTPItem[];
   aiSettings: AISettings;
+  subjects?: string[];
+  onAddSubject?: (subject: string) => void;
   onSaveCPTP: (updated: CPTPItem[]) => void;
   onOpenPrint: (title: string, subtitle: string, content: React.ReactNode) => void;
 }
@@ -27,23 +29,7 @@ function safeStr(val: any, fallback = ""): string {
 export const CurriculumCPTPView: React.FC<CurriculumCPTPViewProps> = ({
   cptpItems,
   aiSettings,
-  onSaveCPTP,
-  onOpenPrint,
-}) => {
-  const [selectedSubject, setSelectedSubject] = useState<string>("Semua");
-  const [search, setSearch] = useState("");
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<Partial<CPTPItem>>({});
-  const [isAddModal, setIsAddModal] = useState(false);
-
-  // AI Generator Modal State
-  const [isAiModal, setIsAiModal] = useState(false);
-  const [aiSubject, setAiSubject] = useState("Bahasa Indonesia");
-  const [aiMateri, setAiMateri] = useState("Teks Cerita Rakyat & Amanat");
-  const [aiGrade, setAiGrade] = useState("Kelas IV (Fase B)");
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  const subjects = [
+  subjects: propSubjects = [
     "Bahasa Indonesia",
     "Matematika",
     "IPAS",
@@ -52,7 +38,29 @@ export const CurriculumCPTPView: React.FC<CurriculumCPTPViewProps> = ({
     "PJOK",
     "Bahasa Inggris",
     "Pendidikan Agama",
-  ];
+    "Bahasa Jawa",
+    "Koding & Kecerdasan Artifisial",
+  ],
+  onAddSubject,
+  onSaveCPTP,
+  onOpenPrint,
+}) => {
+  const [selectedSubject, setSelectedSubject] = useState<string>("Semua");
+  const [search, setSearch] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<Partial<CPTPItem>>({});
+  const [isAddModal, setIsAddModal] = useState(false);
+  const [newSubjectInput, setNewSubjectInput] = useState("");
+  const [isAddSubjectModal, setIsAddSubjectModal] = useState(false);
+
+  // AI Generator Modal State
+  const [isAiModal, setIsAiModal] = useState(false);
+  const [aiSubject, setAiSubject] = useState("Bahasa Indonesia");
+  const [aiMateri, setAiMateri] = useState("Teks Cerita Rakyat & Amanat");
+  const [aiGrade, setAiGrade] = useState("Kelas IV (Fase B)");
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const subjects = propSubjects;
 
   const filteredItems = cptpItems.filter((item) => {
     const matchSubject = selectedSubject === "Semua" || item.subject === selectedSubject;
@@ -266,6 +274,12 @@ Format keluaran HARUS berupa JSON murni tanpa markdown lain:
               {sub}
             </button>
           ))}
+          <button
+            onClick={() => setIsAddSubjectModal(true)}
+            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800 hover:bg-emerald-200 whitespace-nowrap transition-all border border-emerald-300"
+          >
+            + Mapel Baru
+          </button>
         </div>
 
         <div className="relative w-full max-w-xs">
@@ -555,6 +569,55 @@ Format keluaran HARUS berupa JSON murni tanpa markdown lain:
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Tambah Mata Pelajaran Baru */}
+      {isAddSubjectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4">
+            <h3 className="font-bold text-base text-slate-900">
+              Tambah Mata Pelajaran Baru
+            </h3>
+            <p className="text-xs text-slate-500">
+              Mata pelajaran baru akan disimpan di sistem dan dapat digunakan untuk CP/TP, Prota, Promes, dan Rekap Nilai.
+            </p>
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold mb-1">Nama Mata Pelajaran</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Koding & AI / Bahasa Daerah"
+                  value={newSubjectInput}
+                  onChange={(e) => setNewSubjectInput(e.target.value)}
+                  className="w-full p-2 border rounded-lg font-semibold"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddSubjectModal(false)}
+                  className="px-4 py-2 bg-slate-100 text-slate-700 font-semibold rounded-lg"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (newSubjectInput.trim() && onAddSubject) {
+                      onAddSubject(newSubjectInput.trim());
+                      setSelectedSubject(newSubjectInput.trim());
+                      setNewSubjectInput("");
+                      setIsAddSubjectModal(false);
+                    }
+                  }}
+                  className="px-4 py-2 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700"
+                >
+                  Simpan Mapel
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

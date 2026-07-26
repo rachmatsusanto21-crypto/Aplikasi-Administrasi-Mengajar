@@ -6,6 +6,7 @@ import {
   Menu,
   Sun,
   Moon,
+  Database,
 } from "lucide-react";
 import { SchoolIdentity, AISettings } from "../types";
 
@@ -16,6 +17,7 @@ interface HeaderProps {
   onToggleTheme: () => void;
   onOpenAiModal: () => void;
   onOpenSheetsModal: () => void;
+  onOpenBackupModal?: () => void;
   onToggleSidebar: () => void;
 }
 
@@ -26,6 +28,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleTheme,
   onOpenAiModal,
   onOpenSheetsModal,
+  onOpenBackupModal,
   onToggleSidebar,
 }) => {
   const selectedAgent = aiSettings?.selectedAgent || "gemini-3.6-flash";
@@ -56,10 +59,10 @@ export const Header: React.FC<HeaderProps> = ({
           )}
           <div>
             <div className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-tight">
-              {schoolIdentity?.schoolName || "SMP NEGERI 01 TEKNOLOGI"}
+              {schoolIdentity?.schoolName || "SDN PISANGCANDI 1"}
             </div>
             <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-              TA {schoolIdentity?.academicYear || "2025/2026"} - {schoolIdentity?.semester || "Semester Ganjil"} - {schoolIdentity?.phase || "Fase B"} - {schoolIdentity?.gradeClass || "Kelas IV-A"}
+              TA {schoolIdentity?.academicYear || "2025/2026"} - {schoolIdentity?.semester || "Semester Ganjil"} - {schoolIdentity?.phase || "Fase B"} - {schoolIdentity?.gradeClass || "Kelas IV"}
             </div>
           </div>
         </div>
@@ -69,10 +72,10 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Teacher Info */}
         <div className="hidden sm:flex flex-col text-right">
           <span className="text-xs font-bold uppercase text-slate-900 dark:text-slate-100">
-            {schoolIdentity?.teacherName || "Drs. Ahmad Junaidi, M.Pd"}
+            {schoolIdentity?.teacherName || "Rachmat Susanto, S.Pd."}
           </span>
           <span className="text-[10px] text-slate-400 dark:text-slate-500">
-            NIP: {schoolIdentity?.nip || "19850312 201001 1 008"}
+            NIP: {schoolIdentity?.teacherNip || schoolIdentity?.nip || "198811202014021003"}
           </span>
         </div>
 
@@ -91,6 +94,19 @@ export const Header: React.FC<HeaderProps> = ({
               <Moon className="w-4 h-4 text-slate-600" />
             )}
           </button>
+
+          {/* Backup & Drive Sync Button */}
+          {onOpenBackupModal && (
+            <button
+              type="button"
+              onClick={onOpenBackupModal}
+              title="Backup Data Lokal & Sync ke Google Drive"
+              className="px-2.5 py-1.5 bg-teal-50 dark:bg-teal-950/60 hover:bg-teal-100 dark:hover:bg-teal-900/80 text-teal-900 dark:text-teal-200 border border-teal-200 dark:border-teal-800 rounded text-xs font-bold flex items-center gap-1.5 transition-colors"
+            >
+              <Database className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+              <span className="hidden md:inline">Backup & Drive Sync</span>
+            </button>
+          )}
 
           <button
             type="button"
