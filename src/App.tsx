@@ -437,6 +437,7 @@ export default function App() {
                 timetable={timetable}
                 subjects={subjects}
                 incidentalJournals={incidentalJournals}
+                protaList={protaList}
                 onUpdateSchoolIdentity={setSchoolIdentity}
                 onSaveEvents={setCalendarEvents}
                 onOpenPrint={handleOpenPrint}
@@ -449,6 +450,10 @@ export default function App() {
                 promesList={promesList}
                 cptpItems={cptpItems}
                 subjects={subjects}
+                timetable={timetable}
+                calendarEvents={calendarEvents}
+                incidentalJournals={incidentalJournals}
+                schoolIdentity={schoolIdentity}
                 onSaveProta={setProtaList}
                 onSavePromes={setPromesList}
                 onOpenPrint={handleOpenPrint}

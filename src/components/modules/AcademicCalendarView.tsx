@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { AcademicCalendarEvent, SchoolIdentity, TimetableSlot, IncidentalJournalEntry } from "../../types";
+import { AcademicCalendarEvent, SchoolIdentity, TimetableSlot, IncidentalJournalEntry, ProtaItem } from "../../types";
 import { Calendar, Plus, Trash2, Edit2, Printer, Download, Calculator, FileText, Settings, Clock, BookOpen } from "lucide-react";
 import { exportToCSV } from "../../lib/storage";
 import { exportHtmlToDoc } from "../../lib/exportDoc";
@@ -10,6 +10,7 @@ interface AcademicCalendarViewProps {
   timetable: TimetableSlot[];
   subjects: string[];
   incidentalJournals?: IncidentalJournalEntry[];
+  protaList?: ProtaItem[];
   onUpdateSchoolIdentity: (updated: SchoolIdentity) => void;
   onSaveEvents: (updated: AcademicCalendarEvent[]) => void;
   onOpenPrint: (title: string, subtitle: string, content: React.ReactNode) => void;
@@ -21,6 +22,7 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
   timetable,
   subjects,
   incidentalJournals = [],
+  protaList = [],
   onUpdateSchoolIdentity,
   onSaveEvents,
   onOpenPrint,

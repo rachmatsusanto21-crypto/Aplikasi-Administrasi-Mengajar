@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Student, CPTPItem, GradeRecord, DailyGradeEntry, GradeAssessmentType } from "../../types";
-import { GraduationCap, Save, Printer, Download, Calculator, Check, Sparkles, Filter, FileText, Plus, Calendar, BookOpen, PieChart as PieChartIcon, AlertTriangle } from "lucide-react";
+import { GraduationCap, Save, Printer, Download, Calculator, Check, Sparkles, Filter, FileText, Plus, Calendar, BookOpen, PieChart as PieChartIcon, AlertTriangle, Edit2, Trash2 } from "lucide-react";
 import { exportToCSV } from "../../lib/storage";
 import { exportHtmlToDoc } from "../../lib/exportDoc";
 import { GradesRemedialDashboard } from "./GradesRemedialDashboard";
@@ -43,6 +43,7 @@ export const GradesMatrixView: React.FC<GradesMatrixViewProps> = ({
   const [savedAlert, setSavedAlert] = useState(false);
 
   // Daily grade input modal states
+  const [editingDailyGroupKey, setEditingDailyGroupKey] = useState<string | null>(null);
   const [dailyForm, setDailyForm] = useState<{
     date: string;
     tpCode: string;
@@ -185,6 +186,64 @@ export const GradesMatrixView: React.FC<GradesMatrixViewProps> = ({
     };
   };
 
+  const handleOpenNewDailyModal = () => {
+    setEditingDailyGroupKey(null);
+    setDailyForm({
+      date: new Date().toISOString().slice(0, 10),
+      tpCode: "",
+      assessmentType: "Formatif TP",
+      scores: {},
+    });
+    setIsDailyModalOpen(true);
+  };
+
+  const handleOpenEditDailyGroup = (tpCode: string, dateStr: string, type: string) => {
+    const groupItems = dailyGrades.filter(
+      (g) =>
+        g.subject === selectedSubject &&
+        g.tpCode === tpCode &&
+        (g.formattedDate === dateStr || g.date === dateStr) &&
+        g.assessmentType === type
+    );
+
+    const scores: Record<string, number> = {};
+    groupItems.forEach((g) => {
+      scores[g.studentId] = g.score;
+    });
+
+    const rawDate = groupItems[0]?.date || new Date().toISOString().slice(0, 10);
+
+    setEditingDailyGroupKey(`${tpCode}_${dateStr}_${type}`);
+    setDailyForm({
+      date: rawDate,
+      tpCode: tpCode,
+      assessmentType: type as GradeAssessmentType,
+      scores,
+    });
+    setIsDailyModalOpen(true);
+  };
+
+  const handleDeleteDailyGroup = (tpCode: string, dateStr: string, type: string) => {
+    if (confirm(`Apakah Anda yakin ingin menghapus catatan nilai harian untuk [${tpCode}] pada tanggal ${dateStr}?`)) {
+      const updatedDaily = dailyGrades.filter(
+        (g) =>
+          !(
+            g.subject === selectedSubject &&
+            g.tpCode === tpCode &&
+            (g.formattedDate === dateStr || g.date === dateStr) &&
+            g.assessmentType === type
+          )
+      );
+
+      if (onSaveDailyGrades) {
+        onSaveDailyGrades(updatedDaily);
+      }
+
+      setSavedAlert(true);
+      setTimeout(() => setSavedAlert(false), 3000);
+    }
+  };
+
   // Handle saving Daily Grades Entry
   const handleSaveDailyForm = () => {
     if (!dailyForm.tpCode) return;
@@ -193,7 +252,7 @@ export const GradesMatrixView: React.FC<GradesMatrixViewProps> = ({
     const dateObj = new Date(dailyForm.date);
     const day = dateObj.getDate();
     const month = dateObj.getMonth() + 1;
-    const formattedDate = `${day}/${month}`;
+    const formattedDate = isNaN(day) || isNaN(month) ? dailyForm.date : `${day}/${month}`;
 
     const tpInfo = tpList.find((t) => t.code === dailyForm.tpCode);
     const tpDesc = tpInfo ? tpInfo.desc : "";
@@ -205,13 +264,27 @@ export const GradesMatrixView: React.FC<GradesMatrixViewProps> = ({
       tpCode: dailyForm.tpCode,
       tpDescription: tpDesc,
       assessmentType: dailyForm.assessmentType,
-      score: dailyForm.scores[std.id] || 0,
+      score: dailyForm.scores[std.id] ?? 0,
       date: dailyForm.date,
       formattedDate,
     }));
 
     if (onSaveDailyGrades) {
-      onSaveDailyGrades([...dailyGrades, ...newEntries]);
+      if (editingDailyGroupKey) {
+        const [oldTp, oldDate, oldType] = editingDailyGroupKey.split("_");
+        const filtered = dailyGrades.filter(
+          (g) =>
+            !(
+              g.subject === selectedSubject &&
+              g.tpCode === oldTp &&
+              (g.formattedDate === oldDate || g.date === oldDate) &&
+              g.assessmentType === oldType
+            )
+        );
+        onSaveDailyGrades([...filtered, ...newEntries]);
+      } else {
+        onSaveDailyGrades([...dailyGrades, ...newEntries]);
+      }
     }
 
     // Also update main TP grade records for instant sync across all students!
@@ -243,6 +316,7 @@ export const GradesMatrixView: React.FC<GradesMatrixViewProps> = ({
     onSaveGrades(updatedGrades);
 
     setIsDailyModalOpen(false);
+    setEditingDailyGroupKey(null);
     setSavedAlert(true);
     setTimeout(() => setSavedAlert(false), 3000);
   };
@@ -610,7 +684,7 @@ export const GradesMatrixView: React.FC<GradesMatrixViewProps> = ({
               </p>
             </div>
             <button
-              onClick={() => setIsDailyModalOpen(true)}
+              onClick={handleOpenNewDailyModal}
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm"
             >
               <Plus className="w-4 h-4" />
@@ -636,7 +710,8 @@ export const GradesMatrixView: React.FC<GradesMatrixViewProps> = ({
                       <th className="px-3 py-2 text-center">Tgl (dd/m)</th>
                       <th className="px-3 py-2">Kode TP</th>
                       <th className="px-3 py-2">Jenis Asesmen</th>
-                      <th className="px-3 py-2">Rata-Rata Kelas</th>
+                      <th className="px-3 py-2 text-center">Rata-Rata Kelas</th>
+                      <th className="px-3 py-2 text-center w-28">Aksi</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -661,13 +736,33 @@ export const GradesMatrixView: React.FC<GradesMatrixViewProps> = ({
                           : 0;
 
                       return (
-                        <tr key={groupKey} className="hover:bg-slate-50">
+                        <tr key={groupKey} className="hover:bg-slate-50 transition-colors">
                           <td className="px-3 py-2 text-center font-mono font-bold text-emerald-800 bg-emerald-50/40">
                             {dateStr}
                           </td>
                           <td className="px-3 py-2 font-mono font-bold text-slate-900">{tpCode}</td>
                           <td className="px-3 py-2 font-semibold text-slate-600">{type}</td>
-                          <td className="px-3 py-2 font-mono font-extrabold text-emerald-700">{avg}</td>
+                          <td className="px-3 py-2 text-center font-mono font-extrabold text-emerald-700">{avg}</td>
+                          <td className="px-3 py-2 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                onClick={() => handleOpenEditDailyGroup(tpCode, dateStr, type)}
+                                className="px-2 py-1 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-colors"
+                                title="Edit Entri Nilai Harian"
+                              >
+                                <Edit2 className="w-3 h-3 text-emerald-600" />
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteDailyGroup(tpCode, dateStr, type)}
+                                className="px-2 py-1 text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-colors"
+                                title="Hapus Entri Nilai Harian"
+                              >
+                                <Trash2 className="w-3 h-3 text-red-600" />
+                                Hapus
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}
@@ -769,8 +864,17 @@ export const GradesMatrixView: React.FC<GradesMatrixViewProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
           <div className="bg-white rounded-2xl p-6 max-w-2xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
-              <Plus className="w-5 h-5 text-emerald-600" />
-              Input Penilaian Harian / Formatif Siswa
+              {editingDailyGroupKey ? (
+                <>
+                  <Edit2 className="w-5 h-5 text-emerald-600" />
+                  Edit Penilaian Harian / Formatif Siswa ({selectedSubject})
+                </>
+              ) : (
+                <>
+                  <Plus className="w-5 h-5 text-emerald-600" />
+                  Input Penilaian Harian Baru ({selectedSubject})
+                </>
+              )}
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">

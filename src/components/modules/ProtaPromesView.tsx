@@ -1,6 +1,6 @@
-import React, { useState } from "react";
-import { ProtaItem, PromesItem, CPTPItem } from "../../types";
-import { CalendarRange, Plus, Trash2, Edit2, Download, Printer, FileText, Check, ChevronRight } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { ProtaItem, PromesItem, CPTPItem, TimetableSlot, CalendarEvent, IncidentalJournalEntry, SchoolIdentity } from "../../types";
+import { CalendarRange, Plus, Trash2, Edit2, Download, Printer, FileText, Check, ChevronRight, Calculator } from "lucide-react";
 import { exportToCSV } from "../../lib/storage";
 import { exportHtmlToDoc } from "../../lib/exportDoc";
 
@@ -9,6 +9,10 @@ interface ProtaPromesViewProps {
   promesList: PromesItem[];
   cptpItems: CPTPItem[];
   subjects: string[];
+  timetable?: TimetableSlot[];
+  calendarEvents?: CalendarEvent[];
+  incidentalJournals?: IncidentalJournalEntry[];
+  schoolIdentity?: SchoolIdentity;
   onSaveProta: (updated: ProtaItem[]) => void;
   onSavePromes: (updated: PromesItem[]) => void;
   onOpenPrint: (title: string, subtitle: string, content: React.ReactNode) => void;
@@ -19,6 +23,10 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
   promesList,
   cptpItems,
   subjects,
+  timetable = [],
+  calendarEvents = [],
+  incidentalJournals = [],
+  schoolIdentity,
   onSaveProta,
   onSavePromes,
   onOpenPrint,
@@ -28,6 +36,108 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
   const [selectedSemester, setSelectedSemester] = useState<1 | 2>(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Precision Calculation for Effective JP & Remaining JP (Sisa JP) per Semester
+  const jpSummary = useMemo(() => {
+    const parseLocalYMD = (str: string) => {
+      const parts = (str || "").split("-").map(Number);
+      if (parts.length < 3) return new Date();
+      return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+    };
+
+    const formatLocalYMD = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
+
+    const startDateStr = schoolIdentity?.academicYearStartDate || "2026-07-13";
+    const endDateStr = schoolIdentity?.academicYearEndDate || "2027-06-25";
+
+    const start = parseLocalYMD(startDateStr);
+    const end = parseLocalYMD(endDateStr);
+
+    const normalizeSub = (str: string) => (str || "").toLowerCase().trim().replace(/\s+/g, " ");
+    const targetSubNorm = normalizeSub(selectedSubject);
+
+    // Build unique day slot allocations from timetable
+    let daySlots: Record<string, number> = {};
+    const uniqueSlotsMap = new Map<string, TimetableSlot>();
+    (timetable || []).forEach((slot) => {
+      if (slot.day && slot.period && slot.subject && slot.subject.trim() !== "") {
+        const key = `${slot.day.trim()}_${slot.period}`;
+        uniqueSlotsMap.set(key, slot);
+      }
+    });
+
+    uniqueSlotsMap.forEach((slot) => {
+      if (normalizeSub(slot.subject) === targetSubNorm) {
+        const dayKey = slot.day.trim();
+        daySlots[dayKey] = (daySlots[dayKey] || 0) + 1;
+      }
+    });
+
+    // Compute effective JP for Semester 1 (July-Dec) and Semester 2 (Jan-June)
+    let sem1EffectiveJP = 0;
+    let sem2EffectiveJP = 0;
+
+    if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && start <= end) {
+      const curr = new Date(start);
+      while (curr <= end) {
+        const dayIdx = curr.getDay(); // 0 = Sun
+        const dayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+        const currentDayName = dayNames[dayIdx];
+
+        const dateStr = formatLocalYMD(curr);
+
+        const isHoliday =
+          dayIdx === 0 ||
+          (calendarEvents || []).some((e) => e.isHoliday && dateStr >= e.startDate && dateStr <= e.endDate) ||
+          (incidentalJournals || []).some((i) => i.date === dateStr);
+
+        if (dayIdx !== 0 && !isHoliday) {
+          const jpOnDay = daySlots[currentDayName] || 0;
+          const isSem1 = curr.getMonth() >= 6; // July(6) - Dec(11) is Sem 1
+          if (isSem1) {
+            sem1EffectiveJP += jpOnDay;
+          } else {
+            sem2EffectiveJP += jpOnDay;
+          }
+        }
+        curr.setDate(curr.getDate() + 1);
+      }
+    }
+
+    // Prota TP JP Allocations for selectedSubject
+    const sem1ProtaItems = protaList.filter(
+      (p) => normalizeSub(p.subject) === targetSubNorm && (p.semester === 1 || p.semester === "Ganjil" || (p.semester as any) === "1")
+    );
+    const sem2ProtaItems = protaList.filter(
+      (p) => normalizeSub(p.subject) === targetSubNorm && (p.semester === 2 || p.semester === "Genap" || (p.semester as any) === "2")
+    );
+
+    const sem1ProtaJP = sem1ProtaItems.reduce(
+      (acc, curr) => acc + (curr.allocatedJP || curr.timeAllocationJP || 0),
+      0
+    );
+    const sem2ProtaJP = sem2ProtaItems.reduce(
+      (acc, curr) => acc + (curr.allocatedJP || curr.timeAllocationJP || 0),
+      0
+    );
+
+    const sem1SisaJP = sem1EffectiveJP - sem1ProtaJP;
+    const sem2SisaJP = sem2EffectiveJP - sem2ProtaJP;
+
+    return {
+      sem1EffectiveJP,
+      sem1ProtaJP,
+      sem1SisaJP,
+      sem2EffectiveJP,
+      sem2ProtaJP,
+      sem2SisaJP,
+    };
+  }, [selectedSubject, timetable, calendarEvents, incidentalJournals, schoolIdentity, protaList]);
 
   const filteredProta = protaList.filter(
     (p) => p.subject === selectedSubject && (p.semester === selectedSemester || p.semester === (selectedSemester === 1 ? "Ganjil" : "Genap"))
@@ -468,9 +578,122 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
             onClick={handlePrint}
             className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 flex items-center gap-1.5"
           >
-            <Printer className="w-4 h-4" />
+            <Printer className="w-4 h-4 text-slate-600" />
             Cetak / PDF
           </button>
+        </div>
+      </div>
+
+      {/* COUNTER SISA JP PER SEMESTER CARD */}
+      <div className="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2.5 bg-emerald-100 text-emerald-900 rounded-xl">
+              <Calculator className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                Counter Alokasi Waktu & Sisa Jam Pelajaran (JP) — {selectedSubject}
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Rumus Presisi: <b>Net JP Efektif Kalender</b> dikurangi <b>Total Alokasi JP TP (Prota & Promes)</b>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* SEMESTER 1 COUNTER */}
+          <div
+            className={`p-4 rounded-xl border transition-all ${
+              selectedSemester === 1
+                ? "bg-teal-50/80 border-teal-300 ring-2 ring-teal-500/20"
+                : "bg-slate-50/70 border-slate-200"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-bold text-xs uppercase tracking-wider text-teal-950 flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-teal-600"></span>
+                Semester 1 (Ganjil)
+              </span>
+              <span
+                className={`px-3 py-1 rounded-full font-mono font-extrabold text-xs shadow-xs ${
+                  jpSummary.sem1SisaJP >= 0
+                    ? "bg-emerald-100 text-emerald-950 border border-emerald-300"
+                    : "bg-red-100 text-red-900 border border-red-300"
+                }`}
+              >
+                Sisa: {jpSummary.sem1SisaJP >= 0 ? `+${jpSummary.sem1SisaJP}` : jpSummary.sem1SisaJP} JP
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 text-center text-xs mt-3 bg-white p-2.5 rounded-lg border border-slate-200/80">
+              <div>
+                <span className="text-[11px] text-slate-500 block font-medium">Net JP Efektif</span>
+                <span className="font-mono font-bold text-slate-800 text-sm">{jpSummary.sem1EffectiveJP} JP</span>
+              </div>
+              <div className="border-x border-slate-200">
+                <span className="text-[11px] text-slate-500 block font-medium">Allocated TP Prota</span>
+                <span className="font-mono font-bold text-teal-700 text-sm">{jpSummary.sem1ProtaJP} JP</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-500 block font-medium">Sisa JP Semester 1</span>
+                <span
+                  className={`font-mono font-extrabold text-sm ${
+                    jpSummary.sem1SisaJP >= 0 ? "text-emerald-700" : "text-red-600"
+                  }`}
+                >
+                  {jpSummary.sem1SisaJP} JP
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* SEMESTER 2 COUNTER */}
+          <div
+            className={`p-4 rounded-xl border transition-all ${
+              selectedSemester === 2
+                ? "bg-indigo-50/80 border-indigo-300 ring-2 ring-indigo-500/20"
+                : "bg-slate-50/70 border-slate-200"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-bold text-xs uppercase tracking-wider text-indigo-950 flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
+                Semester 2 (Genap)
+              </span>
+              <span
+                className={`px-3 py-1 rounded-full font-mono font-extrabold text-xs shadow-xs ${
+                  jpSummary.sem2SisaJP >= 0
+                    ? "bg-emerald-100 text-emerald-950 border border-emerald-300"
+                    : "bg-red-100 text-red-900 border border-red-300"
+                }`}
+              >
+                Sisa: {jpSummary.sem2SisaJP >= 0 ? `+${jpSummary.sem2SisaJP}` : jpSummary.sem2SisaJP} JP
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 text-center text-xs mt-3 bg-white p-2.5 rounded-lg border border-slate-200/80">
+              <div>
+                <span className="text-[11px] text-slate-500 block font-medium">Net JP Efektif</span>
+                <span className="font-mono font-bold text-slate-800 text-sm">{jpSummary.sem2EffectiveJP} JP</span>
+              </div>
+              <div className="border-x border-slate-200">
+                <span className="text-[11px] text-slate-500 block font-medium">Allocated TP Prota</span>
+                <span className="font-mono font-bold text-indigo-700 text-sm">{jpSummary.sem2ProtaJP} JP</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-500 block font-medium">Sisa JP Semester 2</span>
+                <span
+                  className={`font-mono font-extrabold text-sm ${
+                    jpSummary.sem2SisaJP >= 0 ? "text-emerald-700" : "text-red-600"
+                  }`}
+                >
+                  {jpSummary.sem2SisaJP} JP
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
