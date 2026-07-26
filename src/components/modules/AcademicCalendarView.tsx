@@ -167,6 +167,10 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
         totalJP: number;
         lostJP: number;
         effectiveJP: number;
+        sem1EffectiveMeetings: number;
+        sem1EffectiveJP: number;
+        sem2EffectiveMeetings: number;
+        sem2EffectiveJP: number;
       }
     > = {};
 
@@ -189,6 +193,10 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
         totalJP: 0,
         lostJP: 0,
         effectiveJP: 0,
+        sem1EffectiveMeetings: 0,
+        sem1EffectiveJP: 0,
+        sem2EffectiveMeetings: 0,
+        sem2EffectiveJP: 0,
       };
     });
 
@@ -201,6 +209,9 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
       // Format date YYYY-MM-DD cleanly using local date getters
       const dateStr = formatLocalYMD(curr);
       const holidayInfo = isDateHolidayOrEvent(dateStr);
+
+      const monthIdx = curr.getMonth();
+      const isSem1 = monthIdx >= 6; // July(6) to Dec(11) is Semester 1 (Ganjil)
 
       if (dayIdx !== 0) {
         // Skip Sundays
@@ -216,6 +227,14 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
             } else {
               results[sub].effectiveMeetings += 1;
               results[sub].effectiveJP += jpOnDay;
+
+              if (isSem1) {
+                results[sub].sem1EffectiveMeetings += 1;
+                results[sub].sem1EffectiveJP += jpOnDay;
+              } else {
+                results[sub].sem2EffectiveMeetings += 1;
+                results[sub].sem2EffectiveJP += jpOnDay;
+              }
             }
           }
         });
@@ -541,29 +560,39 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
           <table className="w-full text-left text-xs text-slate-700">
             <thead className="bg-slate-50 font-bold border-b border-slate-200 text-slate-800 uppercase tracking-wider text-[11px]">
               <tr>
-                <th className="px-4 py-3 text-center w-10">No</th>
-                <th className="px-4 py-3">Mata Pelajaran</th>
-                <th className="px-4 py-3">Jadwal Mingguan (JP/Minggu)</th>
-                <th className="px-4 py-3 text-center">Rencana Pertemuan</th>
-                <th className="px-4 py-3 text-center text-red-600 bg-red-50/40">Pengurangan Libur/Event</th>
-                <th className="px-4 py-3 text-center text-emerald-800 bg-emerald-50/50">Pertemuan Efektif</th>
-                <th className="px-4 py-3 text-center text-emerald-950 bg-emerald-100 font-extrabold">Net JP Efektif</th>
+                <th className="px-3 py-3 text-center w-8">No</th>
+                <th className="px-3 py-3">Mata Pelajaran</th>
+                <th className="px-3 py-3">Jadwal Mingguan</th>
+                <th className="px-3 py-3 text-center text-teal-800 bg-teal-50/60">Pertemuan Efektif Sem 1</th>
+                <th className="px-3 py-3 text-center text-teal-900 bg-teal-100/60">JP Sem 1</th>
+                <th className="px-3 py-3 text-center text-indigo-800 bg-indigo-50/60">Pertemuan Efektif Sem 2</th>
+                <th className="px-3 py-3 text-center text-indigo-900 bg-indigo-100/60">JP Sem 2</th>
+                <th className="px-3 py-3 text-center text-red-600 bg-red-50/40">Pengurangan Libur</th>
+                <th className="px-3 py-3 text-center text-emerald-950 bg-emerald-100 font-extrabold">Total Net JP Setahun</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {subjectCalculations.map((sc, idx) => (
                 <tr key={sc.subject} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="px-4 py-3 text-center text-slate-400">{idx + 1}</td>
-                  <td className="px-4 py-3 font-bold text-slate-900">{sc.subject}</td>
-                  <td className="px-4 py-3 font-medium text-slate-600">{sc.weeklyScheduleSummary}</td>
-                  <td className="px-4 py-3 text-center font-mono font-semibold">{sc.totalScheduledMeetings} Hari</td>
-                  <td className="px-4 py-3 text-center font-mono font-bold text-red-600 bg-red-50/20">
+                  <td className="px-3 py-3 text-center text-slate-400 font-mono">{idx + 1}</td>
+                  <td className="px-3 py-3 font-bold text-slate-900">{sc.subject}</td>
+                  <td className="px-3 py-3 font-medium text-slate-600">{sc.weeklyScheduleSummary}</td>
+                  <td className="px-3 py-3 text-center font-mono font-semibold text-teal-800 bg-teal-50/30">
+                    {sc.sem1EffectiveMeetings} Hari
+                  </td>
+                  <td className="px-3 py-3 text-center font-mono font-bold text-teal-900 bg-teal-100/30">
+                    {sc.sem1EffectiveJP} JP
+                  </td>
+                  <td className="px-3 py-3 text-center font-mono font-semibold text-indigo-800 bg-indigo-50/30">
+                    {sc.sem2EffectiveMeetings} Hari
+                  </td>
+                  <td className="px-3 py-3 text-center font-mono font-bold text-indigo-900 bg-indigo-100/30">
+                    {sc.sem2EffectiveJP} JP
+                  </td>
+                  <td className="px-3 py-3 text-center font-mono font-bold text-red-600 bg-red-50/20">
                     -{sc.holidayMeetingsLost} Hari ({sc.lostJP} JP)
                   </td>
-                  <td className="px-4 py-3 text-center font-bold text-emerald-700 bg-emerald-50/30">
-                    {sc.effectiveMeetings} Hari
-                  </td>
-                  <td className="px-4 py-3 text-center font-extrabold text-emerald-900 bg-emerald-100/60 font-mono text-xs">
+                  <td className="px-3 py-3 text-center font-extrabold text-emerald-900 bg-emerald-100/60 font-mono text-xs">
                     {sc.effectiveJP} JP
                   </td>
                 </tr>

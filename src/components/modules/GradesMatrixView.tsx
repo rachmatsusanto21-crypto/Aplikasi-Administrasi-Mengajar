@@ -214,12 +214,33 @@ export const GradesMatrixView: React.FC<GradesMatrixViewProps> = ({
       onSaveDailyGrades([...dailyGrades, ...newEntries]);
     }
 
-    // Also update main TP grade records for instant sync!
+    // Also update main TP grade records for instant sync across all students!
+    let updatedGrades = [...grades];
     students.forEach((std) => {
-      if (dailyForm.scores[std.id] !== undefined) {
-        handleScoreChange(std.id, "tp", dailyForm.tpCode, dailyForm.scores[std.id]);
+      const userVal = dailyForm.scores[std.id];
+      if (userVal !== undefined) {
+        const numVal = Math.min(100, Math.max(0, userVal || 0));
+        const existingIdx = updatedGrades.findIndex(
+          (g) => g.studentId === std.id && g.subject === selectedSubject
+        );
+
+        if (existingIdx >= 0) {
+          const existing = updatedGrades[existingIdx];
+          updatedGrades[existingIdx] = {
+            ...existing,
+            tpScores: { ...existing.tpScores, [dailyForm.tpCode]: numVal },
+          };
+        } else {
+          updatedGrades.push({
+            studentId: std.id,
+            subject: selectedSubject,
+            tpScores: { [dailyForm.tpCode]: numVal },
+          });
+        }
       }
     });
+
+    onSaveGrades(updatedGrades);
 
     setIsDailyModalOpen(false);
     setSavedAlert(true);
