@@ -36,29 +36,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       title: "Core Admin & Data",
       items: [
-        { id: "identity" as NavModule, label: "Identitas Sekolah", icon: Building2 },
-        { id: "students" as NavModule, label: "Database Murid", icon: Users },
-        { id: "attendance" as NavModule, label: "Absensi Bulk (dd/m)", icon: UserCheck, badge: "Daily" },
+        { id: "identity" as NavModule, label: "Identitas Sekolah", icon: Building2, color: "text-emerald-400" },
+        { id: "students" as NavModule, label: "Database Murid", icon: Users, color: "text-sky-400" },
+        { id: "attendance" as NavModule, label: "Absensi Bulk (dd/m)", icon: UserCheck, badge: "Daily", color: "text-amber-400" },
       ],
     },
     {
       title: "Pembelajaran & Kurikulum",
       items: [
-        { id: "calendar" as NavModule, label: "Kalender & Hari Efektif", icon: Calendar },
-        { id: "prota_promes" as NavModule, label: "Prota & Promes", icon: Layers },
-        { id: "curriculum" as NavModule, label: "Kurikulum CP & TP", icon: BookOpen, hasAI: true },
-        { id: "teaching_module" as NavModule, label: "Modul Ajar (AI Deep Learning)", icon: Sparkles, hasAI: true, highlight: true },
+        { id: "calendar" as NavModule, label: "Kalender & Hari Efektif", icon: Calendar, color: "text-purple-400" },
+        { id: "prota_promes" as NavModule, label: "Prota & Promes", icon: Layers, color: "text-orange-400" },
+        { id: "curriculum" as NavModule, label: "Kurikulum CP & TP", icon: BookOpen, hasAI: true, color: "text-violet-400" },
+        { id: "teaching_module" as NavModule, label: "Modul Ajar (AI Deep Learning)", icon: Sparkles, hasAI: true, highlight: true, color: "text-fuchsia-400" },
       ],
     },
     {
       title: "Pencatatan & Jurnal",
       items: [
-        { id: "grades" as NavModule, label: "Rekap Nilai & Leger", icon: GraduationCap },
-        { id: "learning_analysis" as NavModule, label: "Analisis Hasil Belajar", icon: TrendingUp, highlight: true },
-        { id: "discipline" as NavModule, label: "Pelanggaran & BK", icon: ShieldAlert },
-        { id: "timetable" as NavModule, label: "Jadwal Pelajaran", icon: CalendarDays },
-        { id: "daily_log" as NavModule, label: "Jurnal Mengajar Harian", icon: ClipboardList },
-        { id: "incidental" as NavModule, label: "Insidental & Buku Tamu", icon: BookMarked },
+        { id: "grades" as NavModule, label: "Rekap Nilai & Leger", icon: GraduationCap, color: "text-indigo-400" },
+        { id: "learning_analysis" as NavModule, label: "Analisis Hasil Belajar", icon: TrendingUp, highlight: true, color: "text-rose-400" },
+        { id: "discipline" as NavModule, label: "Pelanggaran & BK", icon: ShieldAlert, color: "text-red-400" },
+        { id: "timetable" as NavModule, label: "Jadwal Pelajaran", icon: CalendarDays, color: "text-cyan-400" },
+        { id: "daily_log" as NavModule, label: "Jurnal Mengajar Harian", icon: ClipboardList, color: "text-teal-400" },
+        { id: "incidental" as NavModule, label: "Insidental & Buku Tamu", icon: BookMarked, color: "text-pink-400" },
       ],
     },
   ];
@@ -75,21 +75,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed lg:sticky top-0 left-0 z-40 h-screen w-64 bg-slate-900 text-slate-300 flex flex-col transition-transform duration-200 border-r border-slate-800 shrink-0 ${
+        className={`fixed lg:sticky top-0 left-0 z-40 h-screen w-64 bg-slate-900 dark:bg-slate-950 text-slate-300 flex flex-col transition-transform duration-200 border-r border-slate-800 shrink-0 ${
           isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
         {/* Sidebar Brand Header */}
         <div className="p-3.5 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-indigo-600 rounded flex items-center justify-center font-extrabold text-white italic text-xs tracking-tighter shadow-xs">
+            <div className="w-8 h-8 bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 rounded-lg flex items-center justify-center font-extrabold text-white italic text-xs tracking-tighter shadow-md">
               EDU
             </div>
-            <div className="leading-none">
-              <h1 className="text-xs font-bold text-white uppercase tracking-wider">
+            <div className="leading-tight">
+              <h1 className="text-xs font-black text-white uppercase tracking-wider">
                 EduAdmin Pro
               </h1>
-              <span className="text-[10px] text-slate-400 font-medium">v2.4 High-Density</span>
+              <span className="text-xs text-slate-400 font-medium block">v2.4 High-Density</span>
             </div>
           </div>
           <button
@@ -101,10 +101,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* High Density Nav Menu */}
-        <nav className="flex-1 overflow-y-auto py-2 text-[11px] font-medium space-y-3">
+        <nav className="flex-1 overflow-y-auto py-2 text-xs font-medium space-y-3">
           {menuGroups.map((group, idx) => (
-            <div key={idx} className="space-y-0.5">
-              <div className="px-3 py-1 text-slate-400 uppercase tracking-widest text-[9px] font-bold">
+            <div key={idx} className="space-y-1">
+              <div className="px-3 py-1 text-slate-400 uppercase tracking-widest text-xs font-bold">
                 {group.title}
               </div>
               {group.items.map((item) => {
@@ -117,25 +117,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       onSelectModule(item.id);
                       onClose();
                     }}
-                    className={`w-full flex items-center justify-between px-3 py-2 transition-colors ${
+                    className={`w-full flex items-center justify-between px-3 py-2 transition-all rounded-lg mx-1 w-[calc(100%-8px)] ${
                       isActive
-                        ? "bg-indigo-600 text-white border-l-2 border-indigo-400 font-bold"
+                        ? "bg-indigo-600 text-white font-black shadow-xs"
                         : item.highlight
-                        ? "text-indigo-300 bg-indigo-950/40 hover:bg-indigo-900/50 border-l-2 border-indigo-500"
+                        ? "text-indigo-200 bg-indigo-950/50 hover:bg-indigo-900/60 border border-indigo-800/50"
                         : "text-slate-300 hover:bg-slate-800 hover:text-white"
                     }`}
                   >
-                    <div className="flex items-center gap-2 truncate">
-                      <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? "text-white" : item.highlight ? "text-indigo-400" : "text-slate-400"}`} />
-                      <span className="truncate text-[11px]">{item.label}</span>
+                    <div className="flex items-center gap-2.5 truncate">
+                      <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-white" : item.color}`} />
+                      <span className="truncate text-xs font-bold">{item.label}</span>
                     </div>
                     {item.hasAI && (
-                      <span className="shrink-0 text-[8px] font-bold px-1 py-0.2 rounded bg-indigo-500 text-white uppercase">
+                      <span className="shrink-0 text-xs font-black px-1.5 py-0.5 rounded bg-fuchsia-600 text-white uppercase">
                         AI
                       </span>
                     )}
                     {item.badge && (
-                      <span className="shrink-0 text-[8px] font-semibold px-1 py-0.2 rounded bg-slate-800 text-slate-400">
+                      <span className="shrink-0 text-xs font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
                         {item.badge}
                       </span>
                     )}
@@ -147,16 +147,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
 
         {/* Sidebar Footer Status */}
-        <div className="p-3 bg-slate-950 border-t border-slate-800 text-[10px] space-y-1">
+        <div className="p-3 bg-slate-950 border-t border-slate-800 text-xs space-y-1.5">
           <div className="flex justify-between items-center text-slate-400">
             <span>Google Sheets Sync</span>
             <span className="text-emerald-400 font-bold flex items-center gap-1">
-              <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Aktif
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Aktif
             </span>
           </div>
           <div className="flex justify-between items-center text-slate-400">
             <span>AI Agent Engine</span>
-            <span className="text-indigo-300 font-mono">Gemini 3.6</span>
+            <span className="text-indigo-300 font-mono font-bold">Gemini 3.6</span>
           </div>
         </div>
       </aside>

@@ -52,9 +52,14 @@ export const LearningAnalysisView: React.FC<LearningAnalysisViewProps> = ({
   onOpenPrint,
 }) => {
   const [kkmValue, setKkmValue] = useState<number>(75);
-  const [activeTab, setActiveTab] = useState<"barchart" | "heatmap" | "difficult_tps">("barchart");
+  const [activeTab, setActiveTab] = useState<"barchart" | "heatmap" | "difficult_tps" | "remedial_detail">("remedial_detail");
   const [selectedSubject, setSelectedSubject] = useState<string>(subjects[0] || "Bahasa Indonesia");
   const [heatmapSearch, setHeatmapSearch] = useState("");
+
+  // Filter state for Student Remedial Detail
+  const [remedialFilter, setRemedialFilter] = useState<"all" | "remedial" | "tuntas">("remedial");
+  const [remedialSearch, setRemedialSearch] = useState<string>("");
+  const [remedialSubject, setRemedialSubject] = useState<string>("ALL");
 
   // Helper: Get or calculate grade for student in a subject
   const getStudentSubjectScore = (studentId: string, subject: string) => {
@@ -290,6 +295,97 @@ export const LearningAnalysisView: React.FC<LearningAnalysisViewProps> = ({
     return list.sort((a, b) => a.avgScore - b.avgScore);
   }, [students, subjects, cptpItems, grades, kkmValue]);
 
+  // 4. Student Remedial Breakdown Matrix across Students & Subjects
+  const studentRemedialList = useMemo(() => {
+    const list: Array<{
+      student: Student;
+      subject: string;
+      avgTP: number;
+      midSummative: number;
+      finalSummative: number;
+      finalScore: number;
+      isTuntas: boolean;
+      tpScores: Record<string, number>;
+      weakestTP: { code: string; score: number } | null;
+      actionNote: string;
+    }> = [];
+
+    const targetSubjects = remedialSubject === "ALL" ? subjects : [remedialSubject];
+
+    students.forEach((std) => {
+      targetSubjects.forEach((sub) => {
+        const { finalScore, tpScores, avgTP } = getStudentSubjectScore(std.id, sub);
+        const record = grades.find((g) => g.studentId === std.id && g.subject === sub);
+        const midSummative = record?.midSummative ?? avgTP;
+        const finalSummative = record?.finalSummative ?? avgTP;
+
+        const isTuntas = finalScore >= kkmValue;
+
+        // Find lowest TP score
+        let lowestTp: { code: string; score: number } | null = null;
+        const tpEntries = Object.entries(tpScores).filter(
+          ([_, score]) => typeof score === "number" && !isNaN(score)
+        );
+        if (tpEntries.length > 0) {
+          tpEntries.sort((a, b) => Number(a[1]) - Number(b[1]));
+          lowestTp = { code: tpEntries[0][0], score: Number(tpEntries[0][1]) };
+        }
+
+        let actionNote = "Tuntas - Pertahankan & Pengayaan";
+        if (!isTuntas) {
+          if (finalScore < 60) {
+            actionNote = "Bimbingan Khusus Perorangan & Pendampingan Re-test";
+          } else {
+            actionNote = "Remedial Soal & Latihan TP Terlemah";
+          }
+        } else if (finalScore >= 90) {
+          actionNote = "Istimewa - Rekomendasi Tutor Sebaya";
+        }
+
+        list.push({
+          student: std,
+          subject: sub,
+          avgTP,
+          midSummative,
+          finalSummative,
+          finalScore,
+          isTuntas,
+          tpScores,
+          weakestTP: lowestTp,
+          actionNote,
+        });
+      });
+    });
+
+    return list;
+  }, [students, subjects, grades, remedialSubject, kkmValue]);
+
+  // Filtered Student Remedial List
+  const filteredStudentRemedialList = useMemo(() => {
+    return studentRemedialList.filter((item) => {
+      if (remedialFilter === "remedial" && item.isTuntas) return false;
+      if (remedialFilter === "tuntas" && !item.isTuntas) return false;
+
+      if (remedialSearch.trim()) {
+        const q = remedialSearch.toLowerCase().trim();
+        const matchName = item.student.name.toLowerCase().includes(q);
+        const matchNisn = item.student.nisn ? item.student.nisn.includes(q) : false;
+        const matchSubject = item.subject.toLowerCase().includes(q);
+        if (!matchName && !matchNisn && !matchSubject) return false;
+      }
+
+      return true;
+    });
+  }, [studentRemedialList, remedialFilter, remedialSearch]);
+
+  const remedialStats = useMemo(() => {
+    const totalRecords = studentRemedialList.length;
+    const tuntasCount = studentRemedialList.filter((r) => r.isTuntas).length;
+    const remedialCount = totalRecords - tuntasCount;
+    const tuntasPct = totalRecords > 0 ? Math.round((tuntasCount / totalRecords) * 100) : 0;
+    return { totalRecords, tuntasCount, remedialCount, tuntasPct };
+  }, [studentRemedialList]);
+
   // Color helper for Heatmap Cells
   const getHeatmapColorClass = (score: number) => {
     if (score < 65) return "bg-red-500 text-white font-bold";
@@ -311,7 +407,37 @@ export const LearningAnalysisView: React.FC<LearningAnalysisViewProps> = ({
 
   // Export CSV
   const handleExportCSV = () => {
-    if (activeTab === "barchart") {
+    if (activeTab === "remedial_detail") {
+      const headers = [
+        "No",
+        "NISN",
+        "Nama Siswa",
+        "Mata Pelajaran",
+        "Rerata TP",
+        "Nilai STS",
+        "Nilai SAS",
+        "Nilai Akhir",
+        "Status KKM",
+        "TP Terlemah",
+        "Skor TP Terlemah",
+        "Rekomendasi Tindakan / Remedial",
+      ];
+      const rows = filteredStudentRemedialList.map((r, idx) => [
+        idx + 1,
+        r.student.nisn || "-",
+        r.student.name,
+        r.subject,
+        r.avgTP,
+        r.midSummative,
+        r.finalSummative,
+        r.finalScore,
+        r.isTuntas ? "TUNTAS" : "REMEDIAL (< KKM)",
+        r.weakestTP ? r.weakestTP.code : "-",
+        r.weakestTP ? r.weakestTP.score : "-",
+        r.actionNote,
+      ]);
+      exportToCSV(headers, rows, `Analisis_Detail_Nilai_dan_Remedial_KKM_${kkmValue}`);
+    } else if (activeTab === "barchart") {
       const headers = ["No", "Mata Pelajaran", "Rata-Rata Kelas", "Nilai Tertinggi", "Nilai Terendah", "Siswa Tuntas", "Siswa Remedial", "% Ketuntasan"];
       const rows = subjectAnalysisList.map((item, idx) => [
         idx + 1,
@@ -570,77 +696,89 @@ export const LearningAnalysisView: React.FC<LearningAnalysisViewProps> = ({
 
       {/* Summary Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Rata-Rata Kelas Total</p>
-            <h4 className="text-2xl font-black text-slate-900 mt-0.5">{overallStats.overallAvg}</h4>
-            <p className="text-[11px] text-slate-500 mt-1">
+            <p className="text-xs font-bold uppercase text-slate-400 tracking-wider">Rata-Rata Kelas Total</p>
+            <h4 className="text-2xl font-black text-slate-900 dark:text-white mt-0.5">{overallStats.overallAvg}</h4>
+            <p className="text-xs text-slate-500 mt-1">
               {overallStats.overallAvg >= kkmValue ? (
-                <span className="text-emerald-600 font-bold">✓ Melampaui KKM ({kkmValue})</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold">✓ Melampaui KKM ({kkmValue})</span>
               ) : (
-                <span className="text-amber-600 font-bold">⚠ Di Bawah KKM ({kkmValue})</span>
+                <span className="text-amber-600 dark:text-amber-400 font-bold">⚠ Di Bawah KKM ({kkmValue})</span>
               )}
             </p>
           </div>
-          <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+          <div className="p-3 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded-2xl">
             <Award className="w-6 h-6" />
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Mapel Performa Terbaik</p>
-            <h4 className="text-base font-extrabold text-emerald-700 truncate mt-0.5 max-w-[160px]">
+            <p className="text-xs font-bold uppercase text-slate-400 tracking-wider">Mapel Performa Terbaik</p>
+            <h4 className="text-base font-extrabold text-emerald-700 dark:text-emerald-400 truncate mt-0.5 max-w-[160px]">
               {overallStats.highestSubject}
             </h4>
-            <p className="text-[11px] text-emerald-600 font-bold mt-1">
+            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold mt-1">
               Rata-rata: {overallStats.highestAvg}
             </p>
           </div>
-          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
+          <div className="p-3 bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 rounded-2xl">
             <ArrowUpRight className="w-6 h-6" />
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Mapel Perlu Perhatian</p>
-            <h4 className="text-base font-extrabold text-red-600 truncate mt-0.5 max-w-[160px]">
+            <p className="text-xs font-bold uppercase text-slate-400 tracking-wider">Mapel Perlu Perhatian</p>
+            <h4 className="text-base font-extrabold text-red-600 dark:text-red-400 truncate mt-0.5 max-w-[160px]">
               {overallStats.lowestSubject}
             </h4>
-            <p className="text-[11px] text-red-500 font-bold mt-1">
+            <p className="text-xs text-red-500 dark:text-red-400 font-bold mt-1">
               Rata-rata: {overallStats.lowestAvg}
             </p>
           </div>
-          <div className="p-3 bg-red-50 text-red-600 rounded-2xl">
+          <div className="p-3 bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400 rounded-2xl">
             <ArrowDownRight className="w-6 h-6" />
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Topik/TP Paling Sulit</p>
-            <h4 className="text-sm font-extrabold text-amber-700 truncate mt-0.5 max-w-[160px]">
+            <p className="text-xs font-bold uppercase text-slate-400 tracking-wider">Topik/TP Paling Sulit</p>
+            <h4 className="text-sm font-extrabold text-amber-700 dark:text-amber-400 truncate mt-0.5 max-w-[160px]">
               {allDifficultTPs[0]?.codeTP || "TP-1"} ({allDifficultTPs[0]?.subject || "-"})
             </h4>
-            <p className="text-[11px] text-slate-500 mt-1">
-              Nilai Rata-rata: <span className="font-extrabold text-red-600">{allDifficultTPs[0]?.avgScore || 0}</span>
+            <p className="text-xs text-slate-500 mt-1">
+              Nilai Rata-rata: <span className="font-extrabold text-red-600 dark:text-red-400">{allDifficultTPs[0]?.avgScore || 0}</span>
             </p>
           </div>
-          <div className="p-3 bg-amber-50 text-amber-600 rounded-2xl">
+          <div className="p-3 bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 rounded-2xl">
             <Flame className="w-6 h-6" />
           </div>
         </div>
       </div>
 
       {/* Main Tab Switcher */}
-      <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 text-xs font-bold w-fit flex-wrap gap-1">
+      <div className="flex bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold w-fit flex-wrap gap-1">
+        <button
+          onClick={() => setActiveTab("remedial_detail")}
+          className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 ${
+            activeTab === "remedial_detail"
+              ? "bg-rose-600 text-white shadow-xs font-extrabold"
+              : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800"
+          }`}
+        >
+          <AlertTriangle className="w-4 h-4 text-rose-200" />
+          Detail Nilai & Status Remedial Siswa ({remedialStats.remedialCount})
+        </button>
+
         <button
           onClick={() => setActiveTab("barchart")}
           className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 ${
             activeTab === "barchart"
               ? "bg-indigo-600 text-white shadow-xs font-extrabold"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+              : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800"
           }`}
         >
           <BarChart3 className="w-4 h-4" />
@@ -651,7 +789,7 @@ export const LearningAnalysisView: React.FC<LearningAnalysisViewProps> = ({
           className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 ${
             activeTab === "heatmap"
               ? "bg-indigo-600 text-white shadow-xs font-extrabold"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+              : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800"
           }`}
         >
           <Grid className="w-4 h-4" />
@@ -662,13 +800,213 @@ export const LearningAnalysisView: React.FC<LearningAnalysisViewProps> = ({
           className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 ${
             activeTab === "difficult_tps"
               ? "bg-red-600 text-white shadow-xs font-extrabold"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+              : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800"
           }`}
         >
           <Flame className="w-4 h-4" />
           Peta Topik/TP Paling Sulit ({allDifficultTPs.length})
         </button>
       </div>
+
+      {/* TAB 0: DETAIL NILAI SISWA & STATUS REMEDIAL */}
+      {activeTab === "remedial_detail" && (
+        <div className="space-y-5">
+          {/* Controls & Filter Bar */}
+          <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Filter className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+                <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                  Filter Detail Nilai & Status Remedial (Batas KKM = {kkmValue})
+                </h3>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                {/* Status Remedial Filter Buttons */}
+                <div className="flex items-center bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-700 font-bold">
+                  <button
+                    onClick={() => setRemedialFilter("all")}
+                    className={`px-3 py-1.5 rounded-lg transition-all ${
+                      remedialFilter === "all"
+                        ? "bg-slate-800 text-white shadow-xs"
+                        : "text-slate-600 dark:text-slate-300 hover:text-slate-900"
+                    }`}
+                  >
+                    Semua Siswa ({remedialStats.totalRecords})
+                  </button>
+                  <button
+                    onClick={() => setRemedialFilter("remedial")}
+                    className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 ${
+                      remedialFilter === "remedial"
+                        ? "bg-rose-600 text-white shadow-xs font-black"
+                        : "text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                    }`}
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    Hanya Perlu Remedial ({remedialStats.remedialCount})
+                  </button>
+                  <button
+                    onClick={() => setRemedialFilter("tuntas")}
+                    className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 ${
+                      remedialFilter === "tuntas"
+                        ? "bg-emerald-600 text-white shadow-xs font-black"
+                        : "text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                    }`}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Hanya Tuntas ({remedialStats.tuntasCount})
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-100 dark:border-slate-700/60">
+              {/* Select Subject */}
+              <div>
+                <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">
+                  Pilih Mata Pelajaran:
+                </label>
+                <select
+                  value={remedialSubject}
+                  onChange={(e) => setRemedialSubject(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="ALL">Semua Mata Pelajaran</option>
+                  {subjects.map((sub) => (
+                    <option key={sub} value={sub}>
+                      {sub}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Search input */}
+              <div>
+                <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">
+                  Cari Nama Siswa / NISN:
+                </label>
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    value={remedialSearch}
+                    onChange={(e) => setRemedialSearch(e.target.value)}
+                    placeholder="Ketik nama atau NISN..."
+                    className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              {/* Stat Summary Badge */}
+              <div className="flex items-center justify-end gap-3 bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                <div className="text-right">
+                  <span className="text-xs font-bold text-slate-500 block">Tingkat Ketuntasan:</span>
+                  <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">
+                    {remedialStats.tuntasPct}% ({remedialStats.tuntasCount}/{remedialStats.totalRecords})
+                  </span>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center text-indigo-600 font-black text-xs">
+                  {remedialStats.tuntasPct}%
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Table displaying filtered students */}
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs overflow-hidden">
+            <div className="p-3.5 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                Menampilkan <span className="text-indigo-600 dark:text-indigo-400 font-black">{filteredStudentRemedialList.length}</span> data nilai siswa
+              </span>
+              <span className="text-xs font-semibold text-slate-500">
+                Batas KKM: <span className="font-extrabold text-amber-600 dark:text-amber-400">{kkmValue}</span>
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-100 dark:bg-slate-900 font-bold border-b border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                  <tr>
+                    <th className="p-3 text-center w-10">No</th>
+                    <th className="p-3 w-28">NISN</th>
+                    <th className="p-3 min-w-[150px]">Nama Siswa</th>
+                    <th className="p-3 min-w-[140px]">Mata Pelajaran</th>
+                    <th className="p-3 text-center w-20">Rerata TP</th>
+                    <th className="p-3 text-center w-20">STS (Mid)</th>
+                    <th className="p-3 text-center w-20">SAS (Final)</th>
+                    <th className="p-3 text-center w-24">Nilai Akhir</th>
+                    <th className="p-3 text-center w-32">Status KKM</th>
+                    <th className="p-3 w-32">TP Terlemah</th>
+                    <th className="p-3 min-w-[180px]">Rekomendasi Tindakan</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60 font-medium text-slate-800 dark:text-slate-200">
+                  {filteredStudentRemedialList.length === 0 ? (
+                    <tr>
+                      <td colSpan={11} className="p-8 text-center text-slate-500 dark:text-slate-400">
+                        Tidak ada data siswa yang cocok dengan filter yang dipilih.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredStudentRemedialList.map((r, idx) => (
+                      <tr
+                        key={`${r.student.id}_${r.subject}`}
+                        className={`hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${
+                          !r.isTuntas ? "bg-rose-50/40 dark:bg-rose-950/20" : ""
+                        }`}
+                      >
+                        <td className="p-3 text-center text-slate-500 font-mono font-bold">{idx + 1}</td>
+                        <td className="p-3 font-mono text-slate-600 dark:text-slate-400">{r.student.nisn || "-"}</td>
+                        <td className="p-3 font-extrabold text-slate-900 dark:text-white">{r.student.name}</td>
+                        <td className="p-3 font-bold text-indigo-700 dark:text-indigo-300">{r.subject}</td>
+                        <td className="p-3 text-center font-bold font-mono">{r.avgTP}</td>
+                        <td className="p-3 text-center font-bold font-mono">{r.midSummative}</td>
+                        <td className="p-3 text-center font-bold font-mono">{r.finalSummative}</td>
+                        <td className="p-3 text-center font-black font-mono text-sm">
+                          <span
+                            className={
+                              r.isTuntas
+                                ? "text-emerald-700 dark:text-emerald-400"
+                                : "text-rose-600 dark:text-rose-400"
+                            }
+                          >
+                            {r.finalScore}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          {r.isTuntas ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                              TUNTAS
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800 animate-pulse">
+                              <AlertTriangle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                              REMEDIAL
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3">
+                          {r.weakestTP ? (
+                            <span className="inline-block px-2 py-0.5 rounded text-xs font-mono font-bold bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                              {r.weakestTP.code} ({r.weakestTP.score})
+                            </span>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
+                        <td className="p-3 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                          {r.actionNote}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* TAB 1: BAR CHART COMPARISON */}
       {activeTab === "barchart" && (

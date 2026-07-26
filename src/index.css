@@ -2,6 +2,64 @@
 
 @variant dark (&:where(.dark, .dark *));
 
+/* Comprehensive Dark Mode Legibility Rules */
+.dark body {
+  background-color: #0f172a !important; /* slate-900 */
+  color: #f8fafc !important; /* slate-50 */
+}
+
+/* Ensure white cards become dark slate containers with visible text in Dark Mode */
+.dark .bg-white {
+  background-color: #1e293b !important; /* slate-800 */
+  color: #f8fafc !important;
+}
+
+.dark .bg-slate-50,
+.dark .bg-slate-100/50,
+.dark .bg-slate-50/50,
+.dark .bg-slate-50/60 {
+  background-color: #0f172a !important; /* slate-900 */
+  color: #f1f5f9 !important;
+}
+
+.dark .text-slate-900,
+.dark .text-slate-800,
+.dark .text-slate-700 {
+  color: #f8fafc !important;
+}
+
+.dark .text-slate-600,
+.dark .text-slate-500 {
+  color: #cbd5e1 !important;
+}
+
+.dark .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+.dark .border-slate-200,
+.dark .border-slate-100,
+.dark .border-slate-300 {
+  border-color: #334155 !important; /* slate-700 */
+}
+
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+  border-color: #475569 !important;
+}
+
+.dark table thead tr {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+.dark table tbody tr:hover {
+  background-color: #334155 !important;
+}
+
 /* Global Print Styles for Full Multi-Page Document Printing */
 @media print {
   /* Hide all non-printable elements on screen */
@@ -108,4 +166,5 @@
     margin: 10mm;
   }
 }
+
 
