@@ -26,7 +26,43 @@ export const TimetableScheduleView: React.FC<TimetableScheduleViewProps> = ({
     "Sabtu",
   ];
 
-  const [periods, setPeriods] = useState<number[]>([1, 2, 3, 4, 5, 6, 7, 8]);
+  // Helper time ranges for periods 1..12
+  const getDefaultTimeRange = (periodNum: number): string => {
+    const timeSlots: Record<number, string> = {
+      1: "07.00 - 07.35",
+      2: "07.35 - 08.10",
+      3: "08.10 - 08.45",
+      4: "08.45 - 09.20",
+      5: "09.35 - 10.10",
+      6: "10.10 - 10.45",
+      7: "10.45 - 11.20",
+      8: "11.20 - 11.55",
+      9: "12.30 - 13.05",
+      10: "13.05 - 13.40",
+      11: "13.40 - 14.15",
+      12: "14.15 - 14.50",
+    };
+    return timeSlots[periodNum] || `Jam ke-${periodNum}`;
+  };
+
+  // Default display periods is 1..10, automatically expand if slots have higher period numbers
+  const [periods, setPeriods] = useState<number[]>(() => {
+    const maxP = timetable.length > 0 ? Math.max(10, ...timetable.map((t) => t.period || 0)) : 10;
+    return Array.from({ length: maxP }, (_, i) => i + 1);
+  });
+
+  React.useEffect(() => {
+    if (timetable && timetable.length > 0) {
+      const maxP = Math.max(10, ...timetable.map((t) => t.period || 0));
+      setPeriods((prev) => {
+        const currentMax = prev.length > 0 ? Math.max(...prev) : 0;
+        if (maxP > currentMax) {
+          return Array.from({ length: maxP }, (_, i) => i + 1);
+        }
+        return prev;
+      });
+    }
+  }, [timetable]);
 
   const handleAddPeriodRow = () => {
     const nextPeriod = periods.length > 0 ? Math.max(...periods) + 1 : 1;
@@ -68,7 +104,7 @@ export const TimetableScheduleView: React.FC<TimetableScheduleViewProps> = ({
       setForm({
         day,
         period,
-        timeRange: period === 1 ? "07.00 - 07.35" : `Jam ke-${period}`,
+        timeRange: getDefaultTimeRange(period),
         subject: "Bahasa Indonesia",
         roomOrTeacher: "Guru Kelas",
       });

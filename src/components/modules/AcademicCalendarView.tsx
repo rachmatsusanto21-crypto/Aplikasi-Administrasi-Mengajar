@@ -95,15 +95,29 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
 
   // Calculation of Effective Days & Hours per Subject
   const subjectCalculations = useMemo(() => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    // Parse YYYY-MM-DD at noon local time to avoid timezone drift
+    const parseLocalYMD = (str: string) => {
+      const parts = (str || "").split("-").map(Number);
+      if (parts.length < 3) return new Date();
+      return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+    };
+
+    const formatLocalYMD = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
+
+    const start = parseLocalYMD(startDate);
+    const end = parseLocalYMD(endDate);
 
     if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
       return [];
     }
 
     // Build map of weekly timetable slots per subject
-    // e.g., subject -> { "Senin": 2, "Rabu": 2 }
+    // e.g., subject -> { "Senin": 3, "Selasa": 2 }
     const subjectDaySlots: Record<string, Record<string, number>> = {};
 
     subjects.forEach((sub) => {
@@ -147,7 +161,7 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
       const weeklyJP = scheduledDays.reduce((acc, [_, count]) => acc + count, 0);
       const weeklyScheduleSummary =
         scheduledDays.length > 0
-          ? scheduledDays.map(([day, count]) => `${day} (${count} JP)`).join(", ")
+          ? scheduledDays.map(([day, count]) => `${day} (${count} JP)`).join(", ") + ` → Total ${weeklyJP} JP/minggu`
           : "Belum Diatur di Jadwal";
 
       results[sub] = {
@@ -169,8 +183,8 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
       const dayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
       const currentDayName = dayNames[dayIdx];
 
-      // Format date YYYY-MM-DD
-      const dateStr = curr.toISOString().slice(0, 10);
+      // Format date YYYY-MM-DD cleanly using local date getters
+      const dateStr = formatLocalYMD(curr);
       const holidayInfo = isDateHolidayOrEvent(dateStr);
 
       if (dayIdx !== 0) {
@@ -183,7 +197,7 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
 
             if (holidayInfo.isHoliday) {
               results[sub].holidayMeetingsLost += 1;
-              results[sub].lostJP += jpOnDay;
+              results[sub].lostJP += jpOnDay; // Deducts the exact JP allocated for that day
             } else {
               results[sub].effectiveMeetings += 1;
               results[sub].effectiveJP += jpOnDay;
@@ -488,7 +502,7 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
 
       {/* NEW FEATURE TABLE: Hitungan Hari & Jam Efektif per Mata Pelajaran */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden space-y-2">
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+        <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
             <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
               <Clock className="w-4 h-4 text-emerald-600" />
@@ -496,6 +510,14 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
               Dihitung otomatis mengacu pada Jadwal Pelajaran (Timetable) & dikurangi hari libur/event insidental
+            </p>
+          </div>
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-950 p-2.5 rounded-xl text-xs space-y-0.5 max-w-xl">
+            <p className="font-bold text-[11px] text-emerald-900 flex items-center gap-1">
+              <span>💡 Formulasi Pengurangan JP Presisi per Hari:</span>
+            </p>
+            <p className="text-[11px] text-slate-700 leading-tight">
+              Libur/event pada hari tertentu mengurangi JP sesuai alokasi hari tersebut di Jadwal. <i>Contoh: Jika total alokasi 90 JP dan ada event pada hari Senin (Bahasa Indonesia 3 JP), maka Net JP Efektif = 90 - 3 = 87 JP.</i>
             </p>
           </div>
         </div>

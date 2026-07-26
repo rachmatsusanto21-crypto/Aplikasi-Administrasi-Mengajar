@@ -204,16 +204,66 @@ export const initialGrades: GradeRecord[] = [
 ];
 
 export const initialTimetable: TimetableSlot[] = [
-  { id: "tt1", day: "Senin", period: 1, timeRange: "07.00 - 07.40", subject: "Upacara Bendera", roomOrTeacher: "Lapangan" },
-  { id: "tt2", day: "Senin", period: 2, timeRange: "07.40 - 08.15", subject: "Pancasila", roomOrTeacher: "Rachmat S." },
-  { id: "tt3", day: "Senin", period: 3, timeRange: "08.15 - 08.50", subject: "Bahasa Indonesia", roomOrTeacher: "Rachmat S." },
-  { id: "tt4", day: "Senin", period: 4, timeRange: "08.50 - 09.25", subject: "Bahasa Indonesia", roomOrTeacher: "Rachmat S." },
-  { id: "tt5", day: "Selasa", period: 1, timeRange: "07.00 - 07.35", subject: "Matematika", roomOrTeacher: "Rachmat S." },
-  { id: "tt6", day: "Selasa", period: 2, timeRange: "07.35 - 08.10", subject: "Matematika", roomOrTeacher: "Rachmat S." },
-  { id: "tt7", day: "Selasa", period: 3, timeRange: "08.10 - 08.45", subject: "IPAS", roomOrTeacher: "Rachmat S." },
-  { id: "tt8", day: "Rabu", period: 1, timeRange: "07.00 - 07.35", subject: "PJOK", roomOrTeacher: "Pak Heri, S.Pd." },
-  { id: "tt9", day: "Kamis", period: 1, timeRange: "07.00 - 07.35", subject: "Seni Budaya", roomOrTeacher: "Rachmat S." },
-  { id: "tt10", day: "Jumat", period: 1, timeRange: "07.00 - 07.35", subject: "P5 / Kokurikuler", roomOrTeacher: "Tim P5" },
+  // SENIN (Bahasa Indonesia = 3 JP: Jam 3, 4, 5)
+  { id: "tt1", day: "Senin", period: 1, timeRange: "07.00 - 07.35", subject: "Upacara Bendera", roomOrTeacher: "Lapangan Sekolah" },
+  { id: "tt2", day: "Senin", period: 2, timeRange: "07.35 - 08.10", subject: "Pancasila", roomOrTeacher: "Rachmat S." },
+  { id: "tt3", day: "Senin", period: 3, timeRange: "08.10 - 08.45", subject: "Bahasa Indonesia", roomOrTeacher: "Rachmat S." },
+  { id: "tt4", day: "Senin", period: 4, timeRange: "08.45 - 09.20", subject: "Bahasa Indonesia", roomOrTeacher: "Rachmat S." },
+  { id: "tt5", day: "Senin", period: 5, timeRange: "09.35 - 10.10", subject: "Bahasa Indonesia", roomOrTeacher: "Rachmat S." },
+  { id: "tt6", day: "Senin", period: 6, timeRange: "10.10 - 10.45", subject: "Matematika", roomOrTeacher: "Rachmat S." },
+  { id: "tt7", day: "Senin", period: 7, timeRange: "10.45 - 11.20", subject: "IPAS", roomOrTeacher: "Rachmat S." },
+  { id: "tt8", day: "Senin", period: 8, timeRange: "11.20 - 11.55", subject: "P5 / Kokurikuler", roomOrTeacher: "Tim P5" },
+  { id: "tt9", day: "Senin", period: 9, timeRange: "12.30 - 13.05", subject: "Ekstrakurikuler Wajib", roomOrTeacher: "Pembina Ekskul" },
+  { id: "tt10", day: "Senin", period: 10, timeRange: "13.05 - 13.40", subject: "Pembiasaan / Literasi", roomOrTeacher: "Rachmat S." },
+
+  // SELASA (Bahasa Indonesia = 2 JP: Jam 3, 4) -> Total Bahasa Indonesia per minggu = 5 JP
+  { id: "tt11", day: "Selasa", period: 1, timeRange: "07.00 - 07.35", subject: "Matematika", roomOrTeacher: "Rachmat S." },
+  { id: "tt12", day: "Selasa", period: 2, timeRange: "07.35 - 08.10", subject: "Matematika", roomOrTeacher: "Rachmat S." },
+  { id: "tt13", day: "Selasa", period: 3, timeRange: "08.10 - 08.45", subject: "Bahasa Indonesia", roomOrTeacher: "Rachmat S." },
+  { id: "tt14", day: "Selasa", period: 4, timeRange: "08.45 - 09.20", subject: "Bahasa Indonesia", roomOrTeacher: "Rachmat S." },
+  { id: "tt15", day: "Selasa", period: 5, timeRange: "09.35 - 10.10", subject: "IPAS", roomOrTeacher: "Rachmat S." },
+  { id: "tt16", day: "Selasa", period: 6, timeRange: "10.10 - 10.45", subject: "IPAS", roomOrTeacher: "Rachmat S." },
+  { id: "tt17", day: "Selasa", period: 7, timeRange: "10.45 - 11.20", subject: "Pendidikan Agama", roomOrTeacher: "Guru Agama" },
+  { id: "tt18", day: "Selasa", period: 8, timeRange: "11.20 - 11.55", subject: "Pendidikan Agama", roomOrTeacher: "Guru Agama" },
+  { id: "tt19", day: "Selasa", period: 9, timeRange: "12.30 - 13.05", subject: "Bahasa Inggris", roomOrTeacher: "Guru B.Inggris" },
+  { id: "tt20", day: "Selasa", period: 10, timeRange: "13.05 - 13.40", subject: "Remedial / Pengayaan", roomOrTeacher: "Rachmat S." },
+
+  // RABU
+  { id: "tt21", day: "Rabu", period: 1, timeRange: "07.00 - 07.35", subject: "PJOK", roomOrTeacher: "Pak Heri, S.Pd." },
+  { id: "tt22", day: "Rabu", period: 2, timeRange: "07.35 - 08.10", subject: "PJOK", roomOrTeacher: "Pak Heri, S.Pd." },
+  { id: "tt23", day: "Rabu", period: 3, timeRange: "08.10 - 08.45", subject: "PJOK", roomOrTeacher: "Pak Heri, S.Pd." },
+  { id: "tt24", day: "Rabu", period: 4, timeRange: "08.45 - 09.20", subject: "Matematika", roomOrTeacher: "Rachmat S." },
+  { id: "tt25", day: "Rabu", period: 5, timeRange: "09.35 - 10.10", subject: "Matematika", roomOrTeacher: "Rachmat S." },
+  { id: "tt26", day: "Rabu", period: 6, timeRange: "10.10 - 10.45", subject: "Bahasa Inggris", roomOrTeacher: "Guru B.Inggris" },
+  { id: "tt27", day: "Rabu", period: 7, timeRange: "10.45 - 11.20", subject: "Seni Budaya", roomOrTeacher: "Rachmat S." },
+  { id: "tt28", day: "Rabu", period: 8, timeRange: "11.20 - 11.55", subject: "Seni Budaya", roomOrTeacher: "Rachmat S." },
+  { id: "tt29", day: "Rabu", period: 9, timeRange: "12.30 - 13.05", subject: "Bahasa Jawa", roomOrTeacher: "Rachmat S." },
+  { id: "tt30", day: "Rabu", period: 10, timeRange: "13.05 - 13.40", subject: "Koding & Kecerdasan Artifisial", roomOrTeacher: "Rachmat S." },
+
+  // KAMIS
+  { id: "tt31", day: "Kamis", period: 1, timeRange: "07.00 - 07.35", subject: "IPAS", roomOrTeacher: "Rachmat S." },
+  { id: "tt32", day: "Kamis", period: 2, timeRange: "07.35 - 08.10", subject: "IPAS", roomOrTeacher: "Rachmat S." },
+  { id: "tt33", day: "Kamis", period: 3, timeRange: "08.10 - 08.45", subject: "Pancasila", roomOrTeacher: "Rachmat S." },
+  { id: "tt34", day: "Kamis", period: 4, timeRange: "08.45 - 09.20", subject: "Pancasila", roomOrTeacher: "Rachmat S." },
+  { id: "tt35", day: "Kamis", period: 5, timeRange: "09.35 - 10.10", subject: "Seni Budaya", roomOrTeacher: "Rachmat S." },
+  { id: "tt36", day: "Kamis", period: 6, timeRange: "10.10 - 10.45", subject: "Bahasa Jawa", roomOrTeacher: "Rachmat S." },
+  { id: "tt37", day: "Kamis", period: 7, timeRange: "10.45 - 11.20", subject: "P5 / Kokurikuler", roomOrTeacher: "Tim P5" },
+  { id: "tt38", day: "Kamis", period: 8, timeRange: "11.20 - 11.55", subject: "P5 / Kokurikuler", roomOrTeacher: "Tim P5" },
+  { id: "tt39", day: "Kamis", period: 9, timeRange: "12.30 - 13.05", subject: "Koding & Kecerdasan Artifisial", roomOrTeacher: "Rachmat S." },
+  { id: "tt40", day: "Kamis", period: 10, timeRange: "13.05 - 13.40", subject: "Pramuka", roomOrTeacher: "Pembina Pramuka" },
+
+  // JUMAT
+  { id: "tt41", day: "Jumat", period: 1, timeRange: "07.00 - 07.35", subject: "P5 / Kokurikuler", roomOrTeacher: "Tim P5" },
+  { id: "tt42", day: "Jumat", period: 2, timeRange: "07.35 - 08.10", subject: "P5 / Kokurikuler", roomOrTeacher: "Tim P5" },
+  { id: "tt43", day: "Jumat", period: 3, timeRange: "08.10 - 08.45", subject: "Pendidikan Agama", roomOrTeacher: "Guru Agama" },
+  { id: "tt44", day: "Jumat", period: 4, timeRange: "08.45 - 09.20", subject: "Pendidikan Agama", roomOrTeacher: "Guru Agama" },
+  { id: "tt45", day: "Jumat", period: 5, timeRange: "09.35 - 10.10", subject: "Pembiasaan / Keagamaan", roomOrTeacher: "Rachmat S." },
+
+  // SABTU
+  { id: "tt46", day: "Sabtu", period: 1, timeRange: "07.00 - 07.35", subject: "Senam Kesegaran / Olahraga", roomOrTeacher: "Pak Heri, S.Pd." },
+  { id: "tt47", day: "Sabtu", period: 2, timeRange: "07.35 - 08.10", subject: "Pengembangan Diri", roomOrTeacher: "Rachmat S." },
+  { id: "tt48", day: "Sabtu", period: 3, timeRange: "08.10 - 08.45", subject: "Ekstrakurikuler Pilihan", roomOrTeacher: "Pembina Ekskul" },
+  { id: "tt49", day: "Sabtu", period: 4, timeRange: "08.45 - 09.20", subject: "Pramuka / Kepanduan", roomOrTeacher: "Pembina Pramuka" },
 ];
 
 export const initialGuestBook: GuestBookEntry[] = [

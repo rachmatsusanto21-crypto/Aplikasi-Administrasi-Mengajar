@@ -12,6 +12,7 @@ export interface UserAccount {
   status: "Aktif" | "Non-Aktif";
   avatarUrl?: string;
   phone?: string;
+  webAppUrl?: string;
 }
 
 export interface SchoolIdentity {
@@ -183,6 +184,7 @@ export interface GASConfig {
   webAppUrl: string;
   spreadsheetId: string;
   autoSync: boolean;
+  email?: string;
 }
 
 export type DailyTeachingLog = {

@@ -99,6 +99,25 @@ body {
   color: #F6F1F8 !important;
 }
 
+/* Ensure document preview paper inside PrintModal retains crisp white paper with dark text in dark mode */
+.dark .printable-area {
+  background-color: #ffffff !important;
+  color: #1a2825 !important;
+}
+
+.dark .printable-area * {
+  color: #1a2825 !important;
+}
+
+.dark .printable-area .bg-slate-50,
+.dark .printable-area .bg-slate-100,
+.dark .printable-area .bg-indigo-50,
+.dark .printable-area .bg-amber-50,
+.dark .printable-area .bg-emerald-50 {
+  background-color: #f8fafc !important;
+  color: #1a2825 !important;
+}
+
 /* Ensure minimum 12px legible font size across menus, tables & inputs */
 .text-\[9px\],
 .text-\[10px\],

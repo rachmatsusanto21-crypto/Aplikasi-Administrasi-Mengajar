@@ -149,6 +149,24 @@ export default function App() {
     loadFromStorage("gasConfig", INITIAL_GAS_CONFIG)
   );
 
+  const [activeUserEmail, setActiveUserEmail] = useState<string>(
+    () => users[0]?.email || "rachmatsusanto21@guru.sd.belajar.id"
+  );
+
+  // Cross-device auto sync GAS config by user email on mount/email change
+  useEffect(() => {
+    if (activeUserEmail) {
+      fetch(`/api/user-config?email=${encodeURIComponent(activeUserEmail)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.webAppUrl && data.webAppUrl !== gasConfig.webAppUrl) {
+            setGasConfig((prev) => ({ ...prev, webAppUrl: data.webAppUrl }));
+          }
+        })
+        .catch((err) => console.error("Error syncing user gas config:", err));
+    }
+  }, [activeUserEmail]);
+
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     const saved = loadFromStorage<"light" | "dark">("theme", "light");
     if (saved === "dark" || saved === "light") return saved;
@@ -478,6 +496,9 @@ export default function App() {
         config={gasConfig}
         onSaveConfig={setGasConfig}
         onClose={() => setIsGasModalOpen(false)}
+        users={users}
+        activeUserEmail={activeUserEmail}
+        onSelectUserEmail={setActiveUserEmail}
         allData={{
           schoolIdentity,
           students,

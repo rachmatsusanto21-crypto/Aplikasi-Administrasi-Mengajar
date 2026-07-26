@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
@@ -10,6 +11,64 @@ const app = express();
 app.use(express.json({ limit: "10mb" }));
 
 const PORT = 3000;
+
+// User Config File persistence for multi-device sync by Email
+const USER_CONFIG_FILE = path.join(process.cwd(), "user_configs.json");
+
+function readUserConfigs(): Record<string, any> {
+  try {
+    if (fs.existsSync(USER_CONFIG_FILE)) {
+      const data = fs.readFileSync(USER_CONFIG_FILE, "utf-8");
+      return JSON.parse(data);
+    }
+  } catch (e) {
+    console.error("Error reading user configs file:", e);
+  }
+  return {};
+}
+
+function saveUserConfig(email: string, config: { webAppUrl: string; sheetId?: string }) {
+  try {
+    const current = readUserConfigs();
+    const cleanEmail = email.toLowerCase().trim();
+    current[cleanEmail] = {
+      ...current[cleanEmail],
+      ...config,
+      updatedAt: new Date().toISOString(),
+    };
+    fs.writeFileSync(USER_CONFIG_FILE, JSON.stringify(current, null, 2), "utf-8");
+  } catch (e) {
+    console.error("Error saving user config:", e);
+  }
+}
+
+// API endpoint to fetch user Google Sheets Web App URL by email
+app.get("/api/user-config", (req, res) => {
+  const email = (req.query.email as string)?.toLowerCase()?.trim();
+  if (!email) {
+    return res.status(400).json({ error: "Email parameter required" });
+  }
+  const configs = readUserConfigs();
+  const userConfig = configs[email] || {};
+  return res.json({
+    email,
+    webAppUrl: userConfig.webAppUrl || "",
+    sheetId: userConfig.sheetId || "",
+  });
+});
+
+// API endpoint to save user Google Sheets Web App URL by email
+app.post("/api/user-config", (req, res) => {
+  const { email, webAppUrl, sheetId } = req.body;
+  if (!email || typeof email !== "string") {
+    return res.status(400).json({ error: "Email required" });
+  }
+  saveUserConfig(email, { webAppUrl: webAppUrl || "", sheetId: sheetId || "" });
+  return res.json({
+    status: "success",
+    message: `Konfigurasi URL Google Sheets berhasil tersambung secara otomatis dengan email: ${email}`,
+  });
+});
 
 // API route for AI Generation
 app.post("/api/ai/generate", async (req, res) => {
