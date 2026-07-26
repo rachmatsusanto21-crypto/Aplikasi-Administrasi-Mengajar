@@ -129,6 +129,16 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
   // State for Promes weekly allocation map
   // Key: `${protaId}_${monthName}_w${weekNumber}` -> JP allocation number (e.g., 2)
   const [promesWeeklyAllocations, setPromesWeeklyAllocations] = useState<Record<string, number>>({});
+  const [promesInputMode, setPromesInputMode] = useState<"manual" | "click">("manual");
+
+  const handleUpdatePromesJP = (protaId: string, month: string, week: number, val: number) => {
+    const key = `${protaId}_${month}_w${week}`;
+    const cleanVal = isNaN(val) ? 0 : Math.max(0, Math.min(40, val));
+    setPromesWeeklyAllocations((prev) => ({
+      ...prev,
+      [key]: cleanVal,
+    }));
+  };
 
   const handleTogglePromesWeek = (protaId: string, month: string, week: number) => {
     const key = `${protaId}_${month}_w${week}`;
@@ -138,6 +148,65 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
       ...prev,
       [key]: nextVal,
     }));
+  };
+
+  // Helper to calculate total allocated JP for a single Prota item
+  const getProtaAllocatedPromesJP = (protaId: string, idx: number) => {
+    let sum = 0;
+    promesMonths.forEach((m) => {
+      weeksPerMonth.forEach((w) => {
+        const key = `${protaId}_${m}_w${w}`;
+        const defaultVal = (idx * 2 + w) % 5 === 0 ? 2 : 0;
+        const val = promesWeeklyAllocations[key] !== undefined ? promesWeeklyAllocations[key] : defaultVal;
+        sum += val;
+      });
+    });
+    return sum;
+  };
+
+  // Helper to calculate total allocated JP for a specific month & week across all Prota items
+  const getColumnTotalJP = (m: string, w: number) => {
+    let sum = 0;
+    filteredProta.forEach((p, idx) => {
+      const key = `${p.id}_${m}_w${w}`;
+      const defaultVal = (idx * 2 + w) % 5 === 0 ? 2 : 0;
+      const val = promesWeeklyAllocations[key] !== undefined ? promesWeeklyAllocations[key] : defaultVal;
+      sum += val;
+    });
+    return sum;
+  };
+
+  const handleAutoFillPromes = () => {
+    const newMap: Record<string, number> = {};
+    filteredProta.forEach((p) => {
+      let target = p.allocatedJP || p.timeAllocationJP || 6;
+      let allocated = 0;
+      promesMonths.forEach((m) => {
+        weeksPerMonth.forEach((w) => {
+          const key = `${p.id}_${m}_w${w}`;
+          if (allocated < target) {
+            const jpToGive = Math.min(2, target - allocated);
+            newMap[key] = jpToGive;
+            allocated += jpToGive;
+          } else {
+            newMap[key] = 0;
+          }
+        });
+      });
+    });
+    setPromesWeeklyAllocations((prev) => ({ ...prev, ...newMap }));
+  };
+
+  const handleResetPromes = () => {
+    const newMap: Record<string, number> = {};
+    filteredProta.forEach((p) => {
+      promesMonths.forEach((m) => {
+        weeksPerMonth.forEach((w) => {
+          newMap[`${p.id}_${m}_w${w}`] = 0;
+        });
+      });
+    });
+    setPromesWeeklyAllocations(newMap);
   };
 
   const handleExportProtaCSV = () => {
@@ -469,11 +538,60 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
         </div>
       )}
 
-      {/* PROMES TAB (WITH W5 ENABLED) */}
+      {/* PROMES TAB (WITH MANUAL JP INPUT & W5 ENABLED) */}
       {activeTab === "promes" && (
-        <div className="space-y-3">
-          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs text-slate-600 flex items-center justify-between">
-            <span>💡 <b>Petunjuk Promes:</b> Tabel di bawah menyediakan <b>5 Minggu (W1 - W5)</b> per bulan. Klik pada sel minggu untuk mengalokasikan JP (siklus 2 JP / 4 JP / Kosong).</span>
+        <div className="space-y-4">
+          <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-xs text-slate-700 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-slate-900">💡 Petunjuk Promes:</span>
+              <span>
+                Ketikkan angka JP secara <b>manual</b> langsung pada kolom minggu (W1–W5) atau gunakan mode klik cepat.
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex bg-white p-1 rounded-xl border border-slate-300 font-bold text-xs">
+                <button
+                  type="button"
+                  onClick={() => setPromesInputMode("manual")}
+                  className={`px-3 py-1 rounded-lg transition-all ${
+                    promesInputMode === "manual"
+                      ? "bg-emerald-600 text-white font-extrabold shadow-2xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  ✏️ Ketik Manual JP
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPromesInputMode("click")}
+                  className={`px-3 py-1 rounded-lg transition-all ${
+                    promesInputMode === "click"
+                      ? "bg-emerald-600 text-white font-extrabold shadow-2xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  ⚡ Klik Cepat (0-2-4)
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleAutoFillPromes}
+                className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded-xl border border-emerald-300 text-xs"
+                title="Isi otomatis 2 JP secara berurutan hingga target Prota terpenuhi"
+              >
+                ✨ Auto-Fill 2 JP
+              </button>
+              <button
+                type="button"
+                onClick={handleResetPromes}
+                className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 font-bold rounded-xl border border-red-200 text-xs"
+                title="Kosongkan seluruh alokasi Promes"
+              >
+                🔄 Reset Alokasi
+              </button>
+            </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
@@ -485,7 +603,10 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                       Tujuan Pembelajaran (TP)
                     </th>
                     <th rowSpan={2} className="p-2 border-r border-slate-200 w-16">
-                      Alokasi JP
+                      Target Prota
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-slate-200 w-16 bg-emerald-50 text-emerald-900">
+                      Terisi JP
                     </th>
                     {promesMonths.map((m) => (
                       <th colSpan={5} key={m} className="p-2 border-r border-slate-200 bg-slate-100 font-bold text-slate-900">
@@ -506,47 +627,117 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                 <tbody className="divide-y divide-slate-100 text-slate-800">
                   {filteredProta.length === 0 ? (
                     <tr>
-                      <td colSpan={2 + promesMonths.length * 5} className="text-center py-8 text-slate-400">
+                      <td colSpan={3 + promesMonths.length * 5} className="text-center py-8 text-slate-400">
                         Belum ada data Prota untuk semester ini.
                       </td>
                     </tr>
                   ) : (
-                    filteredProta.map((p, idx) => (
-                      <tr key={p.id} className="hover:bg-slate-50/60">
-                        <td className="p-2.5 text-left border-r border-slate-200 font-semibold text-slate-900">
-                          <span className="font-mono text-emerald-700 block text-[10px]">{p.tpCode || p.codeTP}</span>
-                          {p.tpDescription}
-                        </td>
-                        <td className="p-2 border-r border-slate-200 font-bold text-emerald-800 bg-emerald-50/30">
-                          {p.allocatedJP || p.timeAllocationJP} JP
-                        </td>
-                        {promesMonths.map((m) =>
-                          weeksPerMonth.map((w) => {
-                            const key = `${p.id}_${m}_w${w}`;
-                            // default fallback pattern for demonstration if not manually clicked yet
-                            const defaultVal = (idx * 2 + w) % 5 === 0 ? 2 : 0;
-                            const val = promesWeeklyAllocations[key] !== undefined ? promesWeeklyAllocations[key] : defaultVal;
+                    filteredProta.map((p, idx) => {
+                      const targetJP = p.allocatedJP || p.timeAllocationJP || 6;
+                      const currentAllocatedPromes = getProtaAllocatedPromesJP(p.id, idx);
+                      const isMatching = currentAllocatedPromes === targetJP;
 
-                            return (
-                              <td
-                                key={`${m}_w${w}`}
-                                onClick={() => handleTogglePromesWeek(p.id, m, w)}
-                                className={`p-1 border-r border-slate-200 font-mono font-bold cursor-pointer select-none transition-colors ${
-                                  val > 0
-                                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                                    : "bg-white text-slate-300 hover:bg-slate-100"
-                                }`}
-                                title="Klik untuk mengubah alokasi JP minggu ini"
-                              >
-                                {val > 0 ? val : "-"}
-                              </td>
-                            );
-                          })
-                        )}
-                      </tr>
-                    ))
+                      return (
+                        <tr key={p.id} className="hover:bg-slate-50/60">
+                          <td className="p-2.5 text-left border-r border-slate-200 font-semibold text-slate-900">
+                            <span className="font-mono text-emerald-700 block text-[10px]">{p.tpCode || p.codeTP}</span>
+                            {p.tpDescription}
+                          </td>
+                          <td className="p-2 border-r border-slate-200 font-bold text-slate-700 bg-slate-50/50">
+                            {targetJP} JP
+                          </td>
+                          <td className="p-2 border-r border-slate-200 font-extrabold font-mono text-xs">
+                            <span
+                              className={`px-1.5 py-0.5 rounded ${
+                                isMatching
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : currentAllocatedPromes > targetJP
+                                  ? "bg-red-100 text-red-800"
+                                  : "bg-amber-100 text-amber-800"
+                              }`}
+                              title={
+                                isMatching
+                                  ? "Sesuai Target Prota"
+                                  : currentAllocatedPromes > targetJP
+                                  ? `Kelebihan ${currentAllocatedPromes - targetJP} JP`
+                                  : `Kurang ${targetJP - currentAllocatedPromes} JP`
+                              }
+                            >
+                              {currentAllocatedPromes} JP
+                            </span>
+                          </td>
+                          {promesMonths.map((m) =>
+                            weeksPerMonth.map((w) => {
+                              const key = `${p.id}_${m}_w${w}`;
+                              const defaultVal = (idx * 2 + w) % 5 === 0 ? 2 : 0;
+                              const val = promesWeeklyAllocations[key] !== undefined ? promesWeeklyAllocations[key] : defaultVal;
+
+                              return (
+                                <td
+                                  key={`${m}_w${w}`}
+                                  className="p-0.5 border-r border-slate-200 text-center font-mono"
+                                >
+                                  {promesInputMode === "manual" ? (
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={20}
+                                      value={val === 0 ? "" : val}
+                                      placeholder="-"
+                                      onChange={(e) => handleUpdatePromesJP(p.id, m, w, parseInt(e.target.value, 10) || 0)}
+                                      className={`w-8 h-7 text-center font-bold text-xs rounded border transition-all ${
+                                        val > 0
+                                          ? "bg-emerald-600 text-white border-emerald-700 font-extrabold"
+                                          : "bg-white text-slate-400 border-slate-200 hover:border-slate-300"
+                                      }`}
+                                    />
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleTogglePromesWeek(p.id, m, w)}
+                                      className={`w-full h-7 font-bold text-xs rounded transition-colors ${
+                                        val > 0
+                                          ? "bg-emerald-600 text-white font-extrabold"
+                                          : "bg-white text-slate-300 hover:bg-slate-100"
+                                      }`}
+                                    >
+                                      {val > 0 ? val : "-"}
+                                    </button>
+                                  )}
+                                </td>
+                              );
+                            })
+                          )}
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
+                {filteredProta.length > 0 && (
+                  <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-300 text-slate-900 text-[11px]">
+                    <tr>
+                      <td className="p-2.5 text-left border-r border-slate-300 font-black">
+                        TOTAL ALOKASI JP MINGGUAN
+                      </td>
+                      <td className="p-2 border-r border-slate-300 font-black text-slate-900">
+                        {totalJP} JP
+                      </td>
+                      <td className="p-2 border-r border-slate-300 font-black text-emerald-800">
+                        {filteredProta.reduce((acc, p, idx) => acc + getProtaAllocatedPromesJP(p.id, idx), 0)} JP
+                      </td>
+                      {promesMonths.map((m) =>
+                        weeksPerMonth.map((w) => {
+                          const colTotal = getColumnTotalJP(m, w);
+                          return (
+                            <td key={`total_${m}_w${w}`} className="p-1 border-r border-slate-300 font-extrabold font-mono text-[10px]">
+                              {colTotal > 0 ? <span className="text-emerald-800">{colTotal}</span> : <span className="text-slate-400">-</span>}
+                            </td>
+                          );
+                        })
+                      )}
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           </div>
