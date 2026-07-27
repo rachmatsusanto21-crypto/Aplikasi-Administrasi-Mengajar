@@ -120,6 +120,21 @@ export const BackupModal: React.FC<BackupModalProps> = ({
             text: `✅ Ditemukan ${json.backups.length} file backup di folder Google Drive (${json.folderName || "Folder_Backup_Administrasi_Guru"}).`,
           });
         } else if (
+          json.message &&
+          (json.message.includes("DriveApp") ||
+            json.message.includes("izin") ||
+            json.message.includes("permission") ||
+            json.message.includes("getFoldersByName"))
+        ) {
+          setActionMessage({
+            type: "error",
+            text: `🔑 DIPERLUKAN IZIN AKSES GOOGLE DRIVE!
+Di editor Google Apps Script:
+1. Di toolbar atas, pilih fungsi 'initPermissions' (atau 'myFunction').
+2. Klik tombol 'Jalankan' (Run) -> Klik 'Tinjau Izin' (Review Permissions) -> Pilih Akun Google Anda -> Klik 'Lanjutan' (Advanced) -> 'Buka Project' -> Klik 'Izinkan' (Allow).
+3. Setelah itu, klik tombol 'Muat Ulang Berkas Cloud' di aplikasi ini!`,
+          });
+        } else if (
           json.message === "Web App Administrasi Guru Aktif!" ||
           json.message === "Web App Administrasi Guru & Drive Backup Aktif!" ||
           !Array.isArray(json.backups)
@@ -284,15 +299,31 @@ export const BackupModal: React.FC<BackupModalProps> = ({
 
       const result = await res.json();
 
-      // Check if old script returned default "Web App Administrasi Guru Aktif!" or missing fileId
+      const msg = (result.message || "").toString();
+
+      // Check for Google Drive OAuth / DriveApp Permission exception
       if (
-        result.message === "Web App Administrasi Guru Aktif!" ||
-        result.message === "Web App Administrasi Guru & Drive Backup Aktif!" ||
-        (!result.fileId && !result.folderName && (!result.message || !result.message.toLowerCase().includes("berhasil")))
+        msg.includes("DriveApp") ||
+        msg.includes("izin") ||
+        msg.includes("permission") ||
+        msg.includes("getFoldersByName")
       ) {
         setActionMessage({
           type: "error",
-          text: `⚠️ Respons Cloud: "${result.message || "OK"}". Script Google Apps Script Anda masih menjalankan VERSI LAMA. Silakan klik tab 'Panduan & Script', salin kode script terbaru, lalu lakukan DEPLOY BARU (Deploy -> New deployment) di Google Apps Script.`,
+          text: `🔑 DIPERLUKAN IZIN AKSES GOOGLE DRIVE! 
+Di editor Google Apps Script:
+1. Di toolbar atas, pilih fungsi 'initPermissions' (atau 'myFunction').
+2. Klik tombol 'Jalankan' (Run) -> Klik 'Tinjau Izin' (Review Permissions) -> Pilih Akun Google Anda -> Klik 'Lanjutan' (Advanced) -> 'Buka Project' -> Klik 'Izinkan' (Allow).
+3. Setelah itu, klik lagi tombol 'Unggah Backup ke Cloud Drive' di aplikasi ini!`,
+        });
+      } else if (
+        msg === "Web App Administrasi Guru Aktif!" ||
+        msg === "Web App Administrasi Guru & Drive Backup Aktif!" ||
+        (!result.fileId && !result.folderName && (!msg || !msg.toLowerCase().includes("berhasil")))
+      ) {
+        setActionMessage({
+          type: "error",
+          text: `⚠️ Respons Cloud: "${msg || "OK"}". Script Google Apps Script Anda belum diperbarui atau masih versi lama. Silakan klik tab 'Panduan & Script', salin kode script terbaru, lalu lakukan DEPLOY BARU (Deploy -> New deployment) di Google Apps Script.`,
         });
       } else if (result.status === "success" || result.fileId) {
         setActionMessage({
@@ -303,7 +334,7 @@ export const BackupModal: React.FC<BackupModalProps> = ({
       } else {
         setActionMessage({
           type: "error",
-          text: `❌ Gagal upload ke Cloud: ${result.message || "Respon error dari Google Apps Script"}`,
+          text: `❌ Gagal upload ke Cloud: ${msg || "Respon error dari Google Apps Script"}`,
         });
       }
     } catch (err: any) {

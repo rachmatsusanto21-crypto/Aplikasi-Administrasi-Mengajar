@@ -1,18 +1,30 @@
 export const DEFAULT_GAS_CODE = `/**
  * Google Apps Script - Web App Backend & Cloud Backup Drive untuk Aplikasi Administrasi Guru
  * 
- * LANGKAH PENGGUNAAN / UPDATE:
- * 1. Buka Google Sheet Anda -> Ekstensi -> Apps Script
- * 2. HAPUS seluruh kode lama, lalu TEMPELKAN (Paste) seluruh kode ini.
- * 3. Klik tombol Simpan (ikon disket).
- * 4. PENTING: Klik Deploy -> Deploy baru (New deployment).
- * 5. Pilih jenis "Web App".
- * 6. Setel "Who has access" / "Siapa yang memiliki akses" menjadi "Anyone" / "Siapa saja".
- * 7. Klik Deploy, berikan izin akses (Authorize access), lalu salin Web App URL.
+ * ==========================================================================================
+ * CARA MENGATASI ERROR IZIN (DriveApp.getFoldersByName):
+ * 1. Di bagian atas editor Apps Script, pilih fungsi "initPermissions" dari menu dropdown.
+ * 2. Klik tombol "Jalankan" (Run) di sebelah kiri dropdown.
+ * 3. Pop-up "Izin Diperlukan" akan muncul -> Klik "Tinjau Izin" (Review Permissions).
+ * 4. Pilih Akun Google Anda -> Klik "Lanjutan" (Advanced) -> Klik "Buka Project (tidak aman)".
+ * 5. Klik "Izinkan" (Allow).
+ * 6. Setelah berhasil, klik Deploy -> Deploy baru -> Deploy.
+ * ==========================================================================================
  */
 
+/**
+ * JALANKAN FUNGSI INI SEKALI DENGAN MENGKLIK "JALANKAN" (RUN) DI EDITOR UNTUK MEMBERIKAN IZIN GOOGLE DRIVE
+ */
+function initPermissions() {
+  var folder = getBackupFolder();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  Logger.log("✅ IZIN GOOGLE DRIVE BERHASIL AKTIF!");
+  Logger.log("Folder Backup: " + folder.getName() + " (ID: " + folder.getId() + ")");
+  Logger.log("Google Sheet: " + ss.getName());
+}
+
 function myFunction() {
-  Logger.log("Web App Administrasi Guru & Cloud Drive Backup aktif!");
+  initPermissions();
 }
 
 function getBackupFolder() {
