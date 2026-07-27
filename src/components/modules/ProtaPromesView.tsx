@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { ProtaItem, PromesItem, CPTPItem, TimetableSlot, CalendarEvent, IncidentalJournalEntry, SchoolIdentity } from "../../types";
-import { CalendarRange, Plus, Trash2, Edit2, Download, Printer, FileText, Check, ChevronRight, Calculator } from "lucide-react";
+import { CalendarRange, Plus, Trash2, Edit2, Download, Printer, FileText, Check, ChevronRight, Calculator, Save } from "lucide-react";
 import { exportToCSV } from "../../lib/storage";
 import { exportHtmlToDoc } from "../../lib/exportDoc";
 
@@ -240,6 +240,45 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
   // Key: `${protaId}_${monthName}_w${weekNumber}` -> JP allocation number (e.g., 2)
   const [promesWeeklyAllocations, setPromesWeeklyAllocations] = useState<Record<string, number>>({});
   const [promesInputMode, setPromesInputMode] = useState<"manual" | "click">("manual");
+  const [savedPromesAlert, setSavedPromesAlert] = useState(false);
+
+  // Sync / Load saved Promes data from prop promesList when subject, semester, or list changes
+  React.useEffect(() => {
+    const loadedMap: Record<string, number> = {};
+
+    filteredProta.forEach((p, idx) => {
+      const matchingPromes = promesList.find(
+        (item) =>
+          (item as any).protaId === p.id ||
+          (item.subject === p.subject &&
+            item.codeTP === (p.tpCode || p.codeTP) &&
+            (item.semester === p.semester || item.semester === (selectedSemester === 1 ? "Ganjil" : "Genap")))
+      );
+
+      promesMonths.forEach((m) => {
+        weeksPerMonth.forEach((w) => {
+          const key = `${p.id}_${m}_w${w}`;
+          if (matchingPromes?.weeklyAllocations && matchingPromes.weeklyAllocations[key] !== undefined) {
+            loadedMap[key] = matchingPromes.weeklyAllocations[key];
+          } else if (matchingPromes?.weeklyAllocations && matchingPromes.weeklyAllocations[`${m}_w${w}`] !== undefined) {
+            loadedMap[key] = matchingPromes.weeklyAllocations[`${m}_w${w}`];
+          } else if (matchingPromes?.monthlyAllocation && Array.isArray(matchingPromes.monthlyAllocation[m])) {
+            const valInArray = matchingPromes.monthlyAllocation[m][w - 1];
+            if (valInArray !== undefined) {
+              loadedMap[key] = valInArray;
+            }
+          }
+        });
+      });
+    });
+
+    if (Object.keys(loadedMap).length > 0) {
+      setPromesWeeklyAllocations((prev) => ({
+        ...prev,
+        ...loadedMap,
+      }));
+    }
+  }, [selectedSubject, selectedSemester, promesList, protaList]);
 
   const handleUpdatePromesJP = (protaId: string, month: string, week: number, val: number) => {
     const key = `${protaId}_${month}_w${week}`;
@@ -258,6 +297,68 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
       ...prev,
       [key]: nextVal,
     }));
+  };
+
+  const handleSavePromes = () => {
+    if (filteredProta.length === 0) return;
+
+    const updatedPromesForCurrentSubject = filteredProta.map((p, idx) => {
+      const weeklyAllocationsForP: Record<string, number> = {};
+      const monthlyAllocationForP: Record<string, number[]> = {};
+
+      promesMonths.forEach((m) => {
+        monthlyAllocationForP[m] = [];
+        weeksPerMonth.forEach((w) => {
+          const key = `${p.id}_${m}_w${w}`;
+          const defaultVal = (idx * 2 + w) % 5 === 0 ? 2 : 0;
+          const val =
+            promesWeeklyAllocations[key] !== undefined
+              ? promesWeeklyAllocations[key]
+              : defaultVal;
+
+          weeklyAllocationsForP[`${m}_w${w}`] = val;
+          weeklyAllocationsForP[key] = val;
+          monthlyAllocationForP[m].push(val);
+        });
+      });
+
+      const existing = promesList.find(
+        (item) =>
+          (item as any).protaId === p.id ||
+          (item.subject === p.subject &&
+            item.codeTP === (p.tpCode || p.codeTP) &&
+            (item.semester === p.semester || item.semester === (selectedSemester === 1 ? "Ganjil" : "Genap")))
+      );
+
+      const newItem: PromesItem = {
+        id: existing?.id || `prm_${p.id}_${Date.now()}`,
+        subject: p.subject,
+        codeTP: p.tpCode || p.codeTP,
+        tpDescription: p.tpDescription,
+        timeAllocationJP: p.allocatedJP || p.timeAllocationJP || 6,
+        semester: (p.semester || (selectedSemester === 1 ? "Ganjil" : "Genap")) as any,
+        monthlyAllocation: monthlyAllocationForP,
+        weeklyAllocations: weeklyAllocationsForP,
+        protaId: p.id,
+      } as any;
+
+      return newItem;
+    });
+
+    const filteredOthers = promesList.filter(
+      (item) =>
+        !(
+          item.subject === selectedSubject &&
+          (item.semester === selectedSemester ||
+            item.semester === (selectedSemester === 1 ? "Ganjil" : "Genap"))
+        )
+    );
+
+    const nextPromesList = [...filteredOthers, ...updatedPromesForCurrentSubject];
+
+    onSavePromes(nextPromesList);
+    setSavedPromesAlert(true);
+    setTimeout(() => setSavedPromesAlert(false), 3500);
   };
 
   // Helper to calculate total allocated JP for a single Prota item
@@ -558,6 +659,17 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
             </button>
           )}
 
+          {activeTab === "promes" && (
+            <button
+              onClick={handleSavePromes}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm transition-all active:scale-95"
+              title="Simpan alokasi Promes secara permanen"
+            >
+              <Save className="w-4 h-4" />
+              Simpan Promes
+            </button>
+          )}
+
           <button
             onClick={handleExportProtaCSV}
             className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 flex items-center gap-1.5"
@@ -814,8 +926,25 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
               >
                 🔄 Reset Alokasi
               </button>
+
+              <button
+                type="button"
+                onClick={handleSavePromes}
+                className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl shadow-xs flex items-center gap-1.5 text-xs transition-all active:scale-95"
+                title="Simpan alokasi Promes secara permanen"
+              >
+                <Save className="w-4 h-4" />
+                Simpan Promes
+              </button>
             </div>
           </div>
+
+          {savedPromesAlert && (
+            <div className="p-3.5 bg-emerald-100 border border-emerald-300 text-emerald-950 rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs transition-all animate-fadeIn">
+              <Check className="w-5 h-5 text-emerald-700 shrink-0" />
+              <span>Data Alokasi Program Semester (Promes) mata pelajaran <b>{selectedSubject}</b> Semester {selectedSemester} berhasil disimpan secara permanen!</span>
+            </div>
+          )}
 
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
