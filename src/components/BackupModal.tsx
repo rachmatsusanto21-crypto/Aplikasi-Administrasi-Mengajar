@@ -111,44 +111,69 @@ export const BackupModal: React.FC<BackupModalProps> = ({
         : `${webAppUrl}?action=listBackups`;
 
       const res = await fetch(fetchUrl);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.status === "success" && Array.isArray(json.backups)) {
-          setCloudBackups(json.backups);
-          setActionMessage({
-            type: "success",
-            text: `✅ Ditemukan ${json.backups.length} file backup di folder Google Drive (${json.folderName || "Folder_Backup_Administrasi_Guru"}).`,
-          });
-        } else if (
-          json.message &&
-          (json.message.includes("DriveApp") ||
-            json.message.includes("izin") ||
-            json.message.includes("permission") ||
-            json.message.includes("getFoldersByName"))
+      const rawText = await res.text();
+
+      let json: any = null;
+      try {
+        json = JSON.parse(rawText);
+      } catch (pErr) {
+        // Response is not JSON (likely Google Login/Permission HTML page)
+        if (
+          rawText.includes("DriveApp") ||
+          rawText.includes("authorization") ||
+          rawText.includes("permission") ||
+          rawText.includes("Service Accounts") ||
+          rawText.includes("getFoldersByName")
         ) {
           setActionMessage({
             type: "error",
-            text: `🔑 DIPERLUKAN IZIN AKSES GOOGLE DRIVE!
+            text: `🔑 OTORISASI GOOGLE DRIVE DIPERLUKAN!
 Di editor Google Apps Script:
-1. Di toolbar atas, pilih fungsi 'initPermissions' (atau 'myFunction').
-2. Klik tombol 'Jalankan' (Run) -> Klik 'Tinjau Izin' (Review Permissions) -> Pilih Akun Google Anda -> Klik 'Lanjutan' (Advanced) -> 'Buka Project' -> Klik 'Izinkan' (Allow).
-3. Setelah itu, klik tombol 'Muat Ulang Berkas Cloud' di aplikasi ini!`,
+1. Pilih fungsi 'initPermissions' di menu dropdown toolbar atas.
+2. Klik tombol 'Jalankan' (Run) -> Klik 'Tinjau Izin' (Review Permissions) -> Pilih Akun Google -> Klik 'Lanjutan' (Advanced) -> 'Buka Project' -> 'Izinkan' (Allow).
+3. Setelah itu, pastikan Deploy diset 'Siapa saja' (Anyone), lalu klik 'Muat Ulang Berkas Cloud'!`,
           });
-        } else if (
-          json.message === "Web App Administrasi Guru Aktif!" ||
-          json.message === "Web App Administrasi Guru & Drive Backup Aktif!" ||
-          !Array.isArray(json.backups)
-        ) {
-          setActionMessage({
-            type: "error",
-            text: `⚠️ Respons Cloud: "${json.message}". Google Apps Script Anda masih menjalankan VERSI LAMA. Silakan buka tab 'Panduan & Script', salin kodenya, lalu lakukan Deploy Baru (Deploy -> New deployment) di Apps Script.`,
-          });
-        } else {
-          setActionMessage({
-            type: "error",
-            text: `❌ Respons Cloud: ${json.message || "Format data tidak sesuai"}`,
-          });
+          return;
         }
+      }
+
+      if (json && json.status === "success" && Array.isArray(json.backups)) {
+        setCloudBackups(json.backups);
+        setActionMessage({
+          type: "success",
+          text: `✅ Ditemukan ${json.backups.length} file backup di folder Google Drive (${json.folderName || "Folder_Backup_Administrasi_Guru"}).`,
+        });
+      } else if (
+        json &&
+        json.message &&
+        (json.message.includes("DriveApp") ||
+          json.message.includes("izin") ||
+          json.message.includes("permission") ||
+          json.message.includes("getFoldersByName"))
+      ) {
+        setActionMessage({
+          type: "error",
+          text: `🔑 OTORISASI GOOGLE DRIVE DIPERLUKAN!
+Di editor Google Apps Script:
+1. Pilih fungsi 'initPermissions' di menu dropdown toolbar atas.
+2. Klik tombol 'Jalankan' (Run) -> Klik 'Tinjau Izin' (Review Permissions) -> Pilih Akun Google -> Klik 'Lanjutan' (Advanced) -> 'Buka Project' -> 'Izinkan' (Allow).
+3. Setelah itu, klik 'Muat Ulang Berkas Cloud'!`,
+        });
+      } else if (
+        json &&
+        (json.message === "Web App Administrasi Guru Aktif!" ||
+          json.message === "Web App Administrasi Guru & Drive Backup Aktif!" ||
+          !Array.isArray(json.backups))
+      ) {
+        setActionMessage({
+          type: "error",
+          text: `⚠️ Respons Cloud: "${json.message || "Versi lama"}". Script Apps Script Anda belum versi terbaru. Silakan buka tab 'Panduan & Script', salin kodenya, lalu lakukan Deploy Baru (Deploy -> New deployment).`,
+        });
+      } else if (json) {
+        setActionMessage({
+          type: "error",
+          text: `❌ Respons Cloud: ${json.message || "Format data tidak sesuai"}`,
+        });
       } else {
         setActionMessage({
           type: "error",
@@ -193,8 +218,18 @@ Di editor Google Apps Script:
         body: JSON.stringify(payload),
       });
 
-      const json = await res.json();
-      if (json.status === "success") {
+      let json: any = {};
+      const responseText = await res.text();
+      try {
+        json = JSON.parse(responseText);
+      } catch (err) {
+        if (res.status === 413) {
+          throw new Error("Ukuran data backup terlalu besar melebihi batas server (413).");
+        }
+        throw new Error(`Server merespons dengan status ${res.status}: ${responseText.slice(0, 100)}`);
+      }
+
+      if (res.ok && json.status === "success") {
         setActionMessage({
           type: "success",
           text: `✅ ${json.message}`,
@@ -203,13 +238,13 @@ Di editor Google Apps Script:
       } else {
         setActionMessage({
           type: "error",
-          text: `❌ Gagal menyimpan backup: ${json.error || "Kesalahan server"}`,
+          text: `❌ Gagal menyimpan backup: ${json.error || json.message || "Kesalahan server"}`,
         });
       }
     } catch (e: any) {
       setActionMessage({
         type: "error",
-        text: `❌ Kesalahan koneksi: ${e.message || e}`,
+        text: `❌ Gagal membuat snapshot backup: ${e.message || e}`,
       });
     } finally {
       setIsSyncing(false);
@@ -239,8 +274,18 @@ Di editor Google Apps Script:
           }),
         });
 
-        const json = await res.json();
-        if (json.status === "success") {
+        let json: any = {};
+        const responseText = await res.text();
+        try {
+          json = JSON.parse(responseText);
+        } catch (err) {
+          if (res.status === 413) {
+            throw new Error("Ukuran file backup terlalu besar melebihi batas server (413).");
+          }
+          throw new Error(`Server merespons dengan status ${res.status}: ${responseText.slice(0, 100)}`);
+        }
+
+        if (res.ok && json.status === "success") {
           setActionMessage({
             type: "success",
             text: `✅ File ${file.name} berhasil diunggah dan disimpan ke Folder Backup Aplikasi!`,
@@ -249,13 +294,13 @@ Di editor Google Apps Script:
         } else {
           setActionMessage({
             type: "error",
-            text: `❌ Gagal mengunggah file backup: ${json.error}`,
+            text: `❌ Gagal mengunggah file backup: ${json.error || json.message}`,
           });
         }
-      } catch (err) {
+      } catch (err: any) {
         setActionMessage({
           type: "error",
-          text: "❌ Format file yang diunggah tidak valid (.json).",
+          text: `❌ Gagal mengunggah file backup: ${err.message || err}`,
         });
       } finally {
         setIsSyncing(false);
@@ -282,38 +327,74 @@ Di editor Google Apps Script:
         ? `${webAppUrl}&action=uploadBackup`
         : `${webAppUrl}?action=uploadBackup`;
 
+      // Safely serialize body JSON
+      const payloadString = JSON.stringify({
+        action: "uploadBackup",
+        schoolName: schoolIdentity.schoolName || "Sekolah",
+        timestamp: new Date().toISOString(),
+        data: {
+          backupDate: new Date().toISOString(),
+          schoolName: schoolIdentity.schoolName || "Sekolah",
+          data: allData || {},
+        },
+      });
+
       const res = await fetch(uploadUrl, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({
-          action: "uploadBackup",
-          schoolName: schoolIdentity.schoolName,
-          timestamp: new Date().toISOString(),
-          data: {
-            backupDate: new Date().toISOString(),
-            schoolName: schoolIdentity.schoolName,
-            data: allData,
-          },
-        }),
+        body: payloadString,
       });
 
-      const result = await res.json();
+      const rawText = await res.text();
+      let result: any = null;
+      try {
+        result = JSON.parse(rawText);
+      } catch (pErr) {
+        // Response is non-JSON text / HTML
+      }
+
+      if (!result) {
+        if (
+          rawText.includes("DriveApp") ||
+          rawText.includes("izin") ||
+          rawText.includes("permission") ||
+          rawText.includes("authorization") ||
+          rawText.includes("getFoldersByName")
+        ) {
+          setActionMessage({
+            type: "error",
+            text: `🔑 OTORISASI GOOGLE DRIVE DIPERLUKAN!
+Di editor Google Apps Script:
+1. Pilih fungsi 'initPermissions' di menu dropdown toolbar atas.
+2. Klik tombol 'Jalankan' (Run) -> Klik 'Tinjau Izin' (Review Permissions) -> Pilih Akun Google -> Klik 'Lanjutan' (Advanced) -> 'Buka Project' -> 'Izinkan' (Allow).
+3. Setelah itu, pastikan Deploy diset 'Siapa saja' (Anyone), lalu klik lagi 'Unggah Backup ke Cloud Drive'!`,
+          });
+          return;
+        }
+
+        setActionMessage({
+          type: "error",
+          text: `❌ Respons Cloud bukan JSON valid: ${rawText.slice(0, 150)}`,
+        });
+        return;
+      }
 
       const msg = (result.message || "").toString();
 
-      // Check for Google Drive OAuth / DriveApp Permission exception
+      // Check for Google Drive OAuth / DriveApp Permission exception in JSON result
       if (
         msg.includes("DriveApp") ||
         msg.includes("izin") ||
         msg.includes("permission") ||
+        msg.includes("authorization") ||
         msg.includes("getFoldersByName")
       ) {
         setActionMessage({
           type: "error",
-          text: `🔑 DIPERLUKAN IZIN AKSES GOOGLE DRIVE! 
+          text: `🔑 OTORISASI GOOGLE DRIVE DIPERLUKAN! 
 Di editor Google Apps Script:
-1. Di toolbar atas, pilih fungsi 'initPermissions' (atau 'myFunction').
-2. Klik tombol 'Jalankan' (Run) -> Klik 'Tinjau Izin' (Review Permissions) -> Pilih Akun Google Anda -> Klik 'Lanjutan' (Advanced) -> 'Buka Project' -> Klik 'Izinkan' (Allow).
+1. Pilih fungsi 'initPermissions' di menu dropdown toolbar atas.
+2. Klik tombol 'Jalankan' (Run) -> Klik 'Tinjau Izin' (Review Permissions) -> Pilih Akun Google -> Klik 'Lanjutan' (Advanced) -> 'Buka Project' -> Klik 'Izinkan' (Allow).
 3. Setelah itu, klik lagi tombol 'Unggah Backup ke Cloud Drive' di aplikasi ini!`,
         });
       } else if (
@@ -323,7 +404,7 @@ Di editor Google Apps Script:
       ) {
         setActionMessage({
           type: "error",
-          text: `⚠️ Respons Cloud: "${msg || "OK"}". Script Google Apps Script Anda belum diperbarui atau masih versi lama. Silakan klik tab 'Panduan & Script', salin kode script terbaru, lalu lakukan DEPLOY BARU (Deploy -> New deployment) di Google Apps Script.`,
+          text: `⚠️ Respons Cloud: "${msg || "OK"}". Script Apps Script Anda belum versi terbaru. Silakan klik tab 'Panduan & Script', salin kode script terbaru, lalu lakukan DEPLOY BARU (Deploy -> New deployment) di Google Apps Script.`,
         });
       } else if (result.status === "success" || result.fileId) {
         setActionMessage({
