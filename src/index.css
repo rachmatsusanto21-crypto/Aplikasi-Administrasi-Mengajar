@@ -138,7 +138,7 @@ body {
 /* Global Print Styles for Full Multi-Page Document Printing */
 @media print {
   /* Reset html & body for printing - eliminate any initial empty page spacing */
-  html, body {
+  html, body, #root, #root > div {
     margin: 0 !important;
     padding: 0 !important;
     height: auto !important;
@@ -147,26 +147,21 @@ body {
     overflow: visible !important;
     background: #ffffff !important;
     color: #000000 !important;
-  }
-
-  /* Hide everything in body by default using visibility so child overlays can override */
-  body * {
-    visibility: hidden !important;
+    display: block !important;
+    position: static !important;
   }
 
   /* Strictly hide all no-print controls, headers, buttons */
   .no-print,
-  .no-print * {
+  .no-print *,
+  header,
+  aside,
+  nav {
     display: none !important;
     visibility: hidden !important;
   }
 
   /* Unset fixed modal overlays, scrollbars, and transforms - force start on page 1 top */
-  .print-overlay,
-  .print-overlay * {
-    visibility: visible !important;
-  }
-
   .print-overlay {
     position: absolute !important;
     left: 0 !important;
@@ -183,6 +178,9 @@ body {
     box-shadow: none !important;
     transform: none !important;
     inset: auto !important;
+    display: block !important;
+    visibility: visible !important;
+    z-index: 99999 !important;
   }
 
   .print-dialog {
@@ -200,6 +198,7 @@ body {
     background: #ffffff !important;
     border: none !important;
     box-shadow: none !important;
+    visibility: visible !important;
   }
 
   /* Flow printable area as top-level document block starting immediately at page 1 top */

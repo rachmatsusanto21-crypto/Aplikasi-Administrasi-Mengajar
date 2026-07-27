@@ -9,7 +9,11 @@ import {
   Sliders,
   FileCheck,
   FileCode,
+  Download,
+  Loader2,
+  ExternalLink,
 } from "lucide-react";
+import html2pdf from "html2pdf.js";
 import { SchoolIdentity } from "../types";
 import { KopSurat } from "./KopSurat";
 import { exportHtmlToDoc } from "../lib/exportDoc";
@@ -32,6 +36,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   children,
 }) => {
   const contentRef = useRef<HTMLDivElement>(null);
+  const printablePaperRef = useRef<HTMLDivElement>(null);
 
   // Document Section Selection
   const [documentScope, setDocumentScope] = useState<
@@ -49,9 +54,10 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   const [marginLeft, setMarginLeft] = useState<number>(20);
   const [marginRight, setMarginRight] = useState<number>(20);
 
-  // Interactive Live Edit Mode
+  // Interactive Live Edit Mode & Loading
   const [isEditable, setIsEditable] = useState<boolean>(false);
   const [isEdited, setIsEdited] = useState<boolean>(false);
+  const [isExportingPdf, setIsExportingPdf] = useState<boolean>(false);
 
   if (!isOpen) return null;
 
@@ -86,10 +92,35 @@ export const PrintModal: React.FC<PrintModalProps> = ({
     }
   };
 
+  const handleDownloadPdf = async () => {
+    if (!printablePaperRef.current) return;
+    setIsExportingPdf(true);
+    try {
+      const cleanTitle = (title || "Dokumen_Administrasi_Guru").replace(/[^a-zA-Z0-9_]/g, "_");
+      const filename = `${cleanTitle}.pdf`;
+
+      const opt = {
+        margin: [marginTop || 15, marginLeft || 15, marginBottom || 15, marginRight || 15] as [number, number, number, number],
+        filename: filename,
+        image: { type: "jpeg" as const, quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: "mm", format: paperSize.toLowerCase(), orientation: orientation },
+      };
+
+      await html2pdf().set(opt).from(printablePaperRef.current).save();
+    } catch (err) {
+      console.error("Gagal mengunduh PDF:", err);
+      handlePrint();
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   const handleExportDoc = () => {
-    if (contentRef.current) {
+    const targetHtml = contentRef.current?.innerHTML || printablePaperRef.current?.innerHTML || "";
+    if (targetHtml) {
       exportHtmlToDoc({
-        htmlContent: contentRef.current.innerHTML,
+        htmlContent: targetHtml,
         filename: `${title.replace(/[^a-zA-Z0-9_]/g, "_")}.doc`,
         title,
         schoolIdentity,
@@ -120,7 +151,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {/* Live Editable Toggle Button */}
             <button
               onClick={() => setIsEditable(!isEditable)}
@@ -135,6 +166,21 @@ export const PrintModal: React.FC<PrintModalProps> = ({
               <span>{isEditable ? "Mode Edit Aktif (Klik Teks)" : "Edit Teks Pratinjau"}</span>
             </button>
 
+            {/* Direct PDF Download Button */}
+            <button
+              onClick={handleDownloadPdf}
+              disabled={isExportingPdf}
+              className="px-4 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition-all shadow-md disabled:opacity-50"
+              title="Unduh langsung sebagai berkas PDF (.pdf) ke komputer Anda"
+            >
+              {isExportingPdf ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Download className="w-3.5 h-3.5" />
+              )}
+              <span>{isExportingPdf ? "Membuat PDF..." : "Unduh File PDF (.pdf)"}</span>
+            </button>
+
             {/* Word Export Button */}
             <button
               onClick={handleExportDoc}
@@ -145,14 +191,14 @@ export const PrintModal: React.FC<PrintModalProps> = ({
               <span className="hidden sm:inline">Simpan Word (.docx)</span>
             </button>
 
-            {/* Print / PDF Button */}
+            {/* Print Dialog Button */}
             <button
               onClick={handlePrint}
-              className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition-colors shadow-xs"
-              title="Cetak atau Simpan sebagai PDF"
+              className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition-colors border border-slate-700 shadow-xs"
+              title="Buka dialog cetak browser (Ctrl+P / Command+P)"
             >
-              <Printer className="w-3.5 h-3.5" />
-              <span>Cetak / PDF</span>
+              <Printer className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Cetak / Dialog</span>
             </button>
 
             <button
@@ -286,6 +332,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
         {/* Printable Paper Canvas */}
         <div className="p-4 sm:p-8 overflow-y-auto flex-1 bg-slate-200 dark:bg-slate-950 flex justify-center">
           <div
+            ref={printablePaperRef}
             style={{
               paddingTop: `${marginTop}mm`,
               paddingBottom: `${marginBottom}mm`,
