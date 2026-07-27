@@ -762,9 +762,7 @@ export const GradesRemedialDashboard: React.FC<GradesRemedialDashboardProps> = (
                       ) : (
                         <button
                           onClick={() => {
-                            alert(
-                              `Rekomendasi Remedial untuk ${item.student.name}:\n\n1. Pembimbingan individual pada TP ${item.tpLowest}.\n2. Penugasan latihan soal terstruktur.\n3. Asesmen ulang formatif TP ${item.tpLowest}.`
-                            );
+                            console.log(`Program Remedial untuk ${item.student.name}`);
                           }}
                           className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white font-bold text-[10px] rounded-lg shadow-2xs"
                         >

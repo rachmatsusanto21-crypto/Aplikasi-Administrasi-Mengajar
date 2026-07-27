@@ -546,13 +546,8 @@ Format Output HARUS berupa JSON murni tanpa markdown lain:
         setIsAiModalOpen(false);
       }
     } catch (err: any) {
-      const wantTemplate = confirm(
-        `Gagal merumuskan modul secara otomatis:\n${err.message}\n\n` +
-        `Apakah Anda ingin membuat Modul Ajar Standar Kurikulum Merdeka secara langsung (Standar Tanpa AI)?`
-      );
-
-      if (wantTemplate) {
-        const fallbackRawMod = {
+      console.error("AI Generation failed, creating fallback template:", err);
+      const fallbackRawMod = {
           id: "mod_" + Date.now(),
           title: `Modul Ajar Kurikulum Merdeka - ${materi}`,
           moduleType,
@@ -614,19 +609,16 @@ Format Output HARUS berupa JSON murni tanpa markdown lain:
         onSaveModules([newMod, ...teachingModules]);
         setSelectedModule(newMod);
         setIsAiModalOpen(false);
-      }
     } finally {
       setIsGenerating(false);
     }
   };
 
   const handleDeleteModule = (id: string) => {
-    if (confirm("Apakah Anda yakin ingin menghapus modul ajar ini?")) {
-      const updated = teachingModules.filter((m) => m.id !== id);
-      onSaveModules(updated);
-      if (selectedModule?.id === id) {
-        setSelectedModule(updated[0] || null);
-      }
+    const updated = teachingModules.filter((m) => m.id !== id);
+    onSaveModules(updated);
+    if (selectedModule?.id === id) {
+      setSelectedModule(updated[0] || null);
     }
   };
 

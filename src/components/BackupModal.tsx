@@ -444,16 +444,13 @@ Di editor Google Apps Script:
         URL.revokeObjectURL(url);
       }
     } catch (e) {
-      alert("Gagal mengunduh file dari Cloud Google Drive.");
+      console.error("Gagal mengunduh file dari Cloud Google Drive.", e);
     }
   };
 
   // 5. Restore data from Cloud Google Drive
   const handleRestoreFromCloudBackup = async (fileId: string, filename: string) => {
     if (!webAppUrl) return;
-    if (!confirm(`Apakah Anda yakin ingin memulihkan data dari file backup Cloud "${filename}"? Data saat ini akan diperbarui.`)) {
-      return;
-    }
 
     setIsSyncing(true);
     try {
@@ -471,13 +468,11 @@ Di editor Google Apps Script:
               saveToStorage((STORAGE_KEYS as any)[key], restoredData[key]);
             }
           });
-          alert("Data berhasil dipulihkan dari Cloud! Halaman akan dimuat ulang.");
-          window.location.reload();
         }
         onClose();
       }
     } catch (e) {
-      alert("Gagal membaca file backup dari Cloud.");
+      console.error("Gagal membaca file backup dari Cloud.", e);
     } finally {
       setIsSyncing(false);
     }
@@ -485,10 +480,6 @@ Di editor Google Apps Script:
 
   // 6. Restore data from Server Backup file
   const handleRestoreFromServerBackup = async (filename: string) => {
-    if (!confirm(`Apakah Anda yakin ingin memulihkan data dari file backup "${filename}"? Data aplikasi saat ini akan diperbarui.`)) {
-      return;
-    }
-
     setIsSyncing(true);
     try {
       const res = await fetch(`/api/backup/download/${encodeURIComponent(filename)}`);
@@ -504,13 +495,11 @@ Di editor Google Apps Script:
               saveToStorage((STORAGE_KEYS as any)[key], restoredData[key]);
             }
           });
-          alert("Data berhasil dipulihkan dari Folder Backup Server! Halaman akan dimuat ulang.");
-          window.location.reload();
         }
         onClose();
       }
     } catch (e) {
-      alert("Gagal memuat file backup server.");
+      console.error("Gagal memuat file backup server.", e);
     } finally {
       setIsSyncing(false);
     }
@@ -518,9 +507,6 @@ Di editor Google Apps Script:
 
   // 7. Delete server backup file
   const handleDeleteServerBackup = async (filename: string) => {
-    if (!confirm(`Apakah Anda yakin ingin menghapus file backup "${filename}" dari folder server?`)) {
-      return;
-    }
     try {
       const res = await fetch(`/api/backup/delete/${encodeURIComponent(filename)}`, {
         method: "DELETE",
@@ -529,7 +515,7 @@ Di editor Google Apps Script:
         fetchServerBackups();
       }
     } catch (e) {
-      alert("Gagal menghapus file backup server.");
+      console.error("Gagal menghapus file backup server.", e);
     }
   };
 

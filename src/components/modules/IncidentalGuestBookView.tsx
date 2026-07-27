@@ -75,9 +75,7 @@ export const IncidentalGuestBookView: React.FC<IncidentalGuestBookViewProps> = (
   };
 
   const handleDeleteGuest = (id: string) => {
-    if (confirm("Hapus catatan buku tamu ini?")) {
-      onSaveGuestBook(guestBook.filter((g) => g.id !== id));
-    }
+    onSaveGuestBook(guestBook.filter((g) => g.id !== id));
   };
 
   const handleSaveGuest = (e: React.FormEvent) => {
@@ -126,9 +124,7 @@ export const IncidentalGuestBookView: React.FC<IncidentalGuestBookViewProps> = (
   };
 
   const handleDeleteIncidental = (id: string) => {
-    if (confirm("Hapus catatan jurnal insidental ini?")) {
-      onSaveIncidentalJournals(incidentalJournals.filter((j) => j.id !== id));
-    }
+    onSaveIncidentalJournals(incidentalJournals.filter((j) => j.id !== id));
   };
 
   const handleSaveIncidental = (e: React.FormEvent) => {

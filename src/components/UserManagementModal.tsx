@@ -94,10 +94,8 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
   };
 
   const handleDeleteUser = (id: string, name: string) => {
-    if (confirm(`Apakah Anda yakin ingin menghapus user/pengguna "${name}"?`)) {
-      const updated = users.filter((u) => u.id !== id);
-      onSaveUsers(updated);
-    }
+    const updated = users.filter((u) => u.id !== id);
+    onSaveUsers(updated);
   };
 
   // Filtered Users

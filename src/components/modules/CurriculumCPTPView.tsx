@@ -73,9 +73,7 @@ export const CurriculumCPTPView: React.FC<CurriculumCPTPViewProps> = ({
   });
 
   const handleDelete = (id: string) => {
-    if (confirm("Hapus data CP / TP ini?")) {
-      onSaveCPTP(cptpItems.filter((item) => item.id !== id));
-    }
+    onSaveCPTP(cptpItems.filter((item) => item.id !== id));
   };
 
   const handleStartEdit = (item: CPTPItem) => {
@@ -159,7 +157,7 @@ Format keluaran HARUS berupa JSON murni tanpa markdown lain:
         setIsAiModal(false);
       }
     } catch (err: any) {
-      alert("Gagal memproses AI: " + err.message);
+      console.error("Gagal memproses AI:", err);
     } finally {
       setIsGenerating(false);
     }

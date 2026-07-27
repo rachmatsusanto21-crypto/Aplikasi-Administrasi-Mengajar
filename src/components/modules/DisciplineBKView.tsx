@@ -49,9 +49,7 @@ export const DisciplineBKView: React.FC<DisciplineBKViewProps> = ({
   });
 
   const handleDelete = (id: string) => {
-    if (confirm("Apakah Anda yakin ingin menghapus catatan bimbingan/pelanggaran ini?")) {
-      onSaveIncidents(incidents.filter((i) => i.id !== id));
-    }
+    onSaveIncidents(incidents.filter((i) => i.id !== id));
   };
 
   const handleOpenAdd = () => {

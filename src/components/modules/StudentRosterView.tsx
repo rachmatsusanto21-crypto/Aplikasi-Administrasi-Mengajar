@@ -55,11 +55,9 @@ export const StudentRosterView: React.FC<StudentRosterViewProps> = ({
 
   const handleDeleteSelected = () => {
     if (selectedIds.length === 0) return;
-    if (confirm(`Apakah Anda yakin ingin menghapus ${selectedIds.length} murid terpilih?`)) {
-      const updated = students.filter((s) => !selectedIds.includes(s.id));
-      onSaveStudents(updated);
-      setSelectedIds([]);
-    }
+    const updated = students.filter((s) => !selectedIds.includes(s.id));
+    onSaveStudents(updated);
+    setSelectedIds([]);
   };
 
   const handleStartEdit = (student: Student) => {
@@ -75,11 +73,9 @@ export const StudentRosterView: React.FC<StudentRosterViewProps> = ({
   };
 
   const handleDelete = (id: string) => {
-    if (confirm("Apakah Anda yakin ingin menghapus data murid ini?")) {
-      const updated = students.filter((s) => s.id !== id);
-      onSaveStudents(updated);
-      setSelectedIds((prev) => prev.filter((i) => i !== id));
-    }
+    const updated = students.filter((s) => s.id !== id);
+    onSaveStudents(updated);
+    setSelectedIds((prev) => prev.filter((i) => i !== id));
   };
 
   const handleAddSingle = (e: React.FormEvent) => {
@@ -180,9 +176,6 @@ export const StudentRosterView: React.FC<StudentRosterViewProps> = ({
 
       if (newStudents.length > 0) {
         onSaveStudents([...students, ...newStudents]);
-        alert(`Berhasil mengimpor ${newStudents.length} murid dari file.`);
-      } else {
-        alert("Tidak ada data murid yang valid ditemukan dalam file.");
       }
     };
     reader.readAsText(file);
@@ -200,9 +193,7 @@ export const StudentRosterView: React.FC<StudentRosterViewProps> = ({
   };
 
   const handleDeleteColumn = (colName: string) => {
-    if (confirm(`Hapus kolom '${colName}' dari tabel?`)) {
-      setCustomColumns(customColumns.filter((c) => c !== colName));
-    }
+    setCustomColumns(customColumns.filter((c) => c !== colName));
   };
 
   const handleExportCSV = () => {

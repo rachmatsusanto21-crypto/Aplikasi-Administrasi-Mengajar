@@ -70,10 +70,8 @@ export const TimetableScheduleView: React.FC<TimetableScheduleViewProps> = ({
   };
 
   const handleRemovePeriodRow = (pNum: number) => {
-    if (confirm(`Hapus seluruh baris Jam ke-${pNum}?`)) {
-      setPeriods(periods.filter((p) => p !== pNum));
-      onSaveTimetable(timetable.filter((t) => t.period !== pNum));
-    }
+    setPeriods(periods.filter((p) => p !== pNum));
+    onSaveTimetable(timetable.filter((t) => t.period !== pNum));
   };
 
   const [form, setForm] = useState<Partial<TimetableSlot>>({
@@ -89,9 +87,7 @@ export const TimetableScheduleView: React.FC<TimetableScheduleViewProps> = ({
   };
 
   const handleDeleteSlot = (id: string) => {
-    if (confirm("Hapus jadwal pelajaran ini?")) {
-      onSaveTimetable(timetable.filter((t) => t.id !== id));
-    }
+    onSaveTimetable(timetable.filter((t) => t.id !== id));
   };
 
   const handleOpenAddSlot = (day: "Senin" | "Selasa" | "Rabu" | "Kamis" | "Jumat" | "Sabtu", period: number) => {

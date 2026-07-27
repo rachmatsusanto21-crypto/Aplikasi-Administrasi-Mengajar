@@ -161,9 +161,7 @@ export const DailyTeachingLogView: React.FC<DailyTeachingLogViewProps> = ({
   };
 
   const handleDelete = (id: string) => {
-    if (confirm("Hapus catatan jurnal mengajar harian ini?")) {
-      onSaveLogs(logs.filter((l) => l.id !== id));
-    }
+    onSaveLogs(logs.filter((l) => l.id !== id));
   };
 
   const handleSaveForm = (e: React.FormEvent) => {
@@ -269,7 +267,6 @@ export const DailyTeachingLogView: React.FC<DailyTeachingLogViewProps> = ({
     }
 
     if (targetLogs.length === 0) {
-      alert("Tidak ada data jurnal mengajar pada tanggal / rentang tanggal yang dipilih!");
       return;
     }
 

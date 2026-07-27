@@ -77,7 +77,13 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   };
 
   const handlePrint = () => {
-    window.print();
+    try {
+      if (typeof window !== "undefined") {
+        window.print();
+      }
+    } catch (err) {
+      console.warn("Print dialog suppressed or unavailable in sandboxed environment:", err);
+    }
   };
 
   const handleExportDoc = () => {

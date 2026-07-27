@@ -249,9 +249,7 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
   }, [startDate, endDate, subjects, timetable, events, incidentalJournals]);
 
   const handleDelete = (id: string) => {
-    if (confirm("Hapus agenda kalender pendidikan ini?")) {
-      onSaveEvents(events.filter((e) => e.id !== id));
-    }
+    onSaveEvents(events.filter((e) => e.id !== id));
   };
 
   const handleOpenAdd = () => {

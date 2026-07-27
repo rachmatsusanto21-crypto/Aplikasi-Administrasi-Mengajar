@@ -156,9 +156,7 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
   });
 
   const handleDeleteProta = (id: string) => {
-    if (confirm("Hapus rincian Prota ini?")) {
-      onSaveProta(protaList.filter((p) => p.id !== id));
-    }
+    onSaveProta(protaList.filter((p) => p.id !== id));
   };
 
   const handleOpenAddProta = () => {

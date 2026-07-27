@@ -224,8 +224,7 @@ export const GradesMatrixView: React.FC<GradesMatrixViewProps> = ({
   };
 
   const handleDeleteDailyGroup = (tpCode: string, dateStr: string, type: string) => {
-    if (confirm(`Apakah Anda yakin ingin menghapus catatan nilai harian untuk [${tpCode}] pada tanggal ${dateStr}?`)) {
-      const updatedDaily = dailyGrades.filter(
+    const updatedDaily = dailyGrades.filter(
         (g) =>
           !(
             g.subject === selectedSubject &&
@@ -241,7 +240,6 @@ export const GradesMatrixView: React.FC<GradesMatrixViewProps> = ({
 
       setSavedAlert(true);
       setTimeout(() => setSavedAlert(false), 3000);
-    }
   };
 
   // Handle saving Daily Grades Entry

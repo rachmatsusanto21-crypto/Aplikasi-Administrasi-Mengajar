@@ -301,7 +301,6 @@ export default function App() {
     if (newData.protaList) setProtaList(newData.protaList);
     if (newData.promesList) setPromesList(newData.promesList);
     if (newData.teachingModules) setTeachingModules(newData.teachingModules);
-    alert("Data berhasil dipulihkan!");
   };
 
   return (
