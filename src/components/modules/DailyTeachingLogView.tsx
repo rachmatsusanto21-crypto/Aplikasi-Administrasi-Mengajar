@@ -246,43 +246,165 @@ export const DailyTeachingLogView: React.FC<DailyTeachingLogViewProps> = ({
     });
   };
 
-  const handlePrint = () => {
-    onOpenPrint(
-      "JURNAL MENGAJAR HARIAN GURU KELAS",
-      "Dokumentasi Kegiatan Pembelajaran Tatap Muka Harian",
-      (
-        <table className="w-full border-collapse border border-slate-300 text-xs">
-          <thead>
-            <tr className="bg-slate-100 font-bold text-slate-800">
-              <th className="border border-slate-300 p-2 w-8 text-center">No</th>
-              <th className="border border-slate-300 p-2 text-center w-20">Tanggal</th>
-              <th className="border border-slate-300 p-2 text-left w-24">Materi & Mapel</th>
-              <th className="border border-slate-300 p-2 text-left">Tujuan Pembelajaran (TP)</th>
-              <th className="border border-slate-300 p-2 text-left w-32">Ringkasan Kehadiran</th>
-              <th className="border border-slate-300 p-2 text-left">Catatan & Refleksi Guru</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredLogs.map((l, idx) => (
-              <tr key={l.id} className="odd:bg-white even:bg-slate-50">
-                <td className="border border-slate-300 p-2 text-center">{idx + 1}</td>
-                <td className="border border-slate-300 p-2 text-center font-mono">{l.date}</td>
-                <td className="border border-slate-300 p-2">
-                  <span className="font-bold text-slate-900 block">{l.subject}</span>
-                  <span className="text-[10px] text-slate-500 block">{l.material}</span>
-                </td>
-                <td className="border border-slate-300 p-2">{l.tpDescription}</td>
-                <td className="border border-slate-300 p-2 text-slate-700 font-mono text-[10px]">{l.attendanceSummary}</td>
-                <td className="border border-slate-300 p-2">
-                  <p className="font-medium text-slate-800">{l.notes}</p>
-                  <p className="italic text-emerald-800 text-[10px] mt-0.5">Refleksi: {l.reflection}</p>
-                </td>
-              </tr>
+  // State for Print Options Dialog
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [printDateFilterMode, setPrintDateFilterMode] = useState<"ALL" | "SINGLE" | "RANGE">("ALL");
+  const [printSingleDate, setPrintSingleDate] = useState<string>(initialTodayDate);
+  const [printStartDate, setPrintStartDate] = useState<string>(initialTodayDate);
+  const [printEndDate, setPrintEndDate] = useState<string>(initialTodayDate);
+  const [printLayoutFormat, setPrintLayoutFormat] = useState<"TABLE" | "SHEET">("SHEET");
+
+  const handleOpenPrintOptions = () => {
+    setIsPrintModalOpen(true);
+  };
+
+  const handleExecutePrint = () => {
+    // Filter logs based on print options
+    let targetLogs = [...filteredLogs];
+
+    if (printDateFilterMode === "SINGLE") {
+      targetLogs = targetLogs.filter((l) => l.date === printSingleDate);
+    } else if (printDateFilterMode === "RANGE") {
+      targetLogs = targetLogs.filter((l) => l.date >= printStartDate && l.date <= printEndDate);
+    }
+
+    if (targetLogs.length === 0) {
+      alert("Tidak ada data jurnal mengajar pada tanggal / rentang tanggal yang dipilih!");
+      return;
+    }
+
+    // Sort target logs chronologically by date
+    targetLogs.sort((a, b) => a.date.localeCompare(b.date));
+
+    // Format date string for Indonesian display
+    const formatIndonesianDate = (dStr: string) => {
+      try {
+        const parts = dStr.split("-").map(Number);
+        if (parts.length === 3) {
+          const d = new Date(parts[0], parts[1] - 1, parts[2]);
+          return d.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+        }
+      } catch (e) {
+        // fallback
+      }
+      return dStr;
+    };
+
+    setIsPrintModalOpen(false);
+
+    if (printLayoutFormat === "SHEET") {
+      // 1 Page per Date sheet format
+      onOpenPrint(
+        "JURNAL MENGAJAR HARIAN GURU KELAS",
+        `Dokumen Harian (${targetLogs.length} Halaman)`,
+        (
+          <div className="space-y-8">
+            {targetLogs.map((l, idx) => (
+              <div key={l.id} className={`space-y-4 p-2 ${idx < targetLogs.length - 1 ? "page-break-after border-b border-slate-300 pb-8" : ""}`}>
+                <div className="border-b-2 border-slate-900 pb-2 text-center">
+                  <h3 className="font-extrabold text-sm uppercase tracking-wide text-slate-900">
+                    JURNAL MENGAJAR HARIAN GURU
+                  </h3>
+                  <p className="text-xs text-slate-700 font-semibold mt-1">
+                    Hari / Tanggal: <span className="font-mono underline">{formatIndonesianDate(l.date)}</span> | Satuan Pendidikan: {schoolIdentity?.schoolName || "-"}
+                  </p>
+                </div>
+
+                <table className="w-full border-collapse border border-slate-400 text-xs">
+                  <tbody>
+                    <tr>
+                      <td className="border border-slate-400 p-2.5 font-bold w-40 bg-slate-100 text-slate-900">Mata Pelajaran</td>
+                      <td className="border border-slate-400 p-2.5 font-extrabold text-emerald-900 text-sm">{l.subject}</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-slate-400 p-2.5 font-bold bg-slate-100 text-slate-900">Kelas / Fase</td>
+                      <td className="border border-slate-400 p-2.5 font-semibold text-slate-800">{l.classGrade}</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-slate-400 p-2.5 font-bold bg-slate-100 text-slate-900">Materi / Sub-Materi Pokok</td>
+                      <td className="border border-slate-400 p-2.5 font-bold text-slate-900">{l.material}</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-slate-400 p-2.5 font-bold bg-slate-100 text-slate-900">Tujuan Pembelajaran (TP)</td>
+                      <td className="border border-slate-400 p-2.5 leading-relaxed text-slate-800">{l.tpDescription}</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-slate-400 p-2.5 font-bold bg-slate-100 text-slate-900">Ringkasan Kehadiran Murid</td>
+                      <td className="border border-slate-400 p-2.5 font-mono font-semibold text-slate-800">{l.attendanceSummary}</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-slate-400 p-2.5 font-bold bg-slate-100 text-slate-900">Catatan Kegiatan & Kendala</td>
+                      <td className="border border-slate-400 p-2.5 text-slate-800">{l.notes || "-"}</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-slate-400 p-2.5 font-bold bg-slate-100 text-slate-900">Refleksi Guru (Perbaikan)</td>
+                      <td className="border border-slate-400 p-2.5 italic text-emerald-800 font-medium">{l.reflection || "-"}</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                {/* Signature aligned to the exact log date */}
+                <div className="pt-8 grid grid-cols-2 text-xs text-center text-slate-900 leading-normal break-inside-avoid">
+                  <div>
+                    <p>Mengetahui,</p>
+                    <p className="font-bold mb-14">Kepala {schoolIdentity?.schoolName || "Sekolah"}</p>
+                    <p className="font-bold underline uppercase">{schoolIdentity?.headmasterName || "..................................."}</p>
+                    <p>NIP. {schoolIdentity?.headmasterNip || "..................................."}</p>
+                  </div>
+                  <div>
+                    <p>
+                      {schoolIdentity?.regency || schoolIdentity?.district || "Kota"},{" "}
+                      <span className="font-semibold">{formatIndonesianDate(l.date)}</span>
+                    </p>
+                    <p className="font-bold mb-14">Guru Kelas / Mata Pelajaran</p>
+                    <p className="font-bold underline uppercase">{schoolIdentity?.teacherName || "..................................."}</p>
+                    <p>NIP. {schoolIdentity?.teacherNip || schoolIdentity?.nip || "..................................."}</p>
+                  </div>
+                </div>
+              </div>
             ))}
-          </tbody>
-        </table>
-      )
-    );
+          </div>
+        )
+      );
+    } else {
+      // Summary table format
+      onOpenPrint(
+        "REKAPITULASI JURNAL MENGAJAR HARIAN",
+        `Periode Cetak: ${printDateFilterMode === "SINGLE" ? printSingleDate : printDateFilterMode === "RANGE" ? `${printStartDate} s.d. ${printEndDate}` : "Keseluruhan"}`,
+        (
+          <table className="w-full border-collapse border border-slate-300 text-xs">
+            <thead>
+              <tr className="bg-slate-100 font-bold text-slate-800">
+                <th className="border border-slate-300 p-2 w-8 text-center">No</th>
+                <th className="border border-slate-300 p-2 text-center w-24">Tanggal</th>
+                <th className="border border-slate-300 p-2 text-left w-28">Materi & Mapel</th>
+                <th className="border border-slate-300 p-2 text-left">Tujuan Pembelajaran (TP)</th>
+                <th className="border border-slate-300 p-2 text-left w-32">Ringkasan Kehadiran</th>
+                <th className="border border-slate-300 p-2 text-left">Catatan & Refleksi Guru</th>
+              </tr>
+            </thead>
+            <tbody>
+              {targetLogs.map((l, idx) => (
+                <tr key={l.id} className="odd:bg-white even:bg-slate-50">
+                  <td className="border border-slate-300 p-2 text-center font-mono">{idx + 1}</td>
+                  <td className="border border-slate-300 p-2 text-center font-mono font-bold">{l.date}</td>
+                  <td className="border border-slate-300 p-2">
+                    <span className="font-bold text-slate-900 block">{l.subject}</span>
+                    <span className="text-[10px] text-slate-500 block">{l.material}</span>
+                  </td>
+                  <td className="border border-slate-300 p-2">{l.tpDescription}</td>
+                  <td className="border border-slate-300 p-2 text-slate-700 font-mono text-[10px]">{l.attendanceSummary}</td>
+                  <td className="border border-slate-300 p-2">
+                    <p className="font-medium text-slate-800">{l.notes}</p>
+                    <p className="italic text-emerald-800 text-[10px] mt-0.5">Refleksi: {l.reflection}</p>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )
+      );
+    }
   };
 
   return (
@@ -324,9 +446,9 @@ export const DailyTeachingLogView: React.FC<DailyTeachingLogViewProps> = ({
             Simpan Word (.docx)
           </button>
           <button
-            onClick={handlePrint}
+            onClick={handleOpenPrintOptions}
             className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-colors"
-            title="Cetak Laporan / PDF"
+            title="Cetak Laporan / PDF dengan Pilihan Tanggal & Layout"
           >
             <Printer className="w-4 h-4" />
             Cetak / PDF
@@ -654,6 +776,147 @@ export const DailyTeachingLogView: React.FC<DailyTeachingLogViewProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Modal Print Options */}
+      {isPrintModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 text-xs">
+            <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
+              <Printer className="w-5 h-5 text-emerald-600" />
+              Opsi Cetak Jurnal Mengajar Harian
+            </h3>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block font-bold mb-1 text-slate-700">Pilih Periode / Tanggal Cetak:</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPrintDateFilterMode("ALL")}
+                    className={`py-2 px-1 text-center rounded-lg font-bold border transition-all ${
+                      printDateFilterMode === "ALL"
+                        ? "bg-emerald-600 text-white border-emerald-700 shadow-xs"
+                        : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    Keseluruhan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPrintDateFilterMode("SINGLE")}
+                    className={`py-2 px-1 text-center rounded-lg font-bold border transition-all ${
+                      printDateFilterMode === "SINGLE"
+                        ? "bg-emerald-600 text-white border-emerald-700 shadow-xs"
+                        : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    Tanggal Tertentu
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPrintDateFilterMode("RANGE")}
+                    className={`py-2 px-1 text-center rounded-lg font-bold border transition-all ${
+                      printDateFilterMode === "RANGE"
+                        ? "bg-emerald-600 text-white border-emerald-700 shadow-xs"
+                        : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    Rentang Tanggal
+                  </button>
+                </div>
+              </div>
+
+              {printDateFilterMode === "SINGLE" && (
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-700">Pilih Tanggal Penulisan Jurnal:</label>
+                  <input
+                    type="date"
+                    value={printSingleDate}
+                    onChange={(e) => setPrintSingleDate(e.target.value)}
+                    className="w-full p-2 border rounded-lg font-mono font-bold"
+                  />
+                </div>
+              )}
+
+              {printDateFilterMode === "RANGE" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700">Mulai Tanggal:</label>
+                    <input
+                      type="date"
+                      value={printStartDate}
+                      onChange={(e) => setPrintStartDate(e.target.value)}
+                      className="w-full p-2 border rounded-lg font-mono font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700">Sampai Tanggal:</label>
+                    <input
+                      type="date"
+                      value={printEndDate}
+                      onChange={(e) => setPrintEndDate(e.target.value)}
+                      className="w-full p-2 border rounded-lg font-mono font-bold"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-2 border-t border-slate-200">
+                <label className="block font-bold mb-1 text-slate-700">Format Tampilan Dokumen Cetak:</label>
+                <div className="space-y-2">
+                  <label className="flex items-start gap-2.5 p-2 bg-slate-50 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100">
+                    <input
+                      type="radio"
+                      name="printFormat"
+                      checked={printLayoutFormat === "SHEET"}
+                      onChange={() => setPrintLayoutFormat("SHEET")}
+                      className="mt-0.5 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <div>
+                      <span className="font-bold text-slate-900 block">Dokumen Harian (1 Halaman Per Tanggal)</span>
+                      <span className="text-[11px] text-slate-500 block">
+                        Cetak format lembaran resmi dengan tanggal tanda tangan yang otomatis menyesuaikan tanggal jurnal harian.
+                      </span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-2.5 p-2 bg-slate-50 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100">
+                    <input
+                      type="radio"
+                      name="printFormat"
+                      checked={printLayoutFormat === "TABLE"}
+                      onChange={() => setPrintLayoutFormat("TABLE")}
+                      className="mt-0.5 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <div>
+                      <span className="font-bold text-slate-900 block">Tabel Rekapitulasi Ringkasan</span>
+                      <span className="text-[11px] text-slate-500 block">
+                        Tampilan matriks tabel rekap ringkas seluruh jurnal dalam 1 daftar.
+                      </span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setIsPrintModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 text-slate-700 font-semibold rounded-lg"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExecutePrint}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-xs"
+                >
+                  Buka Pratinjau Cetak
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

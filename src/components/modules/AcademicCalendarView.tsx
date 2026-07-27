@@ -392,8 +392,64 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
       `Tahun Pelajaran ${academicYearStr} - ${schoolIdentity.schoolName}`,
       (
         <div className="space-y-6 text-xs">
+          {/* Section 1: Rincian HEB & MEB Per Bulan */}
           <div>
-            <h4 className="font-bold text-slate-800 uppercase mb-2">1. Hitungan Hari & Jam Pelajaran (JP) Efektif Per Mata Pelajaran</h4>
+            <h4 className="font-bold text-slate-800 uppercase mb-2">
+              I. Rincian Hari Efektif Belajar (HEB) & Minggu Efektif (MEB) Per Bulan
+            </h4>
+            <table className="w-full border-collapse border border-slate-300">
+              <thead>
+                <tr className="bg-slate-100 font-bold text-slate-800 text-center">
+                  <th className="border border-slate-300 p-2 w-8">No</th>
+                  <th className="border border-slate-300 p-2 text-left">Bulan / Tahun</th>
+                  <th className="border border-slate-300 p-2 w-28">Semester</th>
+                  <th className="border border-slate-300 p-2 w-28">Jumlah Hari</th>
+                  <th className="border border-slate-300 p-2 w-32 bg-emerald-50 text-emerald-900">Hari Efektif (HEB)</th>
+                  <th className="border border-slate-300 p-2 w-32 bg-blue-50 text-blue-900">Minggu Efektif (MEB)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {months.map((m, idx) => (
+                  <tr key={m.name} className="odd:bg-white even:bg-slate-50 text-center">
+                    <td className="border border-slate-300 p-2 font-mono">{idx + 1}</td>
+                    <td className="border border-slate-300 p-2 text-left font-bold text-slate-900">{m.name}</td>
+                    <td className="border border-slate-300 p-2 font-semibold text-slate-700">
+                      Semester {idx < 6 ? "1 (Ganjil)" : "2 (Genap)"}
+                    </td>
+                    <td className="border border-slate-300 p-2">{m.totalDays} Hari</td>
+                    <td className="border border-slate-300 p-2 font-bold text-emerald-800 bg-emerald-50/40">{m.defaultEffective} Hari</td>
+                    <td className="border border-slate-300 p-2 font-bold text-blue-800 bg-blue-50/40">{m.defaultWeeks} Minggu</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-emerald-100/70 font-extrabold text-emerald-950 text-center border-t-2 border-slate-400">
+                  <td colSpan={3} className="border border-slate-400 p-2 text-right">TOTAL SEMESTER 1 (GANJIL):</td>
+                  <td className="border border-slate-400 p-2">{months.slice(0, 6).reduce((a, b) => a + b.totalDays, 0)} Hari</td>
+                  <td className="border border-slate-400 p-2">{totalEffectiveDaysSem1} Hari</td>
+                  <td className="border border-slate-400 p-2">{months.slice(0, 6).reduce((a, b) => a + b.defaultWeeks, 0)} Minggu</td>
+                </tr>
+                <tr className="bg-blue-100/70 font-extrabold text-blue-950 text-center border-t border-slate-400">
+                  <td colSpan={3} className="border border-slate-400 p-2 text-right">TOTAL SEMESTER 2 (GENAP):</td>
+                  <td className="border border-slate-400 p-2">{months.slice(6, 12).reduce((a, b) => a + b.totalDays, 0)} Hari</td>
+                  <td className="border border-slate-400 p-2">{totalEffectiveDaysSem2} Hari</td>
+                  <td className="border border-slate-400 p-2">{months.slice(6, 12).reduce((a, b) => a + b.defaultWeeks, 0)} Minggu</td>
+                </tr>
+                <tr className="bg-slate-200 font-extrabold text-slate-950 text-center border-t-2 border-slate-500">
+                  <td colSpan={3} className="border border-slate-400 p-2 text-right">TOTAL KESELURUHAN (1 TAHUN):</td>
+                  <td className="border border-slate-400 p-2">{months.reduce((a, b) => a + b.totalDays, 0)} Hari</td>
+                  <td className="border border-slate-400 p-2">{totalEffectiveDaysSem1 + totalEffectiveDaysSem2} Hari</td>
+                  <td className="border border-slate-400 p-2">{months.reduce((a, b) => a + b.defaultWeeks, 0)} Minggu</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          {/* Section 2: Hitungan JP Efektif Per Mapel */}
+          <div>
+            <h4 className="font-bold text-slate-800 uppercase mb-2">
+              II. Hitungan Hari & Jam Pelajaran (JP) Efektif Per Mata Pelajaran
+            </h4>
             <table className="w-full border-collapse border border-slate-300">
               <thead>
                 <tr className="bg-slate-100 font-bold text-slate-800">
@@ -409,11 +465,11 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
               <tbody>
                 {subjectCalculations.map((sc, idx) => (
                   <tr key={sc.subject} className="odd:bg-white even:bg-slate-50">
-                    <td className="border border-slate-300 p-2 text-center">{idx + 1}</td>
+                    <td className="border border-slate-300 p-2 text-center font-mono">{idx + 1}</td>
                     <td className="border border-slate-300 p-2 font-bold">{sc.subject}</td>
                     <td className="border border-slate-300 p-2 text-slate-600">{sc.weeklyScheduleSummary}</td>
                     <td className="border border-slate-300 p-2 text-center">{sc.totalScheduledMeetings} Hari</td>
-                    <td className="border border-slate-300 p-2 text-center text-red-600">-{sc.holidayMeetingsLost} Hari</td>
+                    <td className="border border-slate-300 p-2 text-center text-red-600 font-semibold">-{sc.holidayMeetingsLost} Hari</td>
                     <td className="border border-slate-300 p-2 text-center font-bold text-emerald-700">{sc.effectiveMeetings} Hari</td>
                     <td className="border border-slate-300 p-2 text-center font-extrabold text-emerald-900 bg-emerald-50/50">{sc.effectiveJP} JP</td>
                   </tr>
@@ -422,24 +478,35 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
             </table>
           </div>
 
+          {/* Section 3: Agenda Kalender Pendidikan */}
           <div>
-            <h4 className="font-bold text-slate-800 uppercase mb-2">2. Daftar Agenda & Hari Libur Kalender Pendidikan</h4>
+            <h4 className="font-bold text-slate-800 uppercase mb-2">
+              III. Agenda Kalender Pendidikan & Hari Libur Resmi
+            </h4>
             <table className="w-full border-collapse border border-slate-300">
               <thead>
                 <tr className="bg-slate-100 font-bold text-slate-800">
-                  <th className="border border-slate-300 p-2 text-center w-10">No</th>
-                  <th className="border border-slate-300 p-2 text-center w-32">Tanggal</th>
+                  <th className="border border-slate-300 p-2 text-center w-8">No</th>
+                  <th className="border border-slate-300 p-2 text-center w-28">Tanggal / Periode</th>
                   <th className="border border-slate-300 p-2 text-left">Nama Agenda / Kegiatan</th>
-                  <th className="border border-slate-300 p-2 text-center w-28">Kategori</th>
+                  <th className="border border-slate-300 p-2 text-center w-24">Kategori</th>
+                  <th className="border border-slate-300 p-2 text-left">Keterangan</th>
                 </tr>
               </thead>
               <tbody>
                 {events.map((e, idx) => (
                   <tr key={e.id} className="odd:bg-white even:bg-slate-50">
-                    <td className="border border-slate-300 p-2 text-center">{idx + 1}</td>
-                    <td className="border border-slate-300 p-2 text-center font-mono">{e.endDate ? `${e.date} s.d. ${e.endDate}` : e.date}</td>
-                    <td className="border border-slate-300 p-2 font-bold">{e.title}</td>
-                    <td className="border border-slate-300 p-2 text-center">{e.type}</td>
+                    <td className="border border-slate-300 p-2 text-center font-mono">{idx + 1}</td>
+                    <td className="border border-slate-300 p-2 text-center font-mono font-bold">
+                      {e.endDate ? `${e.date} s.d ${e.endDate}` : e.date}
+                    </td>
+                    <td className="border border-slate-300 p-2 font-bold text-slate-900">{e.title}</td>
+                    <td className="border border-slate-300 p-2 text-center">
+                      <span className="px-2 py-0.5 rounded font-bold text-[10px] bg-slate-100 border border-slate-300">
+                        {e.type}
+                      </span>
+                    </td>
+                    <td className="border border-slate-300 p-2 text-slate-600">{e.description || "-"}</td>
                   </tr>
                 ))}
               </tbody>

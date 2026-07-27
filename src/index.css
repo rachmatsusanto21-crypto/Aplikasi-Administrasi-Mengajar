@@ -149,9 +149,10 @@ body {
     color: #000000 !important;
   }
 
-  /* Hide all non-printable elements by default */
-  body * {
-    visibility: hidden;
+  /* Hide root non-print container elements from document flow so page 1 starts cleanly */
+  #root > *:not(.print-overlay),
+  body > *:not(.print-overlay) {
+    display: none !important;
   }
 
   /* Strictly hide all no-print controls, headers, buttons */
@@ -161,32 +162,8 @@ body {
     visibility: hidden !important;
   }
 
-  /* Make print overlay container and printable area visible */
-  .print-overlay,
-  .print-dialog,
-  .printable-area,
-  .printable-area * {
-    visibility: visible !important;
-  }
-
   /* Unset fixed modal overlays, scrollbars, and transforms */
-  .print-overlay {
-    position: static !important;
-    display: block !important;
-    width: 100% !important;
-    height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: visible !important;
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    transform: none !important;
-    inset: auto !important;
-  }
-
+  .print-overlay,
   .print-dialog {
     position: static !important;
     display: block !important;
@@ -202,11 +179,12 @@ body {
     border: none !important;
     box-shadow: none !important;
     transform: none !important;
+    inset: auto !important;
   }
 
-  /* Flow printable area as top-level static document block */
+  /* Flow printable area as top-level document block starting at page 1 */
   .printable-area {
-    position: static !important;
+    position: relative !important;
     display: block !important;
     float: none !important;
     width: 100% !important;
@@ -259,9 +237,14 @@ body {
     break-inside: avoid !important;
   }
 
+  .page-break-after {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+
   @page {
     size: auto;
-    margin: 10mm 12mm;
+    margin: 8mm 10mm;
   }
 }
 

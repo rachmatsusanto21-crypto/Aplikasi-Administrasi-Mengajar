@@ -180,21 +180,62 @@ Format keluaran HARUS berupa JSON murni tanpa markdown lain:
   };
 
   const handlePrint = () => {
+    // Group filtered CP/TP items by subject
+    const groupedBySubject: Record<string, typeof cptpItems> = {};
+    filteredItems.forEach((item) => {
+      const sub = item.subject || "Lainnya";
+      if (!groupedBySubject[sub]) groupedBySubject[sub] = [];
+      groupedBySubject[sub].push(item);
+    });
+
+    const subjectKeys = Object.keys(groupedBySubject);
+
     onOpenPrint(
       "DOKUMEN CAPAIAN PEMBELAJARAN (CP) & TUJUAN PEMBELAJARAN (TP)",
-      `Mata Pelajaran: ${selectedSubject}`,
+      `Kurikulum Merdeka | ${selectedSubject === "Semua" ? "Seluruh Mata Pelajaran (Dipisah Per Mapel)" : `Mata Pelajaran: ${selectedSubject}`}`,
       (
-        <div className="space-y-4">
-          {filteredItems.map((item, idx) => (
-            <div key={item.id} className="border border-slate-300 p-3 rounded text-xs space-y-1">
-              <div className="flex justify-between font-bold text-slate-800">
-                <span>{idx + 1}. [{item.subject}] - Elemen: {item.element}</span>
-                <span>{item.codeTP}</span>
+        <div className="space-y-8 text-xs">
+          {subjectKeys.map((subKey, sIdx) => {
+            const items = groupedBySubject[subKey];
+            return (
+              <div key={subKey} className={`space-y-3 ${sIdx > 0 ? "page-break-after border-t-2 border-slate-400 pt-6" : ""}`}>
+                <div className="bg-emerald-800 text-white p-2.5 rounded font-extrabold text-sm uppercase flex justify-between items-center">
+                  <span>MATA PELAJARAN: {subKey}</span>
+                  <span className="text-xs text-emerald-200 font-mono font-normal">Total {items.length} TP</span>
+                </div>
+
+                <table className="w-full border-collapse border border-slate-400">
+                  <thead>
+                    <tr className="bg-slate-100 font-bold text-slate-800">
+                      <th className="border border-slate-400 p-2 text-center w-8">No</th>
+                      <th className="border border-slate-400 p-2 text-left w-32">Elemen</th>
+                      <th className="border border-slate-400 p-2 text-left">Capaian Pembelajaran (CP)</th>
+                      <th className="border border-slate-400 p-2 text-center w-24">Kode TP</th>
+                      <th className="border border-slate-400 p-2 text-left">Tujuan Pembelajaran (TP)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((item, idx) => (
+                      <tr key={item.id} className="odd:bg-white even:bg-slate-50 align-top">
+                        <td className="border border-slate-400 p-2 text-center font-mono">{idx + 1}</td>
+                        <td className="border border-slate-400 p-2 font-semibold text-slate-900">{item.element}</td>
+                        <td className="border border-slate-400 p-2">
+                          <span className="font-bold text-slate-800 font-mono block">[{item.codeCP}]</span>
+                          <span className="text-slate-700">{item.descriptionCP}</span>
+                        </td>
+                        <td className="border border-slate-400 p-2 text-center font-mono font-bold text-emerald-900 bg-emerald-50/50">
+                          {item.codeTP}
+                        </td>
+                        <td className="border border-slate-400 p-2 font-medium text-slate-900">
+                          {item.descriptionTP}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <p className="text-slate-600"><b>Capaian Pembelajaran ({item.codeCP}):</b> {item.descriptionCP}</p>
-              <p className="text-slate-900 font-medium"><b>Tujuan Pembelajaran:</b> {item.descriptionTP}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )
     );

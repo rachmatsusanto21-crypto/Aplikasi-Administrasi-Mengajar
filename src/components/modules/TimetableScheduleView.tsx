@@ -151,7 +151,7 @@ export const TimetableScheduleView: React.FC<TimetableScheduleViewProps> = ({
         <table className="w-full border-collapse border border-slate-300 text-xs">
           <thead>
             <tr className="bg-slate-100 font-bold text-slate-800">
-              <th className="border border-slate-300 p-2 text-center w-12">Jam</th>
+              <th className="border border-slate-300 p-2 text-center w-28">Jam & Waktu</th>
               {days.map((d) => (
                 <th key={d} className="border border-slate-300 p-2 text-center">
                   {d}
@@ -160,28 +160,35 @@ export const TimetableScheduleView: React.FC<TimetableScheduleViewProps> = ({
             </tr>
           </thead>
           <tbody>
-            {periods.map((p) => (
-              <tr key={p}>
-                <td className="border border-slate-300 p-2 text-center font-bold bg-slate-50">
-                  {p}
-                </td>
-                {days.map((d) => {
-                  const slot = getSlot(d, p);
-                  return (
-                    <td key={d} className="border border-slate-300 p-2 text-center">
-                      {slot ? (
-                        <div>
-                          <p className="font-bold">{slot.subject}</p>
-                          <p className="text-[10px] text-slate-500">{slot.roomOrTeacher}</p>
-                        </div>
-                      ) : (
-                        <span className="text-slate-300">-</span>
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
+            {periods.map((p) => {
+              const defaultTime = getDefaultTimeRange(p);
+              return (
+                <tr key={p}>
+                  <td className="border border-slate-300 p-1.5 text-center bg-slate-50">
+                    <div className="font-bold text-slate-900">Ke-{p}</div>
+                    <div className="text-[10px] text-emerald-800 font-mono font-semibold whitespace-nowrap">
+                      {defaultTime}
+                    </div>
+                  </td>
+                  {days.map((d) => {
+                    const slot = getSlot(d, p);
+                    return (
+                      <td key={d} className="border border-slate-300 p-2 text-center">
+                        {slot ? (
+                          <div>
+                            <p className="font-bold text-slate-900">{slot.subject}</p>
+                            <p className="text-[10px] text-slate-600">{slot.roomOrTeacher || "Guru Kelas"}</p>
+                            <p className="text-[9px] font-mono text-emerald-700">{slot.timeRange || defaultTime}</p>
+                          </div>
+                        ) : (
+                          <span className="text-slate-300">-</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )

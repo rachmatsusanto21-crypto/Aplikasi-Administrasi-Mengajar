@@ -646,17 +646,19 @@ Format Output HARUS berupa JSON murni tanpa markdown lain:
   };
 
   // Render document component shared for Preview and Print
-  const renderDocumentContent = (mod: TeachingModule) => {
+  const renderDocumentContent = (mod: TeachingModule, isForPrintModal = false) => {
     const studentGrades = getFullStudentGradeList(students);
 
     return (
       <div className="space-y-6 text-[12px] font-sans leading-normal text-slate-900 bg-white p-2">
-        {/* Kop Surat Resmi */}
-        <KopSurat
-          schoolIdentity={schoolIdentity}
-          title={`MODUL AJAR KURIKULUM MERDEKA (${mod.moduleType.toUpperCase()})`}
-          subtitle={`${mod.subject} • ${mod.targetClass} | ALOKASI WAKTU: ${mod.allocationJP}`}
-        />
+        {/* Kop Surat Resmi - Only render in preview card if not inside PrintModal (PrintModal handles KopSurat) */}
+        {!isForPrintModal && (
+          <KopSurat
+            schoolIdentity={schoolIdentity}
+            title={`MODUL AJAR KURIKULUM MERDEKA (${mod.moduleType.toUpperCase()})`}
+            subtitle={`${mod.subject} • ${mod.targetClass} | ALOKASI WAKTU: ${mod.allocationJP}`}
+          />
+        )}
 
         {/* I. INFORMASI UMUM */}
         <div className="border border-slate-300 rounded p-3 space-y-2 bg-slate-50/50">
@@ -1013,30 +1015,32 @@ Format Output HARUS berupa JSON murni tanpa markdown lain:
           </div>
         </div>
 
-        {/* SIGNATURE BLOCK */}
-        <div className="pt-8 grid grid-cols-2 text-[12px] text-slate-900 leading-normal font-sans">
-          <div className="text-center space-y-12">
-            <div>
-              <p>Mengetahui,</p>
-              <p className="font-bold">Kepala {schoolIdentity?.schoolName || "Sekolah SD"}</p>
+        {/* SIGNATURE BLOCK - Only render in preview card if not inside PrintModal (PrintModal handles signature block) */}
+        {!isForPrintModal && (
+          <div className="pt-8 grid grid-cols-2 text-[12px] text-slate-900 leading-normal font-sans">
+            <div className="text-center space-y-12">
+              <div>
+                <p>Mengetahui,</p>
+                <p className="font-bold">Kepala {schoolIdentity?.schoolName || "Sekolah SD"}</p>
+              </div>
+              <div>
+                <p className="font-bold underline uppercase">{schoolIdentity?.headmasterName || "..................................."}</p>
+                <p>NIP. {schoolIdentity?.headmasterNip || "..................................."}</p>
+              </div>
             </div>
-            <div>
-              <p className="font-bold underline uppercase">{schoolIdentity?.headmasterName || "..................................."}</p>
-              <p>NIP. {schoolIdentity?.headmasterNip || "..................................."}</p>
-            </div>
-          </div>
 
-          <div className="text-center space-y-12">
-            <div>
-              <p>{(schoolIdentity as any)?.city || schoolIdentity?.regency || "Kota"}, {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</p>
-              <p className="font-bold">Guru Pengampu Kelas / Mapel</p>
-            </div>
-            <div>
-              <p className="font-bold underline uppercase">{schoolIdentity?.teacherName || "..................................."}</p>
-              <p>NIP. {schoolIdentity?.teacherNip || schoolIdentity?.nip || "..................................."}</p>
+            <div className="text-center space-y-12">
+              <div>
+                <p>{(schoolIdentity as any)?.city || schoolIdentity?.regency || "Kota"}, {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</p>
+                <p className="font-bold">Guru Pengampu Kelas / Mapel</p>
+              </div>
+              <div>
+                <p className="font-bold underline uppercase">{schoolIdentity?.teacherName || "..................................."}</p>
+                <p>NIP. {schoolIdentity?.teacherNip || schoolIdentity?.nip || "..................................."}</p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     );
   };
@@ -1046,7 +1050,7 @@ Format Output HARUS berupa JSON murni tanpa markdown lain:
     onOpenPrint(
       `MODUL AJAR KURIKULUM MERDEKA (${(activeModule.moduleType || "INTRAKURIKULER").toUpperCase()})`,
       `${activeModule.subject} - ${activeModule.targetClass} | Model: ${activeModule.learningModel}`,
-      renderDocumentContent(activeModule)
+      renderDocumentContent(activeModule, true)
     );
   };
 

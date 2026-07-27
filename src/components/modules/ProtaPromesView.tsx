@@ -533,42 +533,115 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
   };
 
   const handlePrint = () => {
-    onOpenPrint(
-      activeTab === "prota"
-        ? `PROGRAM TAHUNAN (PROTA) - ${selectedSubject.toUpperCase()}`
-        : `PROGRAM SEMESTER (PROMES) - ${selectedSubject.toUpperCase()}`,
-      `Semester ${selectedSemester} (Ganjil/Genap) | Kurikulum Merdeka`,
-      (
-        <div className="space-y-4 text-xs">
-          <div className="flex justify-between font-bold border-b pb-2">
-            <span>Mata Pelajaran: {selectedSubject}</span>
-            <span>Semester: {selectedSemester}</span>
-            <span>Total Alokasi Waktu: {totalJP} JP</span>
-          </div>
+    if (activeTab === "prota") {
+      onOpenPrint(
+        `PROGRAM TAHUNAN (PROTA) - ${selectedSubject.toUpperCase()}`,
+        `Semester ${selectedSemester} | Total Alokasi Efektif: ${totalJP} JP`,
+        (
+          <div className="space-y-4 text-xs">
+            <div className="flex justify-between font-bold border-b pb-2 text-slate-800">
+              <span>Mata Pelajaran: {selectedSubject}</span>
+              <span>Semester: {selectedSemester} ({selectedSemester === 1 ? "Ganjil" : "Genap"})</span>
+              <span>Total Alokasi Waktu: {totalJP} JP</span>
+            </div>
 
-          <table className="w-full border-collapse border border-slate-300">
-            <thead>
-              <tr className="bg-slate-100 font-bold text-slate-800">
-                <th className="border border-slate-300 p-2 w-8 text-center">No</th>
-                <th className="border border-slate-300 p-2 text-center w-24">Kode TP</th>
-                <th className="border border-slate-300 p-2 text-left">Tujuan Pembelajaran (TP)</th>
-                <th className="border border-slate-300 p-2 text-center w-20">Alokasi JP</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredProta.map((p, idx) => (
-                <tr key={p.id} className="odd:bg-white even:bg-slate-50">
-                  <td className="border border-slate-300 p-2 text-center">{idx + 1}</td>
-                  <td className="border border-slate-300 p-2 text-center font-mono font-bold">{p.tpCode || p.codeTP}</td>
-                  <td className="border border-slate-300 p-2 font-medium">{p.tpDescription}</td>
-                  <td className="border border-slate-300 p-2 text-center font-bold text-emerald-800">{p.allocatedJP || p.timeAllocationJP} JP</td>
+            <table className="w-full border-collapse border border-slate-400">
+              <thead>
+                <tr className="bg-slate-100 font-bold text-slate-800">
+                  <th className="border border-slate-400 p-2 w-8 text-center">No</th>
+                  <th className="border border-slate-400 p-2 text-center w-24">Kode TP</th>
+                  <th className="border border-slate-400 p-2 text-left">Tujuan Pembelajaran (TP)</th>
+                  <th className="border border-slate-400 p-2 text-left w-28">Elemen</th>
+                  <th className="border border-slate-400 p-2 text-center w-20">Alokasi JP</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )
-    );
+              </thead>
+              <tbody>
+                {filteredProta.map((p, idx) => (
+                  <tr key={p.id} className="odd:bg-white even:bg-slate-50">
+                    <td className="border border-slate-400 p-2 text-center font-mono">{idx + 1}</td>
+                    <td className="border border-slate-400 p-2 text-center font-mono font-bold">{p.tpCode || p.codeTP}</td>
+                    <td className="border border-slate-400 p-2 font-medium">{p.tpDescription}</td>
+                    <td className="border border-slate-400 p-2 text-slate-600">{p.element || "Umum"}</td>
+                    <td className="border border-slate-400 p-2 text-center font-bold text-emerald-800 bg-emerald-50/50">{p.allocatedJP || p.timeAllocationJP} JP</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      );
+    } else {
+      // Promes Table Matrix with Months and Weeks (W1-W5)
+      onOpenPrint(
+        `PROGRAM SEMESTER (PROMES) - ${selectedSubject.toUpperCase()}`,
+        `Semester ${selectedSemester} (${selectedSemester === 1 ? "Ganjil: Juli - Des" : "Genap: Jan - Juni"}) | Total: ${totalJP} JP`,
+        (
+          <div className="space-y-4 text-xs">
+            <div className="flex justify-between font-bold border-b pb-2 text-slate-800">
+              <span>Mata Pelajaran: {selectedSubject}</span>
+              <span>Semester: {selectedSemester} ({selectedSemester === 1 ? "Ganjil" : "Genap"})</span>
+              <span>Total Alokasi Waktu: {totalJP} JP</span>
+            </div>
+
+            <table className="w-full border-collapse border border-slate-400 text-[10px]">
+              <thead>
+                <tr className="bg-slate-100 font-bold text-slate-900 text-center">
+                  <th rowSpan={2} className="border border-slate-400 p-1.5 text-left w-52">Tujuan Pembelajaran (TP)</th>
+                  <th rowSpan={2} className="border border-slate-400 p-1 w-10">JP</th>
+                  {promesMonths.map((m) => (
+                    <th key={m} colSpan={5} className="border border-slate-400 p-1 bg-emerald-50 text-emerald-900 font-bold">
+                      {m}
+                    </th>
+                  ))}
+                </tr>
+                <tr className="bg-slate-50 font-bold text-slate-700 text-center text-[9px]">
+                  {promesMonths.map((m) =>
+                    weeksPerMonth.map((w) => (
+                      <th key={`${m}_w${w}`} className="border border-slate-400 p-0.5 w-6">
+                        W{w}
+                      </th>
+                    ))
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProta.map((p) => {
+                  const targetJP = Number(p.allocatedJP || p.timeAllocationJP || 0);
+
+                  return (
+                    <tr key={p.id} className="odd:bg-white even:bg-slate-50/50">
+                      <td className="border border-slate-400 p-1.5 font-medium text-slate-900">
+                        <span className="font-bold text-emerald-900 font-mono mr-1">[{p.tpCode || p.codeTP}]</span>
+                        {p.tpDescription}
+                      </td>
+                      <td className="border border-slate-400 p-1 text-center font-bold bg-slate-100 text-slate-900">
+                        {targetJP}
+                      </td>
+                      {promesMonths.map((m) =>
+                        weeksPerMonth.map((w) => {
+                          const key = `${p.id}_${m}_w${w}`;
+                          const val = promesWeeklyAllocations[key] || 0;
+                          return (
+                            <td
+                              key={key}
+                              className={`border border-slate-400 p-0.5 text-center font-bold ${
+                                val > 0 ? "bg-emerald-100 text-emerald-900 font-mono" : "text-slate-200"
+                              }`}
+                            >
+                              {val > 0 ? val : "-"}
+                            </td>
+                          );
+                        })
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )
+      );
+    }
   };
 
   return (
