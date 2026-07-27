@@ -137,49 +137,88 @@ body {
 
 /* Global Print Styles for Full Multi-Page Document Printing */
 @media print {
-  /* Hide all non-printable elements on screen */
+  /* Reset html & body for printing */
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Hide all non-printable elements by default */
   body * {
+    visibility: hidden;
+  }
+
+  /* Strictly hide all no-print controls, headers, buttons */
+  .no-print,
+  .no-print * {
+    display: none !important;
     visibility: hidden !important;
   }
 
-  /* Make printable area and its entire content visible */
+  /* Make print overlay container and printable area visible */
+  .print-overlay,
+  .print-dialog,
   .printable-area,
   .printable-area * {
     visibility: visible !important;
   }
 
-  /* Reset modal overlays and bounds during print */
-  .print-overlay,
+  /* Unset fixed modal overlays, scrollbars, and transforms */
+  .print-overlay {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    transform: none !important;
+    inset: auto !important;
+  }
+
   .print-dialog {
     position: static !important;
     display: block !important;
     width: 100% !important;
-    max-width: none !important;
+    max-width: 100% !important;
     height: auto !important;
-    max-height: none !important;
     min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
     overflow: visible !important;
     background: transparent !important;
-    box-shadow: none !important;
     border: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
+    box-shadow: none !important;
+    transform: none !important;
   }
 
-  /* Flow printable area as a standard document filling all printed pages */
+  /* Flow printable area as top-level static document block */
   .printable-area {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
+    position: static !important;
+    display: block !important;
+    float: none !important;
     width: 100% !important;
     height: auto !important;
+    min-height: 0 !important;
     max-height: none !important;
-    overflow: visible !important;
-    padding: 10mm 10mm !important;
     margin: 0 !important;
     box-shadow: none !important;
+    border: none !important;
     background: #ffffff !important;
     color: #000000 !important;
+    overflow: visible !important;
   }
 
   /* Force all internal containers, tables, and wrappers to expand without scrollbars or clipped heights */
@@ -193,22 +232,6 @@ body {
     overflow: visible !important;
     max-height: none !important;
     height: auto !important;
-  }
-
-  /* Hide elements marked no-print explicitly */
-  .no-print,
-  .no-print * {
-    display: none !important;
-    visibility: hidden !important;
-  }
-
-  /* Root page settings */
-  html, body {
-    height: auto !important;
-    min-height: 100% !important;
-    overflow: visible !important;
-    background: #ffffff !important;
-    color: #000000 !important;
   }
 
   /* Table and page break optimizations */
@@ -238,8 +261,9 @@ body {
 
   @page {
     size: auto;
-    margin: 10mm;
+    margin: 10mm 12mm;
   }
 }
+
 
 

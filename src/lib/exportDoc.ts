@@ -1,6 +1,38 @@
 import { SchoolIdentity } from "../types";
 
-export function exportHtmlToDoc({
+// Helper to convert image URL to Base64 Data URI for native MS Word embedding
+async function getBase64Image(url: string): Promise<string> {
+  if (!url) return "";
+  if (url.startsWith("data:")) return url;
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth || img.width || 120;
+        canvas.height = img.naturalHeight || img.height || 120;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          const dataURL = canvas.toDataURL("image/png");
+          resolve(dataURL);
+          return;
+        }
+      } catch (e) {
+        // Tainted canvas or CORS failure
+      }
+      resolve(url);
+    };
+    img.onerror = () => {
+      resolve(url);
+    };
+    img.src = url;
+  });
+}
+
+export async function exportHtmlToDoc({
   htmlContent,
   filename,
   title,
@@ -10,9 +42,13 @@ export function exportHtmlToDoc({
   filename: string;
   title?: string;
   schoolIdentity?: Partial<SchoolIdentity>;
-}): void {
-  const logoLeft = schoolIdentity?.logoLeftUrl || schoolIdentity?.logoUrl || "https://lh3.googleusercontent.com/d/1dMJ8rTQxZkcpPe_xtvmMt7aITLYvf_aT";
-  const logoRight = schoolIdentity?.logoRightUrl || "https://lh3.googleusercontent.com/d/1y5lRPtb_K0Z9U8xe-OS4hkRx2zRHq1cU";
+}): Promise<void> {
+  const rawLogoLeft = schoolIdentity?.logoLeftUrl || schoolIdentity?.logoUrl || "https://lh3.googleusercontent.com/d/1dMJ8rTQxZkcpPe_xtvmMt7aITLYvf_aT";
+  const rawLogoRight = schoolIdentity?.logoRightUrl || "https://lh3.googleusercontent.com/d/1y5lRPtb_K0Z9U8xe-OS4hkRx2zRHq1cU";
+
+  // Convert logos to base64 so MS Word renders them locally without external security blocks
+  const logoLeft = await getBase64Image(rawLogoLeft);
+  const logoRight = await getBase64Image(rawLogoRight);
 
   const schoolName = schoolIdentity?.schoolName || "SDN PISANGCANDI 1";
   const npsn = schoolIdentity?.npsn || "20533686";
@@ -28,100 +64,142 @@ export function exportHtmlToDoc({
   const gradeClass = schoolIdentity?.gradeClass || "Kelas IV";
 
   const fullWordHtml = `
-<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<html xmlns:v="urn:schemas-microsoft-com:vml"
+xmlns:o="urn:schemas-microsoft-com:office:office"
+xmlns:w="urn:schemas-microsoft-com:office:word"
+xmlns:m="http://schemas.microsoft.com/office/2004/12/omml"
+xmlns="http://www.w3.org/TR/REC-html40">
 <head>
-  <meta charset='utf-8'>
+  <meta charset="utf-8">
   <title>${title || filename}</title>
+  <!--[if gte mso 9]>
+  <xml>
+    <w:WordDocument>
+      <w:View>Print</w:View>
+      <w:Zoom>100</w:Zoom>
+      <w:DoNotOptimizeForCustomXSL/>
+    </w:WordDocument>
+  </xml>
+  <![endif]-->
   <style>
-    @page {
-      size: A4;
-      margin: 2cm;
+    @page WordSection1 {
+      size: 210mm 297mm; /* A4 */
+      margin: 1.5cm 1.5cm 1.5cm 1.5cm;
+      mso-header-margin: 35.4pt;
+      mso-footer-margin: 35.4pt;
+      mso-paper-source: 0;
     }
-    body {
+    div.WordSection1 {
+      page: WordSection1;
+    }
+    body, p, div, td, th {
       font-family: 'Calibri', 'Arial', sans-serif;
-      font-size: 11pt;
-      line-height: 1.3;
-      color: #111;
+      font-size: 10.5pt;
+      line-height: 1.15;
+      color: #111111;
+      margin: 0;
+      padding: 0;
+      mso-style-noshow: yes;
+      mso-para-margin: 0cm;
+      mso-para-margin-bottom: .0001pt;
+      mso-pagination: widow-orphan;
+    }
+    p {
+      margin-top: 0pt !important;
+      margin-bottom: 2pt !important;
+      line-height: 1.15 !important;
     }
     table.kop-table {
-      width: 100%;
-      border-collapse: collapse;
-      border: none;
-      margin-bottom: 12pt;
+      width: 100% !important;
+      border-collapse: collapse !important;
+      border: none !important;
+      margin-bottom: 4pt !important;
     }
     table.kop-table td {
-      border: none;
-      padding: 2pt;
-      vertical-align: middle;
+      border: none !important;
+      padding: 1pt 2pt !important;
+      vertical-align: middle !important;
     }
     .kop-text {
-      text-align: center;
+      text-align: center !important;
     }
     .kop-line {
-      border-bottom: 3px double #000;
-      margin-bottom: 15pt;
+      border-bottom: 3px double #000000 !important;
+      margin-top: 2pt !important;
+      margin-bottom: 8pt !important;
     }
     .doc-title {
-      text-align: center;
-      font-weight: bold;
-      font-size: 14pt;
-      text-transform: uppercase;
-      text-decoration: underline;
-      margin-top: 10pt;
-      margin-bottom: 5pt;
+      text-align: center !important;
+      font-weight: bold !important;
+      font-size: 13pt !important;
+      text-transform: uppercase !important;
+      text-decoration: underline !important;
+      margin-top: 4pt !important;
+      margin-bottom: 2pt !important;
     }
     .doc-meta {
-      text-align: center;
-      font-size: 10pt;
-      color: #333;
-      margin-bottom: 15pt;
+      text-align: center !important;
+      font-size: 9.5pt !important;
+      color: #333333 !important;
+      margin-bottom: 8pt !important;
     }
     table {
-      border-collapse: collapse;
-      width: 100%;
-      margin: 10pt 0;
+      border-collapse: collapse !important;
+      width: 100% !important;
+      margin-top: 4pt !important;
+      margin-bottom: 6pt !important;
+      mso-table-lspace: 0pt !important;
+      mso-table-rspace: 0pt !important;
+      mso-padding-alt: 2pt 4pt 2pt 4pt !important;
     }
     th, td {
-      border: 1px solid #333;
-      padding: 5pt 7pt;
-      text-align: left;
-      font-size: 10pt;
+      border: 1px solid #333333 !important;
+      padding: 3pt 5pt !important;
+      text-align: left !important;
+      font-size: 9.5pt !important;
+      line-height: 1.15 !important;
+      vertical-align: top !important;
+      mso-line-height-rule: exactly !important;
     }
     th {
-      background-color: #f3f4f6;
-      font-weight: bold;
+      background-color: #f1f5f9 !important;
+      font-weight: bold !important;
+      text-align: center !important;
     }
     .signature-table {
-      width: 100%;
-      border-collapse: collapse;
-      border: none;
-      margin-top: 30pt;
+      width: 100% !important;
+      border-collapse: collapse !important;
+      border: none !important;
+      margin-top: 15pt !important;
+      page-break-inside: avoid !important;
     }
     .signature-table td {
-      border: none;
-      text-align: center;
-      vertical-align: top;
-      width: 50%;
+      border: none !important;
+      text-align: center !important;
+      vertical-align: top !important;
+      width: 50% !important;
+      padding: 2pt !important;
     }
   </style>
 </head>
 <body>
+<div class="WordSection1">
   <!-- Kop Surat Resmi -->
   <table class="kop-table">
     <tr>
-      <td style="width: 15%; text-align: left;">
-        <img src="${logoLeft}" width="75" height="75" alt="Logo Kiri" />
+      <td style="width: 15%; text-align: left; vertical-align: middle;">
+        <img src="${logoLeft}" width="70" height="70" style="width: 70px; height: 70px; max-width: 70px; max-height: 70px;" alt="Logo Kiri" />
       </td>
       <td style="width: 70%;" class="kop-text">
-        <div style="font-size: 11pt; font-weight: bold; text-transform: uppercase;">PEMERINTAH KOTA MALANG</div>
-        <div style="font-size: 11pt; font-weight: bold; text-transform: uppercase;">DINAS PENDIDIKAN DAN KEBUDAYAAN</div>
-        <div style="font-size: 14pt; font-weight: bold; text-transform: uppercase; margin: 2pt 0;">${schoolName}</div>
-        <div style="font-size: 9pt; font-weight: bold;">NPSN: ${npsn}</div>
-        <div style="font-size: 9pt;">${address}</div>
-        <div style="font-size: 9pt;">Telp. ${phone} &nbsp; email: ${email}</div>
+        <div style="font-size: 10.5pt; font-weight: bold; text-transform: uppercase; margin: 0;">PEMERINTAH KOTA MALANG</div>
+        <div style="font-size: 10.5pt; font-weight: bold; text-transform: uppercase; margin: 0;">DINAS PENDIDIKAN DAN KEBUDAYAAN</div>
+        <div style="font-size: 13pt; font-weight: bold; text-transform: uppercase; margin: 1pt 0;">${schoolName}</div>
+        <div style="font-size: 8.5pt; font-weight: bold; margin: 0;">NPSN: ${npsn}</div>
+        <div style="font-size: 8.5pt; margin: 0;">${address}</div>
+        <div style="font-size: 8.5pt; margin: 0;">Telp. ${phone} &nbsp; email: ${email}</div>
       </td>
-      <td style="width: 15%; text-align: right;">
-        <img src="${logoRight}" width="75" height="75" alt="Logo Kanan" />
+      <td style="width: 15%; text-align: right; vertical-align: middle;">
+        <img src="${logoRight}" width="70" height="70" style="width: 70px; height: 70px; max-width: 70px; max-height: 70px;" alt="Logo Kanan" />
       </td>
     </tr>
   </table>
@@ -141,19 +219,20 @@ export function exportHtmlToDoc({
   <table class="signature-table">
     <tr>
       <td>
-        <div>Mengetahui,</div>
-        <div style="font-weight: bold; margin-bottom: 50pt;">Kepala Sekolah ${schoolName}</div>
-        <div style="font-weight: bold; text-decoration: underline; text-transform: uppercase;">${headmasterName}</div>
-        <div>NIP. ${headmasterNip}</div>
+        <p style="margin:0;">Mengetahui,</p>
+        <p style="font-weight: bold; margin-top: 2pt; margin-bottom: 40pt;">Kepala Sekolah ${schoolName}</p>
+        <p style="font-weight: bold; text-decoration: underline; text-transform: uppercase; margin: 0;">${headmasterName}</p>
+        <p style="margin:0;">NIP. ${headmasterNip}</p>
       </td>
       <td>
-        <div>Malang, ${new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</div>
-        <div style="font-weight: bold; margin-bottom: 50pt;">Guru Kelas / Mata Pelajaran</div>
-        <div style="font-weight: bold; text-decoration: underline; text-transform: uppercase;">${teacherName}</div>
-        <div>NIP. ${teacherNip}</div>
+        <p style="margin:0;">Malang, ${new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</p>
+        <p style="font-weight: bold; margin-top: 2pt; margin-bottom: 40pt;">Guru Kelas / Mata Pelajaran</p>
+        <p style="font-weight: bold; text-decoration: underline; text-transform: uppercase; margin: 0;">${teacherName}</p>
+        <p style="margin:0;">NIP. ${teacherNip}</p>
       </td>
     </tr>
   </table>
+</div>
 </body>
 </html>
 `;
@@ -169,3 +248,4 @@ export function exportHtmlToDoc({
   a.click();
   URL.revokeObjectURL(url);
 }
+
