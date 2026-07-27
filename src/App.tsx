@@ -65,9 +65,10 @@ import { AcademicCalendarView } from "./components/modules/AcademicCalendarView"
 import { ProtaPromesView } from "./components/modules/ProtaPromesView";
 import { TeachingModuleGeneratorView } from "./components/modules/TeachingModuleGeneratorView";
 import { LearningAnalysisView } from "./components/modules/LearningAnalysisView";
+import { DashboardSummaryView } from "./components/modules/DashboardSummaryView";
 
 export default function App() {
-  const [activeModule, setActiveModule] = useState<NavModule>("identity");
+  const [activeModule, setActiveModule] = useState<NavModule>("dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Modals
@@ -333,6 +334,28 @@ export default function App() {
         {/* Main Content View Container - High Density Layout */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-5 max-w-[1400px] mx-auto w-full space-y-4">
+            {activeModule === "dashboard" && (
+              <DashboardSummaryView
+                schoolIdentity={schoolIdentity}
+                students={students}
+                dailyLogs={dailyLogs}
+                teachingModules={teachingModules}
+                attendanceRecords={attendanceRecords}
+                grades={grades}
+                dailyGrades={dailyGrades}
+                cptpItems={cptpItems}
+                protaList={protaList}
+                promesList={promesList}
+                timetable={timetable}
+                guestBook={guestBook}
+                incidentalJournals={incidentalJournals}
+                calendarEvents={calendarEvents}
+                subjects={subjects}
+                onSelectModule={setActiveModule}
+                onOpenPrint={handleOpenPrint}
+              />
+            )}
+
             {activeModule === "identity" && (
               <SchoolIdentityView
                 identity={schoolIdentity}

@@ -296,6 +296,7 @@ export type TeachingModule = {
 };
 
 export type NavModule =
+  | "dashboard"
   | "identity"
   | "students"
   | "attendance"

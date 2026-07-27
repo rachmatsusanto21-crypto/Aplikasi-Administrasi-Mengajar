@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  LayoutDashboard,
   Building2,
   Users,
   UserCheck,
@@ -33,6 +34,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onClose,
 }) => {
   const menuGroups = [
+    {
+      title: "Ringkasan & Stats",
+      items: [
+        { id: "dashboard" as NavModule, label: "Dashboard Ringkasan", icon: LayoutDashboard, color: "text-indigo-400", highlight: true },
+      ],
+    },
     {
       title: "Core Admin & Data",
       items: [
