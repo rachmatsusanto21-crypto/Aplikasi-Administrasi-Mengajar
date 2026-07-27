@@ -137,7 +137,7 @@ body {
 
 /* Global Print Styles for Full Multi-Page Document Printing */
 @media print {
-  /* Reset html & body for printing */
+  /* Reset html & body for printing - eliminate any initial empty page spacing */
   html, body {
     margin: 0 !important;
     padding: 0 !important;
@@ -147,12 +147,18 @@ body {
     overflow: visible !important;
     background: #ffffff !important;
     color: #000000 !important;
+    break-before: auto !important;
+    page-break-before: auto !important;
   }
 
-  /* Hide root non-print container elements from document flow so page 1 starts cleanly */
+  /* Completely collapse root non-print container elements out of rendering and layout flow */
   #root > *:not(.print-overlay),
   body > *:not(.print-overlay) {
     display: none !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
   }
 
   /* Strictly hide all no-print controls, headers, buttons */
@@ -162,11 +168,12 @@ body {
     visibility: hidden !important;
   }
 
-  /* Unset fixed modal overlays, scrollbars, and transforms */
+  /* Unset fixed modal overlays, scrollbars, and transforms - force start on page 1 top */
   .print-overlay,
   .print-dialog {
     position: static !important;
     display: block !important;
+    float: none !important;
     width: 100% !important;
     max-width: 100% !important;
     height: auto !important;
@@ -180,9 +187,11 @@ body {
     box-shadow: none !important;
     transform: none !important;
     inset: auto !important;
+    break-before: auto !important;
+    page-break-before: auto !important;
   }
 
-  /* Flow printable area as top-level document block starting at page 1 */
+  /* Flow printable area as top-level document block starting immediately at page 1 top */
   .printable-area {
     position: relative !important;
     display: block !important;
@@ -192,11 +201,22 @@ body {
     min-height: 0 !important;
     max-height: none !important;
     margin: 0 !important;
+    padding: 0 !important;
     box-shadow: none !important;
     border: none !important;
     background: #ffffff !important;
     color: #000000 !important;
     overflow: visible !important;
+    break-before: auto !important;
+    page-break-before: auto !important;
+  }
+
+  /* Prevent blank page before the first element of printable content */
+  .printable-area > *:first-child {
+    break-before: avoid !important;
+    page-break-before: avoid !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
   }
 
   /* Force all internal containers, tables, and wrappers to expand without scrollbars or clipped heights */
@@ -210,6 +230,7 @@ body {
     overflow: visible !important;
     max-height: none !important;
     height: auto !important;
+    break-before: auto;
   }
 
   /* Table and page break optimizations */

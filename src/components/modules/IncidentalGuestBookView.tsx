@@ -3,6 +3,7 @@ import { GuestBookEntry, IncidentalJournalEntry } from "../../types";
 import { BookMarked, Plus, Trash2, Edit2, Download, Printer, Search, User, Calendar, FileText } from "lucide-react";
 import { exportToCSV } from "../../lib/storage";
 import { exportHtmlToDoc } from "../../lib/exportDoc";
+import { exportGuestBookToDocx } from "../../lib/exportDocx";
 
 interface IncidentalGuestBookViewProps {
   guestBook: GuestBookEntry[];
@@ -396,12 +397,33 @@ export const IncidentalGuestBookView: React.FC<IncidentalGuestBookViewProps> = (
             Excel / CSV
           </button>
           <button
-            onClick={handleExportDoc}
-            className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors"
-            title="Simpan dalam bentuk Word (.docx / .doc)"
+            onClick={() => {
+              const mappedGuests = guestBook.map((g) => ({
+                id: g.id,
+                date: g.date,
+                guestName: g.visitorName,
+                institution: g.institution,
+                position: g.position || "-",
+                purpose: g.purpose,
+                notes: g.notes || "-",
+              }));
+
+              const mappedIncidental = incidentalJournals.map((j) => ({
+                id: j.id,
+                date: j.date,
+                incident: j.activityName || (j as any).incident || "-",
+                involvedParties: j.organizer || (j as any).involvedParties || "-",
+                actionTaken: j.description || (j as any).actionTaken || "-",
+                followUp: j.notes || (j as any).followUp || "-",
+              }));
+
+              exportGuestBookToDocx(mappedGuests, mappedIncidental);
+            }}
+            className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-colors"
+            title="Ekspor Buku Tamu & Jurnal Insidental ke Format Native Word (.docx)"
           >
-            <FileText className="w-4 h-4 text-blue-600" />
-            Simpan Word (.docx)
+            <FileText className="w-4 h-4 text-blue-100" />
+            Ekspor Word (.docx)
           </button>
           <button
             onClick={handlePrint}

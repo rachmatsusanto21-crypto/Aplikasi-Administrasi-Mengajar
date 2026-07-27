@@ -3,6 +3,7 @@ import { ProtaItem, PromesItem, CPTPItem, TimetableSlot, CalendarEvent, Incident
 import { CalendarRange, Plus, Trash2, Edit2, Download, Printer, FileText, Check, ChevronRight, Calculator, Save } from "lucide-react";
 import { exportToCSV } from "../../lib/storage";
 import { exportHtmlToDoc } from "../../lib/exportDoc";
+import { exportProtaToExcel, exportPromesToExcel } from "../../lib/exportExcel";
 
 interface ProtaPromesViewProps {
   protaList: ProtaItem[];
@@ -742,12 +743,18 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
           )}
 
           <button
-            onClick={handleExportProtaCSV}
-            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 flex items-center gap-1.5"
-            title="Ekspor CSV / Excel"
+            onClick={() => {
+              if (activeTab === "prota") {
+                exportProtaToExcel(protaList, schoolIdentity);
+              } else {
+                exportPromesToExcel(promesList, schoolIdentity);
+              }
+            }}
+            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-colors"
+            title="Ekspor ke Excel (.xlsx)"
           >
-            <Download className="w-4 h-4" />
-            Excel
+            <Download className="w-4 h-4 text-emerald-100" />
+            Ekspor Excel (.xlsx)
           </button>
           <button
             onClick={handleExportDoc}

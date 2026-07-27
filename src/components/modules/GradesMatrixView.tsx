@@ -3,6 +3,7 @@ import { Student, CPTPItem, GradeRecord, DailyGradeEntry, GradeAssessmentType } 
 import { GraduationCap, Save, Printer, Download, Calculator, Check, Sparkles, Filter, FileText, Plus, Calendar, BookOpen, PieChart as PieChartIcon, AlertTriangle, Edit2, Trash2 } from "lucide-react";
 import { exportToCSV } from "../../lib/storage";
 import { exportHtmlToDoc } from "../../lib/exportDoc";
+import { exportGradesToExcel } from "../../lib/exportExcel";
 import { GradesRemedialDashboard } from "./GradesRemedialDashboard";
 
 interface GradesMatrixViewProps {
@@ -551,12 +552,12 @@ export const GradesMatrixView: React.FC<GradesMatrixViewProps> = ({
             </div>
 
             <button
-              onClick={handleExportCSV}
-              className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl border border-slate-300 flex items-center gap-1.5"
-              title="Ekspor CSV / Excel"
+              onClick={() => exportGradesToExcel(students, dailyGrades, grades, subjects)}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition-colors"
+              title="Ekspor ke Excel (.xlsx)"
             >
-              <Download className="w-4 h-4" />
-              Excel
+              <Download className="w-4 h-4 text-emerald-100" />
+              Ekspor Excel (.xlsx)
             </button>
             <button
               onClick={handleExportDoc}

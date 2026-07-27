@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { TimetableSlot } from "../../types";
 import { CalendarDays, Plus, Trash2, Edit2, Printer, Download, Save, Clock } from "lucide-react";
 import { exportToCSV } from "../../lib/storage";
+import { exportTimetableToExcel } from "../../lib/exportExcel";
 
 interface TimetableScheduleViewProps {
   timetable: TimetableSlot[];
@@ -214,11 +215,12 @@ export const TimetableScheduleView: React.FC<TimetableScheduleViewProps> = ({
             Tambah Baris
           </button>
           <button
-            onClick={handleExportCSV}
-            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 flex items-center gap-1.5"
+            onClick={() => exportTimetableToExcel(timetable, periods, [])}
+            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-colors"
+            title="Ekspor ke Excel (.xlsx)"
           >
-            <Download className="w-4 h-4" />
-            CSV/Excel
+            <Download className="w-4 h-4 text-emerald-100" />
+            Ekspor Excel (.xlsx)
           </button>
           <button
             onClick={handlePrint}

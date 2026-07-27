@@ -1,0 +1,270 @@
+import * as XLSX from "xlsx";
+import {
+  Student,
+  GradeRecord,
+  DailyGradeEntry,
+  AttendanceRecord,
+  DailyTeachingLog,
+  ProtaItem,
+  PromesItem,
+  CPTPItem,
+  TimetableSlot,
+  SchoolIdentity,
+} from "../types";
+
+function saveWorkbook(wb: XLSX.WorkBook, filename: string) {
+  const cleanFilename = filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`;
+  XLSX.writeFile(wb, cleanFilename, { bookType: "xlsx", type: "binary" });
+}
+
+function autoWidth(worksheet: XLSX.WorkSheet) {
+  const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1");
+  const cols: { wch: number }[] = [];
+  for (let C = range.s.c; C <= range.e.c; ++C) {
+    let maxLen = 10;
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+      const cell = worksheet[XLSX.utils.encode_cell({ r: R, c: C })];
+      if (cell && cell.v) {
+        const str = String(cell.v);
+        if (str.length > maxLen) {
+          maxLen = Math.min(str.length, 50);
+        }
+      }
+    }
+    cols.push({ wch: maxLen + 2 });
+  }
+  worksheet["!cols"] = cols;
+}
+
+// 1. Export Data Siswa
+export function exportStudentsToExcel(students: Student[], schoolIdentity?: Partial<SchoolIdentity>) {
+  const data = students.map((s, idx) => ({
+    No: idx + 1,
+    "Nama Lengkap": s.name,
+    NIS: s.nis || "-",
+    NISN: s.nisn || "-",
+    "Jenis Kelamin": s.gender === "L" ? "Laki-Laki" : "Perempuan",
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  autoWidth(worksheet);
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Data Siswa");
+
+  const school = schoolIdentity?.schoolName ? `${schoolIdentity.schoolName}_` : "";
+  saveWorkbook(workbook, `Data_Siswa_${school}${schoolIdentity?.gradeClass || "Kelas"}.xlsx`);
+}
+
+// 2. Export Nilai Siswa
+export function exportGradesToExcel(
+  students: Student[],
+  dailyGrades: DailyGradeEntry[],
+  gradeRecords: GradeRecord[],
+  subjects: string[],
+  schoolIdentity?: Partial<SchoolIdentity>
+) {
+  const workbook = XLSX.utils.book_new();
+
+  // Sheet 1: Rekap Matrix Nilai
+  const summaryRows = students.map((s, idx) => {
+    const row: any = {
+      No: idx + 1,
+      "Nama Siswa": s.name,
+      NISN: s.nisn || "-",
+    };
+
+    subjects.forEach((subj) => {
+      const rec = gradeRecords.find((g) => g.studentId === s.id && g.subject === subj);
+      let avg = "-";
+      if (rec && rec.tpScores) {
+        const scores = Object.values(rec.tpScores).filter((val) => typeof val === "number");
+        if (scores.length > 0) {
+          avg = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1);
+        }
+      }
+      row[subj] = avg;
+      row[`STS_${subj}`] = rec?.midSummative !== undefined ? rec.midSummative : "-";
+      row[`SAS_${subj}`] = rec?.finalSummative !== undefined ? rec.finalSummative : "-";
+    });
+
+    return row;
+  });
+
+  const summarySheet = XLSX.utils.json_to_sheet(summaryRows);
+  autoWidth(summarySheet);
+  XLSX.utils.book_append_sheet(workbook, summarySheet, "Rekap Nilai Matrix");
+
+  // Sheet 2: Detail Nilai Formatif Harian
+  if (dailyGrades.length > 0) {
+    const detailRows = dailyGrades.map((dg, idx) => {
+      const student = students.find((s) => s.id === dg.studentId);
+      return {
+        No: idx + 1,
+        "Nama Siswa": student?.name || "Siswa " + dg.studentId,
+        "Mata Pelajaran": dg.subject,
+        "Kode TP": dg.tpCode,
+        "Tanggal Formatif": dg.dateFormatted,
+        "Jenis Asesmen": dg.assessmentType,
+        Nilai: dg.score,
+      };
+    });
+
+    const detailSheet = XLSX.utils.json_to_sheet(detailRows);
+    autoWidth(detailSheet);
+    XLSX.utils.book_append_sheet(workbook, detailSheet, "Rincian Formatif Harian");
+  }
+
+  saveWorkbook(workbook, `Data_Nilai_Siswa_${schoolIdentity?.gradeClass || "Kelas"}.xlsx`);
+}
+
+// 3. Export Absensi Siswa
+export function exportAttendanceToExcel(
+  students: Student[],
+  attendanceRecords: AttendanceRecord[],
+  periodStr?: string,
+  schoolIdentity?: Partial<SchoolIdentity>
+) {
+  const data = students.map((s, idx) => {
+    const studentRecs = attendanceRecords.filter((r) => r.studentId === s.id);
+    const hadir = studentRecs.filter((r) => r.status === "H").length;
+    const sakit = studentRecs.filter((r) => r.status === "S").length;
+    const izin = studentRecs.filter((r) => r.status === "I").length;
+    const alfa = studentRecs.filter((r) => r.status === "A").length;
+    const total = studentRecs.length;
+    const persentase = total > 0 ? Math.round((hadir / total) * 100) + "%" : "100%";
+
+    return {
+      No: idx + 1,
+      "Nama Siswa": s.name,
+      NISN: s.nisn || "-",
+      Hadir: hadir,
+      Sakit: sakit,
+      Izin: izin,
+      Alfa: alfa,
+      "Total Pertemuan": total,
+      "Kehadiran (%)": persentase,
+    };
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  autoWidth(worksheet);
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Rekap Presensi");
+
+  const periodLabel = periodStr && periodStr !== "all" ? `_${periodStr.replace(/\s+/g, "_")}` : "";
+  saveWorkbook(workbook, `Rekap_Presensi_Siswa${periodLabel}.xlsx`);
+}
+
+// 4. Export Jurnal Mengajar Harian
+export function exportTeachingLogsToExcel(logs: DailyTeachingLog[], schoolIdentity?: Partial<SchoolIdentity>) {
+  const data = logs.map((l, idx) => ({
+    No: idx + 1,
+    Tanggal: l.date,
+    Kelas: l.classGrade,
+    "Mata Pelajaran": l.subject,
+    Materi: l.material,
+    "Tujuan Pembelajaran (TP)": l.tpDescription,
+    "Ringkasan Kehadiran": l.attendanceSummary,
+    "Catatan Kendala": l.notes || "-",
+    Refleksi: l.reflection || "-",
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  autoWidth(worksheet);
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Jurnal Mengajar");
+
+  saveWorkbook(workbook, `Jurnal_Mengajar_Harian_${schoolIdentity?.gradeClass || "Kelas"}.xlsx`);
+}
+
+// 5. Export Prota (Program Tahunan)
+export function exportProtaToExcel(protaList: ProtaItem[], schoolIdentity?: Partial<SchoolIdentity>) {
+  const data = protaList.map((p, idx) => ({
+    No: idx + 1,
+    Semester: String(p.semester),
+    "Mata Pelajaran": p.subject,
+    Elemen: p.element || "-",
+    "Kode TP": p.codeTP || p.tpCode || "-",
+    "Tujuan Pembelajaran (TP)": p.tpDescription,
+    "Alokasi Waktu (JP)": p.allocatedJP || p.timeAllocationJP || 0,
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  autoWidth(worksheet);
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Prota");
+
+  saveWorkbook(workbook, `Program_Tahunan_Prota_${schoolIdentity?.gradeClass || "Kelas"}.xlsx`);
+}
+
+// 6. Export Promes (Program Semester)
+export function exportPromesToExcel(promesList: PromesItem[], schoolIdentity?: Partial<SchoolIdentity>) {
+  const data = promesList.map((p, idx) => ({
+    No: idx + 1,
+    Semester: String(p.semester),
+    "Mata Pelajaran": p.subject,
+    "Kode TP": p.codeTP,
+    "Tujuan Pembelajaran (TP)": p.tpDescription,
+    "Alokasi Waktu (JP)": p.timeAllocationJP,
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  autoWidth(worksheet);
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Promes");
+
+  saveWorkbook(workbook, `Program_Semester_Promes_${schoolIdentity?.gradeClass || "Kelas"}.xlsx`);
+}
+
+// 7. Export CP / TP Kurikulum
+export function exportCurriculumToExcel(cptpItems: CPTPItem[], schoolIdentity?: Partial<SchoolIdentity>) {
+  const data = cptpItems.map((c, idx) => ({
+    No: idx + 1,
+    "Mata Pelajaran": c.subject,
+    Kelas: c.targetClass || "Kelas IV",
+    Elemen: c.element || "-",
+    "Kode CP": c.codeCP || "-",
+    "Capaian Pembelajaran (CP)": c.descriptionCP || "-",
+    "Kode TP": c.codeTP || "-",
+    "Tujuan Pembelajaran (TP)": c.descriptionTP || "-",
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  autoWidth(worksheet);
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "CP dan TP Kurikulum");
+
+  saveWorkbook(workbook, `Capaian_dan_Tujuan_Pembelajaran_CP_TP.xlsx`);
+}
+
+// 8. Export Jadwal Pelajaran (Timetable)
+export function exportTimetableToExcel(
+  timetable: TimetableSlot[],
+  periods: number[],
+  subjects: string[],
+  schoolIdentity?: Partial<SchoolIdentity>
+) {
+  const days = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+  const rows = periods.map((pNum) => {
+    const row: any = { "Jam Ke": pNum };
+    days.forEach((day) => {
+      const slot = timetable.find((t) => t.day === day && t.period === pNum);
+      row[day] = slot ? `${slot.subject}${slot.roomOrTeacher ? ` (${slot.roomOrTeacher})` : ""}` : "-";
+    });
+    return row;
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  autoWidth(worksheet);
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Jadwal Pelajaran");
+
+  saveWorkbook(workbook, `Jadwal_Pelajaran_${schoolIdentity?.gradeClass || "Kelas"}.xlsx`);
+}

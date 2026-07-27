@@ -3,6 +3,7 @@ import { DailyTeachingLog, CPTPItem, SchoolIdentity, AttendanceRecord, Student }
 import { BookOpen, Plus, Trash2, Edit2, Printer, Download, Search, Calendar, FileText, UserCheck, RefreshCw, Check } from "lucide-react";
 import { exportToCSV } from "../../lib/storage";
 import { exportHtmlToDoc } from "../../lib/exportDoc";
+import { exportTeachingLogsToExcel } from "../../lib/exportExcel";
 
 interface DailyTeachingLogViewProps {
   logs: DailyTeachingLog[];
@@ -427,12 +428,12 @@ export const DailyTeachingLogView: React.FC<DailyTeachingLogViewProps> = ({
             Tambah Jurnal Harian
           </button>
           <button
-            onClick={handleExportCSV}
-            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 flex items-center gap-1.5"
-            title="Ekspor ke Excel / CSV"
+            onClick={() => exportTeachingLogsToExcel(logs, schoolIdentity)}
+            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-colors"
+            title="Ekspor ke Excel (.xlsx)"
           >
-            <Download className="w-4 h-4" />
-            Excel / CSV
+            <Download className="w-4 h-4 text-emerald-100" />
+            Ekspor Excel (.xlsx)
           </button>
           <button
             onClick={handleExportDoc}

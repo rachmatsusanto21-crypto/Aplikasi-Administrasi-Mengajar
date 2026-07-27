@@ -3,6 +3,7 @@ import { Student } from "../../types";
 import { Users, Plus, Trash2, Edit2, Download, Upload, Search, Printer, Check, X, UserPlus, Columns, FileText } from "lucide-react";
 import { exportToCSV, exportDataToJSON } from "../../lib/storage";
 import { exportHtmlToDoc } from "../../lib/exportDoc";
+import { exportStudentsToExcel } from "../../lib/exportExcel";
 
 interface StudentRosterViewProps {
   students: Student[];
@@ -339,12 +340,12 @@ export const StudentRosterView: React.FC<StudentRosterViewProps> = ({
             Input Massal
           </button>
           <button
-            onClick={handleExportCSV}
-            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl flex items-center gap-1.5 border border-slate-300"
-            title="Ekspor ke Excel / CSV"
+            onClick={() => exportStudentsToExcel(students)}
+            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-colors"
+            title="Ekspor ke Format Excel (.xlsx)"
           >
-            <Download className="w-4 h-4" />
-            Excel / CSV
+            <Download className="w-4 h-4 text-emerald-100" />
+            Ekspor Excel (.xlsx)
           </button>
           <button
             onClick={handleExportDoc}

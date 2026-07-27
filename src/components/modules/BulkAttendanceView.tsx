@@ -3,6 +3,7 @@ import { Student, AttendanceRecord, AttendanceStatus } from "../../types";
 import { UserCheck, Calendar, CheckCircle2, Save, Printer, Download, Filter, Search, FileText } from "lucide-react";
 import { exportToCSV } from "../../lib/storage";
 import { exportHtmlToDoc } from "../../lib/exportDoc";
+import { exportAttendanceToExcel } from "../../lib/exportExcel";
 
 interface BulkAttendanceViewProps {
   students: Student[];
@@ -410,12 +411,12 @@ export const BulkAttendanceView: React.FC<BulkAttendanceViewProps> = ({
 
             <div className="flex flex-wrap items-center gap-2">
               <button
-                onClick={handleExportRekapCSV}
-                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 flex items-center gap-1"
-                title="Ekspor ke Excel / CSV"
+                onClick={() => exportAttendanceToExcel(students, attendanceRecords, selectedMonthFilter)}
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-xs flex items-center gap-1.5 transition-colors"
+                title="Ekspor ke Excel (.xlsx)"
               >
-                <Download className="w-3.5 h-3.5" />
-                Excel / CSV
+                <Download className="w-3.5 h-3.5 text-emerald-100" />
+                Ekspor Excel (.xlsx)
               </button>
               <button
                 onClick={handleExportRekapDoc}

@@ -4,6 +4,7 @@ import { Sparkles, Trash2, Download, Printer, Layers, FileText, CheckCircle2, Us
 import { exportDataToJSON } from "../../lib/storage";
 import { generateAIContent } from "../../lib/aiHelper";
 import { exportHtmlToDoc } from "../../lib/exportDoc";
+import { exportTeachingModuleToDocx } from "../../lib/exportDocx";
 import { KopSurat } from "../KopSurat";
 
 interface TeachingModuleGeneratorViewProps {
@@ -1144,19 +1145,14 @@ Format Output HARUS berupa JSON murni tanpa markdown lain:
                   <button
                     onClick={() => {
                       if (activeModule) {
-                        exportHtmlToDoc({
-                          htmlContent: document.querySelector(".printable-area")?.innerHTML || "",
-                          filename: `Modul_Ajar_${activeModule.title.replace(/[^a-zA-Z0-9_]/g, "_")}.doc`,
-                          title: `MODUL AJAR KURIKULUM MERDEKA (${(activeModule.moduleType || "INTRAKURIKULER").toUpperCase()})`,
-                          schoolIdentity,
-                        });
+                        exportTeachingModuleToDocx(activeModule, schoolIdentity);
                       }
                     }}
-                    className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-1.5"
-                    title="Simpan Modul Ajar dalam bentuk Word DOC / DOCX"
+                    className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-colors"
+                    title="Ekspor Modul Ajar ke Format Native Word (.docx)"
                   >
-                    <FileText className="w-4 h-4" />
-                    Simpan Word (.docx)
+                    <FileText className="w-4 h-4 text-blue-100" />
+                    Ekspor Word (.docx)
                   </button>
                   <button
                     onClick={handlePrint}

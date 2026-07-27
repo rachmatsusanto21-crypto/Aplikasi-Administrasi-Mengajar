@@ -3,6 +3,7 @@ import { CPTPItem, AISettings } from "../../types";
 import { BookOpen, Sparkles, Plus, Trash2, Edit2, Download, Printer, Search, Check, X } from "lucide-react";
 import { exportToCSV } from "../../lib/storage";
 import { generateAIContent } from "../../lib/aiHelper";
+import { exportCurriculumToExcel } from "../../lib/exportExcel";
 
 interface CurriculumCPTPViewProps {
   cptpItems: CPTPItem[];
@@ -272,10 +273,12 @@ Format keluaran HARUS berupa JSON murni tanpa markdown lain:
           </button>
           <button
             type="button"
-            onClick={handleExportCSV}
-            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300"
+            onClick={() => exportCurriculumToExcel(cptpItems)}
+            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-colors"
+            title="Ekspor ke Excel (.xlsx)"
           >
-            <Download className="w-4 h-4" />
+            <Download className="w-4 h-4 text-emerald-100" />
+            Ekspor Excel (.xlsx)
           </button>
           <button
             type="button"
