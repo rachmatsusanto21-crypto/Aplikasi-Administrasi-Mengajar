@@ -425,6 +425,11 @@ export default function App() {
             {activeModule === "daily_log" && (
               <DailyTeachingLogView
                 logs={dailyLogs}
+                cptpItems={cptpItems}
+                subjects={subjects}
+                schoolIdentity={schoolIdentity}
+                attendanceRecords={attendanceRecords}
+                students={students}
                 onSaveLogs={setDailyLogs}
                 onOpenPrint={handleOpenPrint}
               />

@@ -1,17 +1,34 @@
-import React, { useState } from "react";
-import { DailyTeachingLog } from "../../types";
-import { BookOpen, Plus, Trash2, Edit2, Printer, Download, Search, Calendar, FileText } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { DailyTeachingLog, CPTPItem, SchoolIdentity, AttendanceRecord, Student } from "../../types";
+import { BookOpen, Plus, Trash2, Edit2, Printer, Download, Search, Calendar, FileText, UserCheck, RefreshCw, Check } from "lucide-react";
 import { exportToCSV } from "../../lib/storage";
 import { exportHtmlToDoc } from "../../lib/exportDoc";
 
 interface DailyTeachingLogViewProps {
   logs: DailyTeachingLog[];
+  cptpItems?: CPTPItem[];
+  subjects?: string[];
+  schoolIdentity?: SchoolIdentity;
+  attendanceRecords?: AttendanceRecord[];
+  students?: Student[];
   onSaveLogs: (updated: DailyTeachingLog[]) => void;
   onOpenPrint: (title: string, subtitle: string, content: React.ReactNode) => void;
 }
 
 export const DailyTeachingLogView: React.FC<DailyTeachingLogViewProps> = ({
   logs,
+  cptpItems = [],
+  subjects = [
+    "Bahasa Indonesia",
+    "Matematika",
+    "IPAS",
+    "Pancasila",
+    "Seni Budaya",
+    "PJOK",
+  ],
+  schoolIdentity,
+  attendanceRecords = [],
+  students = [],
   onSaveLogs,
   onOpenPrint,
 }) => {
@@ -19,22 +36,76 @@ export const DailyTeachingLogView: React.FC<DailyTeachingLogViewProps> = ({
   const [selectedSubject, setSelectedSubject] = useState("Semua");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedTpCode, setSelectedTpCode] = useState<string>("");
+
+  const defaultClassGrade = schoolIdentity
+    ? `Kelas ${schoolIdentity.gradeClass} (Fase ${schoolIdentity.phase})`
+    : "Kelas IV (Fase B)";
+
+  // Helper to compute attendance summary from Bulk Attendance records for a given date
+  const computeAttendanceSummary = (dateStr: string) => {
+    if (!students || students.length === 0) {
+      return {
+        text: "Hadir: 0, Sakit: 0, Izin: 0, Alpa: 0",
+        hadir: 0,
+        sakit: 0,
+        izin: 0,
+        alpa: 0,
+        total: 0,
+        hasBulkData: false,
+      };
+    }
+
+    const recsOnDate = attendanceRecords.filter((r) => r.date === dateStr);
+    let hadir = 0;
+    let sakit = 0;
+    let izin = 0;
+    let alpa = 0;
+
+    students.forEach((s) => {
+      const rec = recsOnDate.find((r) => r.studentId === s.id);
+      const status = rec ? rec.status : "H";
+      if (status === "H") hadir++;
+      else if (status === "S") sakit++;
+      else if (status === "I") izin++;
+      else if (status === "A") alpa++;
+    });
+
+    return {
+      text: `Hadir: ${hadir}, Sakit: ${sakit}, Izin: ${izin}, Alpa: ${alpa}`,
+      hadir,
+      sakit,
+      izin,
+      alpa,
+      total: students.length,
+      hasBulkData: recsOnDate.length > 0,
+    };
+  };
+
+  const initialTodayDate = new Date().toISOString().slice(0, 10);
+  const initialTodaySummary = computeAttendanceSummary(initialTodayDate).text;
 
   const [form, setForm] = useState<Partial<DailyTeachingLog>>({
-    date: new Date().toISOString().slice(0, 10),
-    subject: "Bahasa Indonesia",
-    classGrade: "Kelas IV (Fase B)",
-    attendanceSummary: "Hadir: 26, Sakit: 1, Izin: 0, Alpa: 0",
+    date: initialTodayDate,
+    subject: subjects[0] || "Bahasa Indonesia",
+    classGrade: defaultClassGrade,
+    attendanceSummary: initialTodaySummary,
   });
 
-  const subjects = [
-    "Bahasa Indonesia",
-    "Matematika",
-    "IPAS",
-    "Pancasila",
-    "Seni Budaya",
-    "PJOK",
-  ];
+  // Filter available TP items based on chosen subject & class/fase
+  const availableTPs = useMemo(() => {
+    if (!cptpItems || cptpItems.length === 0) return [];
+    const currentSubj = (form.subject || "").toLowerCase().trim();
+
+    return cptpItems.filter((item) => {
+      const matchSubject = (item.subject || "").toLowerCase().trim() === currentSubj;
+      return matchSubject;
+    });
+  }, [cptpItems, form.subject]);
+
+  const currentAttendanceRecap = useMemo(() => {
+    return computeAttendanceSummary(form.date || initialTodayDate);
+  }, [attendanceRecords, students, form.date]);
 
   const filteredLogs = logs.filter((l) => {
     const matchSubject = selectedSubject === "Semua" || l.subject === selectedSubject;
@@ -48,13 +119,17 @@ export const DailyTeachingLogView: React.FC<DailyTeachingLogViewProps> = ({
 
   const handleOpenAdd = () => {
     setEditingId(null);
+    setSelectedTpCode("");
+    const today = new Date().toISOString().slice(0, 10);
+    const todayRecap = computeAttendanceSummary(today);
+
     setForm({
-      date: new Date().toISOString().slice(0, 10),
-      subject: "Bahasa Indonesia",
-      classGrade: "Kelas IV (Fase B)",
+      date: today,
+      subject: subjects[0] || "Bahasa Indonesia",
+      classGrade: defaultClassGrade,
       material: "",
       tpDescription: "",
-      attendanceSummary: "Hadir: 26, Sakit: 0, Izin: 0, Alpa: 0",
+      attendanceSummary: todayRecap.text,
       notes: "",
       reflection: "",
     });
@@ -63,8 +138,26 @@ export const DailyTeachingLogView: React.FC<DailyTeachingLogViewProps> = ({
 
   const handleOpenEdit = (log: DailyTeachingLog) => {
     setEditingId(log.id);
+    setSelectedTpCode("");
     setForm(log);
     setIsModalOpen(true);
+  };
+
+  const handleDateChangeInForm = (newDate: string) => {
+    const recap = computeAttendanceSummary(newDate);
+    setForm((prev) => ({
+      ...prev,
+      date: newDate,
+      attendanceSummary: recap.text,
+    }));
+  };
+
+  const handleApplyBulkAttendance = () => {
+    const recap = computeAttendanceSummary(form.date || initialTodayDate);
+    setForm((prev) => ({
+      ...prev,
+      attendanceSummary: recap.text,
+    }));
   };
 
   const handleDelete = (id: string) => {
@@ -85,11 +178,11 @@ export const DailyTeachingLogView: React.FC<DailyTeachingLogViewProps> = ({
       const newLog: DailyTeachingLog = {
         id: "dtl_" + Date.now(),
         date: form.date || new Date().toISOString().slice(0, 10),
-        subject: form.subject || "Bahasa Indonesia",
-        classGrade: form.classGrade || "Kelas IV",
+        subject: form.subject || subjects[0] || "Bahasa Indonesia",
+        classGrade: form.classGrade || defaultClassGrade,
         material: form.material || "",
         tpDescription: form.tpDescription || "",
-        attendanceSummary: form.attendanceSummary || "Nir-Absen",
+        attendanceSummary: form.attendanceSummary || currentAttendanceRecap.text,
         notes: form.notes || "",
         reflection: form.reflection || "",
       };
@@ -356,7 +449,7 @@ export const DailyTeachingLogView: React.FC<DailyTeachingLogViewProps> = ({
               {editingId ? "Edit Jurnal Mengajar Harian" : "Tambah Jurnal Mengajar Harian Baru"}
             </h3>
 
-            <form onSubmit={handleSaveForm} className="space-y-3 text-xs">
+            <form onSubmit={handleSaveForm} className="space-y-3.5 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold mb-1">Tanggal</label>
@@ -364,16 +457,20 @@ export const DailyTeachingLogView: React.FC<DailyTeachingLogViewProps> = ({
                     type="date"
                     required
                     value={form.date || ""}
-                    onChange={(e) => setForm((prev) => ({ ...prev, date: e.target.value }))}
-                    className="w-full p-2 border rounded-lg"
+                    onChange={(e) => handleDateChangeInForm(e.target.value)}
+                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 font-mono"
                   />
                 </div>
                 <div>
                   <label className="block font-semibold mb-1">Mata Pelajaran</label>
                   <select
-                    value={form.subject || "Bahasa Indonesia"}
-                    onChange={(e) => setForm((prev) => ({ ...prev, subject: e.target.value }))}
-                    className="w-full p-2 border rounded-lg bg-white font-semibold"
+                    value={form.subject || subjects[0] || "Bahasa Indonesia"}
+                    onChange={(e) => {
+                      const newSubj = e.target.value;
+                      setForm((prev) => ({ ...prev, subject: newSubj }));
+                      setSelectedTpCode("");
+                    }}
+                    className="w-full p-2 border rounded-lg bg-white font-semibold focus:ring-2 focus:ring-emerald-500"
                   >
                     {subjects.map((s) => (
                       <option key={s} value={s}>
@@ -386,23 +483,111 @@ export const DailyTeachingLogView: React.FC<DailyTeachingLogViewProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Kelas / Fase</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-semibold">Kelas / Fase</label>
+                    {schoolIdentity && (
+                      <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                        Identitas Sekolah
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="text"
-                    value={form.classGrade || "Kelas IV (Fase B)"}
+                    value={form.classGrade || defaultClassGrade}
                     onChange={(e) => setForm((prev) => ({ ...prev, classGrade: e.target.value }))}
-                    className="w-full p-2 border rounded-lg"
+                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
+
                 <div>
-                  <label className="block font-semibold mb-1">Ringkasan Kehadiran</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-semibold">Ringkasan Kehadiran</label>
+                    <button
+                      type="button"
+                      onClick={handleApplyBulkAttendance}
+                      className="text-[10px] text-emerald-800 font-bold hover:underline flex items-center gap-0.5"
+                      title="Ambil rekap terbaru dari Absensi Bulk"
+                    >
+                      <RefreshCw className="w-3 h-3 text-emerald-600" />
+                      Sync Absen
+                    </button>
+                  </div>
                   <input
                     type="text"
                     value={form.attendanceSummary || ""}
                     onChange={(e) => setForm((prev) => ({ ...prev, attendanceSummary: e.target.value }))}
-                    className="w-full p-2 border rounded-lg"
+                    placeholder="Contoh: Hadir: 26, Sakit: 1, Izin: 0, Alpa: 0"
+                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 font-medium"
                   />
                 </div>
+              </div>
+
+              {/* Attendance Bulk Recap Auto-Banner */}
+              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-2 text-[11px]">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <div>
+                    <span className="font-bold text-slate-800 block">
+                      Rekap Absensi Bulk ({form.date}):
+                    </span>
+                    <span className="text-slate-600 font-mono">
+                      Hadir: <b>{currentAttendanceRecap.hadir}</b>, Sakit: <b>{currentAttendanceRecap.sakit}</b>, Izin: <b>{currentAttendanceRecap.izin}</b>, Alpa: <b>{currentAttendanceRecap.alpa}</b> ({currentAttendanceRecap.total} murid)
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleApplyBulkAttendance}
+                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-lg shrink-0 flex items-center gap-1 shadow-2xs"
+                >
+                  <Check className="w-3 h-3" />
+                  Gunakan Rekap
+                </button>
+              </div>
+
+              {/* Dropdown Tujuan Pembelajaran (TP) */}
+              <div className="p-3 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block font-bold text-emerald-950 text-xs flex items-center gap-1.5">
+                    <BookOpen className="w-4 h-4 text-emerald-700" />
+                    Pilih Tujuan Pembelajaran (TP)
+                  </label>
+                  <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-200/80 text-emerald-950 rounded-md">
+                    {form.subject} • {availableTPs.length} TP Tersedia
+                  </span>
+                </div>
+
+                <select
+                  value={selectedTpCode}
+                  onChange={(e) => {
+                    const code = e.target.value;
+                    setSelectedTpCode(code);
+                    if (code) {
+                      const found = availableTPs.find((t) => t.codeTP === code);
+                      if (found) {
+                        setForm((prev) => ({
+                          ...prev,
+                          tpDescription: `[${found.codeTP}] ${found.descriptionTP}`,
+                          material: prev.material || found.element || found.descriptionCP || "",
+                        }));
+                      }
+                    }
+                  }}
+                  className="w-full p-2 border border-emerald-300 rounded-lg bg-white font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 text-xs shadow-2xs"
+                >
+                  <option value="">-- Dropdown Pilih TP dari Kurikulum / CP-TP --</option>
+                  {availableTPs.map((tp) => (
+                    <option key={tp.id} value={tp.codeTP}>
+                      [{tp.codeTP}] {tp.descriptionTP} ({tp.element || tp.targetClass || "CP-TP"})
+                    </option>
+                  ))}
+                </select>
+
+                {availableTPs.length === 0 && (
+                  <p className="text-[11px] text-amber-800 bg-amber-50 p-2 rounded-lg border border-amber-200">
+                    💡 Belum ada data TP khusus untuk mata pelajaran <b>{form.subject}</b> pada Kurikulum / CP-TP. Anda tetap dapat mengetik deskripsi TP secara manual di bawah ini.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -413,19 +598,21 @@ export const DailyTeachingLogView: React.FC<DailyTeachingLogViewProps> = ({
                   placeholder="Contoh: Menyimak Cerita Rakyat & Amanat"
                   value={form.material || ""}
                   onChange={(e) => setForm((prev) => ({ ...prev, material: e.target.value }))}
-                  className="w-full p-2 border rounded-lg font-semibold"
+                  className="w-full p-2 border rounded-lg font-semibold focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Tujuan Pembelajaran (TP)</label>
+                <label className="block font-semibold mb-1">
+                  Deskripsi Tujuan Pembelajaran (TP)
+                </label>
                 <textarea
                   rows={2}
                   required
-                  placeholder="Isikan deskripsi TP yang diajarkan hari ini..."
+                  placeholder="Deskripsi TP yang diajarkan (otomatis terisi dari dropdown atau dapat diketik manual)..."
                   value={form.tpDescription || ""}
                   onChange={(e) => setForm((prev) => ({ ...prev, tpDescription: e.target.value }))}
-                  className="w-full p-2 border rounded-lg"
+                  className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
 
