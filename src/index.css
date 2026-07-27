@@ -147,18 +147,11 @@ body {
     overflow: visible !important;
     background: #ffffff !important;
     color: #000000 !important;
-    break-before: auto !important;
-    page-break-before: auto !important;
   }
 
-  /* Completely collapse root non-print container elements out of rendering and layout flow */
-  #root > *:not(.print-overlay),
-  body > *:not(.print-overlay) {
-    display: none !important;
-    height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: hidden !important;
+  /* Hide everything in body by default using visibility so child overlays can override */
+  body * {
+    visibility: hidden !important;
   }
 
   /* Strictly hide all no-print controls, headers, buttons */
@@ -170,6 +163,28 @@ body {
 
   /* Unset fixed modal overlays, scrollbars, and transforms - force start on page 1 top */
   .print-overlay,
+  .print-overlay * {
+    visibility: visible !important;
+  }
+
+  .print-overlay {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    border: none !important;
+    box-shadow: none !important;
+    transform: none !important;
+    inset: auto !important;
+  }
+
   .print-dialog {
     position: static !important;
     display: block !important;
@@ -182,16 +197,18 @@ body {
     margin: 0 !important;
     padding: 0 !important;
     overflow: visible !important;
-    background: transparent !important;
+    background: #ffffff !important;
     border: none !important;
     box-shadow: none !important;
-    transform: none !important;
-    inset: auto !important;
-    break-before: auto !important;
-    page-break-before: auto !important;
   }
 
   /* Flow printable area as top-level document block starting immediately at page 1 top */
+  .printable-area,
+  .printable-area * {
+    visibility: visible !important;
+    color: #000000 !important;
+  }
+
   .printable-area {
     position: relative !important;
     display: block !important;
@@ -205,10 +222,8 @@ body {
     box-shadow: none !important;
     border: none !important;
     background: #ffffff !important;
-    color: #000000 !important;
     overflow: visible !important;
-    break-before: auto !important;
-    page-break-before: auto !important;
+    box-sizing: border-box !important;
   }
 
   /* Prevent blank page before the first element of printable content */
@@ -230,7 +245,6 @@ body {
     overflow: visible !important;
     max-height: none !important;
     height: auto !important;
-    break-before: auto;
   }
 
   /* Table and page break optimizations */
@@ -264,8 +278,8 @@ body {
   }
 
   @page {
-    size: auto;
-    margin: 8mm 10mm;
+    size: A4;
+    margin: 20mm;
   }
 }
 
