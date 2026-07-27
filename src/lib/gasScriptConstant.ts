@@ -1,13 +1,13 @@
 export const DEFAULT_GAS_CODE = `/**
  * Google Apps Script - Web App Backend & Cloud Backup Drive untuk Aplikasi Administrasi Guru
  * 
- * LANGKAH PENGGUNAAN:
+ * LANGKAH PENGGUNAAN / UPDATE:
  * 1. Buka Google Sheet Anda -> Ekstensi -> Apps Script
- * 2. HAPUS SELURUH KODE LAMA di Code.gs hingga benar-benar kosong (kosongkan semuanya!).
- * 3. Tempelkan (Paste) seluruh kode di bawah ini.
- * 4. Klik 'Terapkan' (Deploy) -> 'Deployment baru' (New deployment).
- * 5. Pilih Jenis: 'Web App'.
- * 6. Pilih Akses (Who has access): 'Siapa saja' (Anyone).
+ * 2. HAPUS seluruh kode lama, lalu TEMPELKAN (Paste) seluruh kode ini.
+ * 3. Klik tombol Simpan (ikon disket).
+ * 4. PENTING: Klik Deploy -> Deploy baru (New deployment).
+ * 5. Pilih jenis "Web App".
+ * 6. Setel "Who has access" / "Siapa yang memiliki akses" menjadi "Anyone" / "Siapa saja".
  * 7. Klik Deploy, berikan izin akses (Authorize access), lalu salin Web App URL.
  */
 
@@ -65,6 +65,7 @@ function doGet(e) {
     return ContentService.createTextOutput(JSON.stringify({ 
       status: "success", 
       message: "Web App Administrasi Guru & Drive Backup Aktif!",
+      version: "2.0-backup",
       sheets: ss.getSheets().map(function(s) { return s.getName(); })
     })).setMimeType(ContentService.MimeType.JSON);
 
@@ -76,17 +77,20 @@ function doGet(e) {
 
 function doPost(e) {
   try {
-    if (!e || !e.postData || !e.postData.contents) {
-      return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Payload kosong" }))
-        .setMimeType(ContentService.MimeType.JSON);
+    var payload = {};
+    if (e && e.postData && e.postData.contents) {
+      try {
+        payload = JSON.parse(e.postData.contents);
+      } catch (pErr) {
+        payload = {};
+      }
     }
     
-    var payload = JSON.parse(e.postData.contents);
-    var action = payload.action;
+    var action = (payload && payload.action) || (e && e.parameter && e.parameter.action);
     var ss = SpreadsheetApp.getActiveSpreadsheet();
 
     // 1. Upload Backup langsung ke Google Drive Folder
-    if (action === 'uploadBackup' || action === 'uploadCloud' || payload.targetType === 'gdrive') {
+    if (action === 'uploadBackup' || action === 'uploadCloud' || payload.targetType === 'gdrive' || payload.backupDate) {
       var folder = getBackupFolder();
       var schoolName = payload.schoolName || (payload.data && payload.data.schoolIdentity ? payload.data.schoolIdentity.schoolName : "Sekolah");
       var cleanSchoolName = String(schoolName).replace(/[^a-zA-Z0-9]/g, "_");
@@ -110,41 +114,25 @@ function doPost(e) {
       var allData = payload.data;
       
       Object.keys(allData).forEach(function(key) {
-        var val = allData[key];
-        if (!val) return;
-        
-        var sheetName = getSheetTitle(key);
-        var sheet = ss.getSheetByName(sheetName) || ss.insertSheet(sheetName);
-        sheet.clear();
-        
-        if (Array.isArray(val)) {
-          if (val.length > 0) {
-            var headers = [];
-            val.forEach(function(item) {
-              if (typeof item === 'object' && item !== null) {
-                Object.keys(item).forEach(function(k) {
-                  if (headers.indexOf(k) === -1 && typeof item[k] !== 'object') {
-                    headers.push(k);
-                  }
-                });
-              }
-            });
-            if (headers.length > 0) {
-              sheet.appendRow(headers);
-              val.forEach(function(item) {
-                var row = headers.map(function(h) { 
-                  var cellVal = item[h];
-                  return cellVal !== undefined && cellVal !== null ? String(cellVal) : ''; 
-                });
-                sheet.appendRow(row);
-              });
-            }
+        var items = allData[key];
+        if (Array.isArray(items) && items.length > 0) {
+          var sheetName = getSheetTitle(key);
+          var sheet = ss.getSheetByName(sheetName);
+          if (!sheet) {
+            sheet = ss.insertSheet(sheetName);
           }
-        } else if (typeof val === 'object') {
-          sheet.appendRow(['Kategori / Parameter', 'Nilai / Isian']);
-          Object.keys(val).forEach(function(k) {
-            var v = val[k];
-            sheet.appendRow([k, typeof v === 'object' ? JSON.stringify(v) : String(v)]);
+          
+          sheet.clearContents();
+          var headers = Object.keys(items[0]);
+          sheet.appendRow(headers);
+          
+          items.forEach(function(item) {
+            var row = headers.map(function(h) {
+              var val = item[h];
+              if (typeof val === 'object') return JSON.stringify(val);
+              return val !== undefined && val !== null ? val : "";
+            });
+            sheet.appendRow(row);
           });
         }
       });
@@ -162,10 +150,13 @@ function doPost(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "OK" }))
-      .setMimeType(ContentService.MimeType.JSON);
+    // 3. Fallback jika action tidak sesuai
+    return ContentService.createTextOutput(JSON.stringify({ 
+      status: "error", 
+      message: "Aksi '" + action + "' tidak dikenali atau versi Apps Script perlu diperbarui. Silakan lakukan Deploy Baru di Google Apps Script." 
+    })).setMimeType(ContentService.MimeType.JSON);
 
-  } catch (err) {
+  } catch(err) {
     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
   }
@@ -173,22 +164,19 @@ function doPost(e) {
 
 function getSheetTitle(key) {
   var titles = {
-    schoolIdentity: "Identitas_Sekolah",
-    students: "Data_Murid",
-    attendanceRecords: "Presensi_Siswa",
-    cptpItems: "CP_Dan_TP",
-    incidents: "Catatan_BK_Disiplin",
-    grades: "Nilai_Siswa",
-    timetable: "Jadwal_Pelajaran",
-    guestBook: "Buku_Tamu",
-    incidentalJournals: "Jurnal_Mengajar",
-    dailyLogs: "Log_Harian",
-    calendarEvents: "Kalender_Akademik",
-    protaList: "Prota",
-    promesList: "Promes",
-    teachingModules: "Modul_Ajar"
+    'school_identity': 'Identitas Sekolah',
+    'students': 'Data Siswa',
+    'cptp_items': 'CP dan TP',
+    'atp_items': 'ATP',
+    'prota_allocations': 'Prota',
+    'promes_allocations': 'Promes',
+    'daily_teaching_logs': 'Jurnal Mengajar Harian',
+    'grades': 'Nilai Rapor',
+    'extracurriculars': 'Ekstrakurikuler',
+    'p5_projects': 'Proyek P5',
+    'attendance_records': 'Absensi Bulk',
+    'agendas': 'Agenda'
   };
   return titles[key] || key;
 }
 `;
-

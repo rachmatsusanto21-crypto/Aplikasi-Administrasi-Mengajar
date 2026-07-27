@@ -431,8 +431,11 @@ function doPost(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "OK" }))
-      .setMimeType(ContentService.MimeType.JSON);
+    // 3. Fallback jika action tidak sesuai
+    return ContentService.createTextOutput(JSON.stringify({ 
+      status: "error", 
+      message: "Aksi '" + action + "' tidak dikenali atau versi Apps Script perlu diperbarui. Silakan lakukan Deploy Baru di Google Apps Script." 
+    })).setMimeType(ContentService.MimeType.JSON);
 
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))

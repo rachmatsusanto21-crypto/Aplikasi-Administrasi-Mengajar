@@ -106,7 +106,11 @@ export const BackupModal: React.FC<BackupModalProps> = ({
     }
     setLoadingCloudList(true);
     try {
-      const res = await fetch(`${webAppUrl}?action=listBackups`);
+      const fetchUrl = webAppUrl.includes("?")
+        ? `${webAppUrl}&action=listBackups`
+        : `${webAppUrl}?action=listBackups`;
+
+      const res = await fetch(fetchUrl);
       if (res.ok) {
         const json = await res.json();
         if (json.status === "success" && Array.isArray(json.backups)) {
@@ -114,6 +118,15 @@ export const BackupModal: React.FC<BackupModalProps> = ({
           setActionMessage({
             type: "success",
             text: `✅ Ditemukan ${json.backups.length} file backup di folder Google Drive (${json.folderName || "Folder_Backup_Administrasi_Guru"}).`,
+          });
+        } else if (
+          json.message === "Web App Administrasi Guru Aktif!" ||
+          json.message === "Web App Administrasi Guru & Drive Backup Aktif!" ||
+          !Array.isArray(json.backups)
+        ) {
+          setActionMessage({
+            type: "error",
+            text: `⚠️ Respons Cloud: "${json.message}". Google Apps Script Anda masih menjalankan VERSI LAMA. Silakan buka tab 'Panduan & Script', salin kodenya, lalu lakukan Deploy Baru (Deploy -> New deployment) di Apps Script.`,
           });
         } else {
           setActionMessage({
@@ -250,7 +263,11 @@ export const BackupModal: React.FC<BackupModalProps> = ({
     setActionMessage(null);
 
     try {
-      const res = await fetch(webAppUrl, {
+      const uploadUrl = webAppUrl.includes("?")
+        ? `${webAppUrl}&action=uploadBackup`
+        : `${webAppUrl}?action=uploadBackup`;
+
+      const res = await fetch(uploadUrl, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({
@@ -266,7 +283,18 @@ export const BackupModal: React.FC<BackupModalProps> = ({
       });
 
       const result = await res.json();
-      if (result.status === "success") {
+
+      // Check if old script returned default "Web App Administrasi Guru Aktif!" or missing fileId
+      if (
+        result.message === "Web App Administrasi Guru Aktif!" ||
+        result.message === "Web App Administrasi Guru & Drive Backup Aktif!" ||
+        (!result.fileId && !result.folderName && (!result.message || !result.message.toLowerCase().includes("berhasil")))
+      ) {
+        setActionMessage({
+          type: "error",
+          text: `⚠️ Respons Cloud: "${result.message || "OK"}". Script Google Apps Script Anda masih menjalankan VERSI LAMA. Silakan klik tab 'Panduan & Script', salin kode script terbaru, lalu lakukan DEPLOY BARU (Deploy -> New deployment) di Google Apps Script.`,
+        });
+      } else if (result.status === "success" || result.fileId) {
         setActionMessage({
           type: "success",
           text: `✅ ${result.message || "File backup berhasil disimpan di folder Google Drive!"}`,
