@@ -14,6 +14,16 @@ const PORT = 3000;
 
 // User Config File persistence for multi-device sync by Email
 const USER_CONFIG_FILE = path.join(process.cwd(), "user_configs.json");
+const BACKUPS_DIR = path.join(process.cwd(), "backups");
+
+// Ensure backups directory exists
+if (!fs.existsSync(BACKUPS_DIR)) {
+  try {
+    fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+  } catch (e) {
+    console.error("Failed to create backups directory:", e);
+  }
+}
 
 function readUserConfigs(): Record<string, any> {
   try {
@@ -70,6 +80,142 @@ app.post("/api/user-config", (req, res) => {
   });
 });
 
+// ==========================================
+// DEDICATED APP BACKUP FOLDER API ENDPOINTS
+// ==========================================
+
+// 1. List backup files in the app's dedicated backup folder
+app.get("/api/backup/list", (req, res) => {
+  try {
+    if (!fs.existsSync(BACKUPS_DIR)) {
+      fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+    }
+    const files = fs.readdirSync(BACKUPS_DIR);
+    const backupList = files
+      .filter((file) => file.endsWith(".json"))
+      .map((file) => {
+        const filePath = path.join(BACKUPS_DIR, file);
+        const stats = fs.statSync(filePath);
+        let schoolName = "Sekolah";
+        let backupDate = stats.mtime.toISOString();
+        let totalItems = 0;
+
+        try {
+          const content = fs.readFileSync(filePath, "utf-8");
+          const parsed = JSON.parse(content);
+          schoolName = parsed.schoolName || parsed.data?.schoolIdentity?.schoolName || "Sekolah";
+          backupDate = parsed.backupDate || parsed.timestamp || stats.mtime.toISOString();
+          if (parsed.data && typeof parsed.data === "object") {
+            totalItems = Object.keys(parsed.data).reduce((acc, k) => {
+              const val = parsed.data[k];
+              return acc + (Array.isArray(val) ? val.length : 1);
+            }, 0);
+          }
+        } catch (e) {
+          // ignore parse error
+        }
+
+        return {
+          filename: file,
+          schoolName,
+          backupDate,
+          sizeBytes: stats.size,
+          sizeFormatted: `${(stats.size / 1024).toFixed(1)} KB`,
+          totalItems,
+          location: "Folder Backup Aplikasi Server",
+        };
+      })
+      .sort((a, b) => new Date(b.backupDate).getTime() - new Date(a.backupDate).getTime());
+
+    return res.json({ status: "success", backups: backupList });
+  } catch (err: any) {
+    console.error("Error listing backups:", err);
+    return res.status(500).json({ error: "Gagal membaca folder backup aplikasi" });
+  }
+});
+
+// 2. Upload / Save new backup file to dedicated app backup folder
+app.post("/api/backup/upload", (req, res) => {
+  try {
+    const { filename, schoolName, backupDate, data, rawJson } = req.body;
+
+    let payloadToSave: any;
+    if (rawJson) {
+      try {
+        payloadToSave = typeof rawJson === "string" ? JSON.parse(rawJson) : rawJson;
+      } catch (e) {
+        return res.status(400).json({ error: "Format JSON tidak valid" });
+      }
+    } else if (data) {
+      payloadToSave = {
+        backupDate: backupDate || new Date().toISOString(),
+        schoolName: schoolName || data?.schoolIdentity?.schoolName || "SDN PISANGCANDI 1",
+        data,
+      };
+    } else {
+      return res.status(400).json({ error: "Payload data backup tidak ditemukan" });
+    }
+
+    const dateStr = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const cleanSchoolName = (schoolName || payloadToSave.schoolName || "Sekolah").replace(/[^a-zA-Z0-9]/g, "_");
+    const targetFilename = filename || `Backup_Administrasi_Guru_${cleanSchoolName}_${dateStr}.json`;
+
+    if (!fs.existsSync(BACKUPS_DIR)) {
+      fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+    }
+
+    const targetPath = path.join(BACKUPS_DIR, targetFilename);
+    fs.writeFileSync(targetPath, JSON.stringify(payloadToSave, null, 2), "utf-8");
+
+    return res.json({
+      status: "success",
+      filename: targetFilename,
+      message: `File backup ${targetFilename} berhasil disimpan di Folder Backup Khusus Aplikasi!`,
+    });
+  } catch (err: any) {
+    console.error("Error uploading backup:", err);
+    return res.status(500).json({ error: "Gagal menyimpan file backup ke folder server" });
+  }
+});
+
+// 3. Download backup file from dedicated app backup folder
+app.get("/api/backup/download/:filename", (req, res) => {
+  try {
+    const filename = req.params.filename;
+    const safeFilename = path.basename(filename);
+    const targetPath = path.join(BACKUPS_DIR, safeFilename);
+
+    if (!fs.existsSync(targetPath)) {
+      return res.status(404).json({ error: "File backup tidak ditemukan" });
+    }
+
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader("Content-Disposition", `attachment; filename="${safeFilename}"`);
+    return res.sendFile(targetPath);
+  } catch (err: any) {
+    console.error("Error downloading backup:", err);
+    return res.status(500).json({ error: "Gagal mengunduh file backup" });
+  }
+});
+
+// 4. Delete backup file from dedicated app backup folder
+app.delete("/api/backup/delete/:filename", (req, res) => {
+  try {
+    const filename = req.params.filename;
+    const safeFilename = path.basename(filename);
+    const targetPath = path.join(BACKUPS_DIR, safeFilename);
+
+    if (fs.existsSync(targetPath)) {
+      fs.unlinkSync(targetPath);
+    }
+
+    return res.json({ status: "success", message: `File backup ${safeFilename} berhasil dihapus` });
+  } catch (err: any) {
+    console.error("Error deleting backup:", err);
+    return res.status(500).json({ error: "Gagal menghapus file backup" });
+  }
+});
+
 // API route for AI Generation
 app.post("/api/ai/generate", async (req, res) => {
   try {
@@ -122,7 +268,7 @@ app.post("/api/ai/generate", async (req, res) => {
 // API route for generating Google Apps Script Code
 app.get("/api/gas/script", (req, res) => {
   const gasCode = `/**
- * Google Apps Script - Web App Backend untuk Aplikasi Administrasi Guru
+ * Google Apps Script - Web App Backend & Cloud Backup Drive untuk Aplikasi Administrasi Guru
  * 
  * LANGKAH PENGGUNAAN:
  * 1. Buka Google Sheet Anda -> Ekstensi -> Apps Script
@@ -134,18 +280,67 @@ app.get("/api/gas/script", (req, res) => {
  * 7. Klik Deploy, berikan izin akses (Authorize access), lalu salin Web App URL.
  */
 
-// Fungsi bawaan agar tidak timbul error jika Anda mengklik tombol "Jalankan" (Run) di Apps Script Editor
 function myFunction() {
-  Logger.log("Web App Administrasi Guru aktif dan siap menerima data!");
+  Logger.log("Web App Administrasi Guru & Cloud Drive Backup aktif!");
+}
+
+function getBackupFolder() {
+  var folderName = "Folder_Backup_Administrasi_Guru";
+  var folders = DriveApp.getFoldersByName(folderName);
+  if (folders.hasNext()) {
+    return folders.next();
+  } else {
+    return DriveApp.createFolder(folderName);
+  }
 }
 
 function doGet(e) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  return ContentService.createTextOutput(JSON.stringify({ 
-    status: "success", 
-    message: "Web App Administrasi Guru Aktif!",
-    sheets: ss.getSheets().map(function(s) { return s.getName(); })
-  })).setMimeType(ContentService.MimeType.JSON);
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var action = e && e.parameter ? e.parameter.action : null;
+
+    if (action === 'listBackups') {
+      var folder = getBackupFolder();
+      var files = folder.getFiles();
+      var list = [];
+      while (files.hasNext()) {
+        var file = files.next();
+        if (file.getName().indexOf('.json') !== -1) {
+          list.push({
+            id: file.getId(),
+            filename: file.getName(),
+            backupDate: file.getLastUpdated().toISOString(),
+            sizeBytes: file.getSize(),
+            sizeFormatted: Math.round(file.getSize() / 1024) + ' KB',
+            downloadUrl: file.getDownloadUrl(),
+            location: "Google Drive (" + folder.getName() + ")"
+          });
+        }
+      }
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        folderName: folder.getName(),
+        backups: list
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'downloadBackup' && e.parameter.fileId) {
+      var file = DriveApp.getFileById(e.parameter.fileId);
+      var content = file.getBlob().getDataAsString();
+      return ContentService.createTextOutput(content)
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({ 
+      status: "success", 
+      message: "Web App Administrasi Guru & Drive Backup Aktif!",
+      sheets: ss.getSheets().map(function(s) { return s.getName(); })
+    })).setMimeType(ContentService.MimeType.JSON);
+
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
 }
 
 function doPost(e) {
@@ -159,6 +354,27 @@ function doPost(e) {
     var action = payload.action;
     var ss = SpreadsheetApp.getActiveSpreadsheet();
 
+    // 1. Upload Backup langsung ke Google Drive Folder
+    if (action === 'uploadBackup' || action === 'uploadCloud' || payload.targetType === 'gdrive') {
+      var folder = getBackupFolder();
+      var schoolName = payload.schoolName || (payload.data && payload.data.schoolIdentity ? payload.data.schoolIdentity.schoolName : "Sekolah");
+      var cleanSchoolName = String(schoolName).replace(/[^a-zA-Z0-9]/g, "_");
+      var dateStr = new Date().toISOString().replace(/[:.]/g, "-").substring(0, 19);
+      var fileName = payload.filename || ("Backup_Administrasi_Guru_" + cleanSchoolName + "_" + dateStr + ".json");
+      
+      var jsonString = JSON.stringify(payload.data || payload, null, 2);
+      var file = folder.createFile(fileName, jsonString, MimeType.PLAIN_TEXT);
+
+      return ContentService.createTextOutput(JSON.stringify({ 
+        status: "success", 
+        message: "File backup berhasil diunggah dan disimpan ke folder Google Drive: " + folder.getName(),
+        fileId: file.getId(),
+        filename: file.getName(),
+        folderName: folder.getName()
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 2. Sync seluruh sheet
     if (action === 'syncAll' && payload.data) {
       var allData = payload.data;
       
@@ -201,10 +417,17 @@ function doPost(e) {
           });
         }
       });
-      
+
+      // Juga simpan snapshot backup otomatis di folder Google Drive
+      try {
+        var autoFolder = getBackupFolder();
+        var autoFileName = "AutoSync_Administrasi_Guru_" + new Date().toISOString().substring(0, 10) + ".json";
+        autoFolder.createFile(autoFileName, JSON.stringify(payload.data, null, 2), MimeType.PLAIN_TEXT);
+      } catch(eDrive) {}
+
       return ContentService.createTextOutput(JSON.stringify({ 
         status: "success", 
-        message: "Seluruh data modul berhasil disinkronkan ke Google Sheet!" 
+        message: "Seluruh data modul berhasil disinkronkan ke Google Sheet & Drive Backup!" 
       })).setMimeType(ContentService.MimeType.JSON);
     }
 

@@ -1,7 +1,30 @@
-import React, { useState, useRef } from "react";
-import { Download, Upload, HardDrive, Cloud, RefreshCw, CheckCircle, AlertCircle, X, ShieldCheck, Database } from "lucide-react";
-import { SchoolIdentity, AISettings, GASConfig } from "../types";
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Download,
+  Upload,
+  HardDrive,
+  Cloud,
+  RefreshCw,
+  CheckCircle,
+  AlertCircle,
+  X,
+  Database,
+  FolderArchive,
+  Trash2,
+  FileJson,
+  ArrowUpRight,
+  ShieldCheck,
+  Server,
+  CloudUpload,
+  CloudDownload,
+  FolderPlus,
+  HelpCircle,
+  Copy,
+  Check,
+} from "lucide-react";
+import { SchoolIdentity, GASConfig } from "../types";
 import { exportDataToJSON, saveToStorage, STORAGE_KEYS } from "../lib/storage";
+import { DEFAULT_GAS_CODE } from "../lib/gasScriptConstant";
 
 interface BackupModalProps {
   isOpen: boolean;
@@ -12,6 +35,26 @@ interface BackupModalProps {
   gasConfig?: GASConfig;
 }
 
+interface ServerBackupItem {
+  filename: string;
+  schoolName: string;
+  backupDate: string;
+  sizeBytes: number;
+  sizeFormatted: string;
+  totalItems: number;
+  location: string;
+}
+
+interface CloudBackupItem {
+  id: string;
+  filename: string;
+  backupDate: string;
+  sizeBytes: number;
+  sizeFormatted: string;
+  downloadUrl?: string;
+  location: string;
+}
+
 export const BackupModal: React.FC<BackupModalProps> = ({
   isOpen,
   onClose,
@@ -20,15 +63,338 @@ export const BackupModal: React.FC<BackupModalProps> = ({
   onRestoreData,
   gasConfig,
 }) => {
-  const [cloudTarget, setCloudTarget] = useState<"sheets" | "gdrive">("sheets");
+  const [activeTab, setActiveTab] = useState<"server" | "cloud" | "guide">("server");
+  const [serverBackups, setServerBackups] = useState<ServerBackupItem[]>([]);
+  const [cloudBackups, setCloudBackups] = useState<CloudBackupItem[]>([]);
+  const [loadingServerList, setLoadingServerList] = useState(false);
+  const [loadingCloudList, setLoadingCloudList] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [syncMessage, setSyncMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [actionMessage, setActionMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [copiedCode, setCopiedCode] = useState(false);
+
+  const localFileInputRef = useRef<HTMLInputElement>(null);
+  const cloudFileInputRef = useRef<HTMLInputElement>(null);
+
+  const webAppUrl = gasConfig?.webAppUrl?.trim() || "";
+
+  // Fetch backups from dedicated server folder
+  const fetchServerBackups = async () => {
+    setLoadingServerList(true);
+    try {
+      const res = await fetch("/api/backup/list");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.backups) {
+          setServerBackups(json.backups);
+        }
+      }
+    } catch (e) {
+      console.error("Gagal membaca folder backup server:", e);
+    } finally {
+      setLoadingServerList(false);
+    }
+  };
+
+  // Fetch backups from Google Drive dedicated folder via GAS
+  const fetchCloudBackups = async () => {
+    if (!webAppUrl) {
+      setActionMessage({
+        type: "error",
+        text: "URL Google Apps Script / Drive belum terhubung. Silakan atur URL Web App terlebih dahulu.",
+      });
+      return;
+    }
+    setLoadingCloudList(true);
+    try {
+      const res = await fetch(`${webAppUrl}?action=listBackups`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.status === "success" && Array.isArray(json.backups)) {
+          setCloudBackups(json.backups);
+          setActionMessage({
+            type: "success",
+            text: `✅ Ditemukan ${json.backups.length} file backup di folder Google Drive (${json.folderName || "Folder_Backup_Administrasi_Guru"}).`,
+          });
+        } else {
+          setActionMessage({
+            type: "error",
+            text: `❌ Respons Cloud: ${json.message || "Format data tidak sesuai"}`,
+          });
+        }
+      } else {
+        setActionMessage({
+          type: "error",
+          text: "Gagal menghubungkan ke Google Drive Web App. Pastikan Deployment Akses diset ke 'Anyone'.",
+        });
+      }
+    } catch (err: any) {
+      setActionMessage({
+        type: "error",
+        text: `❌ Terjadi kesalahan jaringan / CORS: ${err.message || err}`,
+      });
+    } finally {
+      setLoadingCloudList(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchServerBackups();
+      if (webAppUrl) {
+        fetchCloudBackups();
+      }
+    }
+  }, [isOpen, webAppUrl]);
 
   if (!isOpen) return null;
 
-  // 1. Download Local JSON Backup
-  const handleDownloadLocalBackup = () => {
+  // 1. Create instant snapshot in dedicated app backup folder
+  const handleCreateServerSnapshot = async () => {
+    setIsSyncing(true);
+    setActionMessage(null);
+    try {
+      const payload = {
+        schoolName: schoolIdentity.schoolName,
+        backupDate: new Date().toISOString(),
+        data: allData,
+      };
+
+      const res = await fetch("/api/backup/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json();
+      if (json.status === "success") {
+        setActionMessage({
+          type: "success",
+          text: `✅ ${json.message}`,
+        });
+        fetchServerBackups();
+      } else {
+        setActionMessage({
+          type: "error",
+          text: `❌ Gagal menyimpan backup: ${json.error || "Kesalahan server"}`,
+        });
+      }
+    } catch (e: any) {
+      setActionMessage({
+        type: "error",
+        text: `❌ Kesalahan koneksi: ${e.message || e}`,
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // 2. Upload file JSON from computer into dedicated server backup folder
+  const handleUploadFileToServerBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsSyncing(true);
+    setActionMessage(null);
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const contentStr = event.target?.result as string;
+        const parsed = JSON.parse(contentStr);
+
+        const res = await fetch("/api/backup/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            filename: file.name,
+            rawJson: parsed,
+          }),
+        });
+
+        const json = await res.json();
+        if (json.status === "success") {
+          setActionMessage({
+            type: "success",
+            text: `✅ File ${file.name} berhasil diunggah dan disimpan ke Folder Backup Aplikasi!`,
+          });
+          fetchServerBackups();
+        } else {
+          setActionMessage({
+            type: "error",
+            text: `❌ Gagal mengunggah file backup: ${json.error}`,
+          });
+        }
+      } catch (err) {
+        setActionMessage({
+          type: "error",
+          text: "❌ Format file yang diunggah tidak valid (.json).",
+        });
+      } finally {
+        setIsSyncing(false);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // 3. Upload current data to Cloud Google Drive folder
+  const handleUploadToCloudDrive = async () => {
+    if (!webAppUrl) {
+      setActionMessage({
+        type: "error",
+        text: "URL Google Apps Script belum diatur. Silakan atur URL Web App terlebih dahulu.",
+      });
+      return;
+    }
+
+    setIsSyncing(true);
+    setActionMessage(null);
+
+    try {
+      const res = await fetch(webAppUrl, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          action: "uploadBackup",
+          schoolName: schoolIdentity.schoolName,
+          timestamp: new Date().toISOString(),
+          data: {
+            backupDate: new Date().toISOString(),
+            schoolName: schoolIdentity.schoolName,
+            data: allData,
+          },
+        }),
+      });
+
+      const result = await res.json();
+      if (result.status === "success") {
+        setActionMessage({
+          type: "success",
+          text: `✅ ${result.message || "File backup berhasil disimpan di folder Google Drive!"}`,
+        });
+        fetchCloudBackups();
+      } else {
+        setActionMessage({
+          type: "error",
+          text: `❌ Gagal upload ke Cloud: ${result.message || "Respon error dari Google Apps Script"}`,
+        });
+      }
+    } catch (err: any) {
+      setActionMessage({
+        type: "error",
+        text: `❌ Terjadi kesalahan jaringan / CORS: ${err.message || err}`,
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // 4. Download file from Cloud Google Drive
+  const handleDownloadCloudBackup = async (fileId: string, filename: string) => {
+    if (!webAppUrl) return;
+    try {
+      const res = await fetch(`${webAppUrl}?action=downloadBackup&fileId=${encodeURIComponent(fileId)}`);
+      if (res.ok) {
+        const jsonStr = await res.text();
+        const blob = new Blob([jsonStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (e) {
+      alert("Gagal mengunduh file dari Cloud Google Drive.");
+    }
+  };
+
+  // 5. Restore data from Cloud Google Drive
+  const handleRestoreFromCloudBackup = async (fileId: string, filename: string) => {
+    if (!webAppUrl) return;
+    if (!confirm(`Apakah Anda yakin ingin memulihkan data dari file backup Cloud "${filename}"? Data saat ini akan diperbarui.`)) {
+      return;
+    }
+
+    setIsSyncing(true);
+    try {
+      const res = await fetch(`${webAppUrl}?action=downloadBackup&fileId=${encodeURIComponent(fileId)}`);
+      if (res.ok) {
+        const text = await res.text();
+        const json = JSON.parse(text);
+        const restoredData = json.data || json;
+
+        if (onRestoreData) {
+          onRestoreData(restoredData);
+        } else {
+          Object.keys(restoredData).forEach((key) => {
+            if ((STORAGE_KEYS as any)[key]) {
+              saveToStorage((STORAGE_KEYS as any)[key], restoredData[key]);
+            }
+          });
+          alert("Data berhasil dipulihkan dari Cloud! Halaman akan dimuat ulang.");
+          window.location.reload();
+        }
+        onClose();
+      }
+    } catch (e) {
+      alert("Gagal membaca file backup dari Cloud.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // 6. Restore data from Server Backup file
+  const handleRestoreFromServerBackup = async (filename: string) => {
+    if (!confirm(`Apakah Anda yakin ingin memulihkan data dari file backup "${filename}"? Data aplikasi saat ini akan diperbarui.`)) {
+      return;
+    }
+
+    setIsSyncing(true);
+    try {
+      const res = await fetch(`/api/backup/download/${encodeURIComponent(filename)}`);
+      if (res.ok) {
+        const json = await res.json();
+        const restoredData = json.data || json;
+
+        if (onRestoreData) {
+          onRestoreData(restoredData);
+        } else {
+          Object.keys(restoredData).forEach((key) => {
+            if ((STORAGE_KEYS as any)[key]) {
+              saveToStorage((STORAGE_KEYS as any)[key], restoredData[key]);
+            }
+          });
+          alert("Data berhasil dipulihkan dari Folder Backup Server! Halaman akan dimuat ulang.");
+          window.location.reload();
+        }
+        onClose();
+      }
+    } catch (e) {
+      alert("Gagal memuat file backup server.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // 7. Delete server backup file
+  const handleDeleteServerBackup = async (filename: string) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus file backup "${filename}" dari folder server?`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/backup/delete/${encodeURIComponent(filename)}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        fetchServerBackups();
+      }
+    } catch (e) {
+      alert("Gagal menghapus file backup server.");
+    }
+  };
+
+  // 8. Download direct local JSON backup file to browser downloads
+  const handleDownloadDirectJson = () => {
     const backupPayload = {
       backupDate: new Date().toISOString(),
       schoolName: schoolIdentity.schoolName,
@@ -38,244 +404,407 @@ export const BackupModal: React.FC<BackupModalProps> = ({
     exportDataToJSON(backupPayload, `Backup_Administrasi_Guru_${schoolIdentity.schoolName.replace(/[^a-zA-Z0-9]/g, "_")}_${dateStr}`);
   };
 
-  // 2. Restore Local JSON File
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const json = JSON.parse(event.target?.result as string);
-        const restoredData = json.data || json;
-
-        if (confirm("Apakah Anda yakin ingin memulihkan seluruh data dari file backup ini? Data saat ini akan diperbarui.")) {
-          if (onRestoreData) {
-            onRestoreData(restoredData);
-          } else {
-            // Save to local storage manually
-            Object.keys(restoredData).forEach((key) => {
-              if ((STORAGE_KEYS as any)[key]) {
-                saveToStorage((STORAGE_KEYS as any)[key], restoredData[key]);
-              }
-            });
-            alert("Data berhasil dipulihkan! Halaman akan dimuat ulang.");
-            window.location.reload();
-          }
-          onClose();
-        }
-      } catch (err) {
-        alert("Gagal membaca file backup JSON. Pastikan format file benar.");
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  // 3. Cloud / Google Drive Sync
-  const handleSyncToCloud = async () => {
-    const webAppUrl = gasConfig?.webAppUrl?.trim();
-    if (!webAppUrl) {
-      setSyncMessage({
-        type: "error",
-        text: "URL Google Apps Script / Drive belum diatur. Silakan atur URL Web App di menu Google Sheets / Apps Script terlebih dahulu.",
-      });
-      return;
-    }
-
-    setIsSyncing(true);
-    setSyncMessage(null);
-
-    try {
-      const response = await fetch(webAppUrl, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({
-          action: "syncAll",
-          targetType: cloudTarget,
-          timestamp: new Date().toISOString(),
-          data: allData,
-        }),
-      });
-
-      const result = await response.json();
-      if (result.status === "success") {
-        setSyncMessage({
-          type: "success",
-          text: `✅ Sinkronisasi berhasil! Data tersimpan di ${cloudTarget === "sheets" ? "Google Sheets Spreadsheet" : "Google Drive Cloud Backup"}.`,
-        });
-      } else {
-        setSyncMessage({
-          type: "error",
-          text: `❌ Gagal sinkronisasi: ${result.message || "Respon error dari Google Apps Script"}`,
-        });
-      }
-    } catch (err: any) {
-      setSyncMessage({
-        type: "error",
-        text: `❌ Terjadi kesalahan jaringan / CORS: ${err.message || err}. Pastikan Web App diset ke 'Anyone'.`,
-      });
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-3 sm:p-4 animate-fadeIn">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full flex flex-col max-h-[90vh] overflow-hidden border border-slate-200">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-emerald-800 to-teal-900 text-white p-4 sm:p-5 flex items-center justify-between border-b border-emerald-700">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-3xl w-full flex flex-col max-h-[90vh] overflow-hidden border border-slate-200 dark:border-slate-800">
+        {/* Modal Header */}
+        <div className="bg-gradient-to-r from-teal-800 via-emerald-800 to-indigo-900 text-white p-4 sm:p-5 flex items-center justify-between border-b border-teal-700">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-emerald-700/60 rounded-xl">
-              <Database className="w-6 h-6 text-emerald-300" />
+            <div className="p-2.5 bg-white/10 rounded-xl backdrop-blur-xs">
+              <FolderArchive className="w-6 h-6 text-emerald-300" />
             </div>
             <div>
-              <h3 className="font-bold text-base sm:text-lg">Pusat Backup & Sinkronisasi Data</h3>
-              <p className="text-xs text-emerald-200">Amankan data administrasi lokal di gawai & cloud Google Drive</p>
+              <h3 className="font-bold text-base sm:text-lg tracking-tight">Pusat & Folder Backup Aplikasi</h3>
+              <p className="text-xs text-emerald-200">
+                Folder Cadangan Khusus Lokal Server & Integrasi Cloud Google Drive
+              </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-emerald-200 hover:text-white hover:bg-emerald-800/80 rounded-lg transition-colors"
+            className="p-1.5 text-emerald-200 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-5 sm:p-6 overflow-y-auto space-y-6 text-slate-800 text-xs sm:text-sm">
-          {/* Section 1: Backup & Restore Lokal */}
-          <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3">
-            <div className="flex items-center space-x-2 text-slate-900 font-bold border-b border-slate-200 pb-2">
-              <HardDrive className="w-5 h-5 text-indigo-600" />
-              <span>1. Cadangkan & Pemulihan Lokal (Di Gawai / Komputer)</span>
-            </div>
-            <p className="text-xs text-slate-600">
-              Unduh seluruh file database aplikasi ke dalam gawai Anda sebagai cadangan offline aman. Anda dapat mengimpor file ini kapan saja jika berganti gawai.
-            </p>
-            <div className="flex flex-wrap items-center gap-3 pt-1">
-              <button
-                onClick={handleDownloadLocalBackup}
-                className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg flex items-center gap-2 text-xs shadow transition-colors"
-              >
-                <Download className="w-4 h-4" />
-                Unduh Backup Lokal (.JSON)
-              </button>
+        {/* Tab Selection */}
+        <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 pt-2 gap-2 text-xs font-bold">
+          <button
+            onClick={() => setActiveTab("server")}
+            className={`px-4 py-2.5 rounded-t-xl flex items-center gap-2 border-b-2 transition-all ${
+              activeTab === "server"
+                ? "bg-white dark:bg-slate-900 border-emerald-600 text-emerald-700 dark:text-emerald-400 shadow-2xs"
+                : "border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
+            }`}
+          >
+            <Server className="w-4 h-4 text-emerald-600" />
+            <span>Folder Backup Aplikasi (Lokal/Server)</span>
+            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-[10px]">
+              {serverBackups.length}
+            </span>
+          </button>
 
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold rounded-lg flex items-center gap-2 text-xs transition-colors"
-              >
-                <Upload className="w-4 h-4 text-slate-600" />
-                Pulihkan Data dari File
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".json"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-            </div>
-          </div>
+          <button
+            onClick={() => setActiveTab("cloud")}
+            className={`px-4 py-2.5 rounded-t-xl flex items-center gap-2 border-b-2 transition-all ${
+              activeTab === "cloud"
+                ? "bg-white dark:bg-slate-900 border-indigo-600 text-indigo-700 dark:text-indigo-400 shadow-2xs"
+                : "border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
+            }`}
+          >
+            <Cloud className="w-4 h-4 text-indigo-600" />
+            <span>Cloud Google Drive Folder</span>
+            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-300 text-[10px]">
+              {cloudBackups.length}
+            </span>
+          </button>
 
-          {/* Section 2: Google Drive / Cloud Sync */}
-          <div className="bg-emerald-50/50 rounded-xl p-4 border border-emerald-200 space-y-3">
-            <div className="flex items-center space-x-2 text-emerald-950 font-bold border-b border-emerald-200 pb-2">
-              <Cloud className="w-5 h-5 text-emerald-600" />
-              <span>2. Sinkronisasi Cloud Google Drive & Google Sheets</span>
-            </div>
-            <p className="text-xs text-slate-600">
-              Pilih lokasi/penyimpanan cloud untuk mencadangkan seluruh rekap nilai, absensi, jurnal, BK, modul ajar, dan data guru secara terintegrasi.
-            </p>
-
-            {/* Opsi Lokasi / Tempat Penyimpanan Backup */}
-            <div className="space-y-2 pt-1">
-              <label className="block text-xs font-semibold text-slate-700">Pilih Tempat Penyimpanan Cloud:</label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <label
-                  onClick={() => setCloudTarget("sheets")}
-                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                    cloudTarget === "sheets"
-                      ? "bg-white border-emerald-600 ring-2 ring-emerald-500/20 shadow-sm"
-                      : "bg-slate-50 border-slate-200 hover:bg-white"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="cloudTarget"
-                    checked={cloudTarget === "sheets"}
-                    onChange={() => setCloudTarget("sheets")}
-                    className="mt-1 accent-emerald-600"
-                  />
-                  <div>
-                    <span className="font-bold text-slate-900 block text-xs">Google Sheets Spreadsheet</span>
-                    <span className="text-[11px] text-slate-500">
-                      Format rekap terpisah otomatis per tab sheet (Nilai, Absensi, BK, Modul, dll)
-                    </span>
-                  </div>
-                </label>
-
-                <label
-                  onClick={() => setCloudTarget("gdrive")}
-                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                    cloudTarget === "gdrive"
-                      ? "bg-white border-emerald-600 ring-2 ring-emerald-500/20 shadow-sm"
-                      : "bg-slate-50 border-slate-200 hover:bg-white"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="cloudTarget"
-                    checked={cloudTarget === "gdrive"}
-                    onChange={() => setCloudTarget("gdrive")}
-                    className="mt-1 accent-emerald-600"
-                  />
-                  <div>
-                    <span className="font-bold text-slate-900 block text-xs">Google Drive Folder / JSON Snapshot</span>
-                    <span className="text-[11px] text-slate-500">
-                      Menyimpan backup berkala berlabel tanggal di penyimpanan akun Google Drive
-                    </span>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            {/* Action Sync Button */}
-            <div className="pt-2">
-              <button
-                onClick={handleSyncToCloud}
-                disabled={isSyncing}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md transition-all text-xs"
-              >
-                <RefreshCw className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`} />
-                {isSyncing ? "Sedang Menyinkronkan ke Cloud..." : "Sinkronkan Seluruh Data ke Cloud Google Sekarang"}
-              </button>
-            </div>
-
-            {syncMessage && (
-              <div
-                className={`p-3 rounded-lg text-xs flex items-start gap-2 ${
-                  syncMessage.type === "success"
-                    ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
-                    : "bg-rose-100 text-rose-800 border border-rose-300"
-                }`}
-              >
-                {syncMessage.type === "success" ? (
-                  <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
-                )}
-                <span className="leading-snug">{syncMessage.text}</span>
-              </div>
-            )}
-          </div>
+          <button
+            onClick={() => setActiveTab("guide")}
+            className={`px-4 py-2.5 rounded-t-xl flex items-center gap-2 border-b-2 transition-all ${
+              activeTab === "guide"
+                ? "bg-white dark:bg-slate-900 border-purple-600 text-purple-700 dark:text-purple-400 shadow-2xs"
+                : "border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
+            }`}
+          >
+            <HelpCircle className="w-4 h-4 text-purple-600" />
+            <span>Panduan & Script</span>
+          </button>
         </div>
 
-        {/* Footer */}
-        <div className="bg-slate-50 p-4 border-t border-slate-200 flex justify-end">
+        {/* Modal Body */}
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 text-slate-800 dark:text-slate-200 text-xs sm:text-sm flex-1">
+          {/* Status / Action Notification Banner */}
+          {actionMessage && (
+            <div
+              className={`p-3 rounded-xl text-xs flex items-start gap-2.5 shadow-2xs ${
+                actionMessage.type === "success"
+                  ? "bg-emerald-50 dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800"
+                  : "bg-rose-50 dark:bg-rose-950/80 text-rose-900 dark:text-rose-200 border border-rose-300 dark:border-rose-800"
+              }`}
+            >
+              {actionMessage.type === "success" ? (
+                <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+              ) : (
+                <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+              )}
+              <span className="leading-relaxed font-medium">{actionMessage.text}</span>
+            </div>
+          )}
+
+          {/* TAB 1: SERVER / DEDICATED APP BACKUP FOLDER */}
+          {activeTab === "server" && (
+            <div className="space-y-4">
+              {/* Folder Banner & Quick Controls */}
+              <div className="bg-slate-50 dark:bg-slate-800/80 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-700 pb-3">
+                  <div>
+                    <span className="font-bold text-slate-900 dark:text-white text-sm block flex items-center gap-2">
+                      <FolderArchive className="w-4 h-4 text-emerald-600" />
+                      Folder Backup Khusus: <code className="bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded">/backups/</code>
+                    </span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      Tersimpan secara terisolasi khusus untuk aplikasi administrasi guru ini.
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={handleCreateServerSnapshot}
+                      disabled={isSyncing}
+                      className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-xl flex items-center gap-1.5 text-xs shadow-2xs transition-colors"
+                    >
+                      <FolderPlus className="w-4 h-4" />
+                      Buat Snapshot Baru
+                    </button>
+
+                    <button
+                      onClick={() => localFileInputRef.current?.click()}
+                      disabled={isSyncing}
+                      className="px-3.5 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-bold rounded-xl flex items-center gap-1.5 text-xs transition-colors"
+                    >
+                      <CloudUpload className="w-4 h-4 text-emerald-600" />
+                      Unggah File (.json)
+                    </button>
+                    <input
+                      ref={localFileInputRef}
+                      type="file"
+                      accept=".json"
+                      onChange={handleUploadFileToServerBackup}
+                      className="hidden"
+                    />
+
+                    <button
+                      onClick={handleDownloadDirectJson}
+                      className="px-3 py-2 bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 rounded-xl flex items-center gap-1.5 text-xs font-bold transition-colors"
+                      title="Unduh langsung file backup ke komputer"
+                    >
+                      <Download className="w-4 h-4" />
+                      Unduh Langsung
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
+                  <span>Jumlah berkas di folder: <b>{serverBackups.length} file</b></span>
+                  <button
+                    onClick={fetchServerBackups}
+                    className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline flex items-center gap-1"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${loadingServerList ? "animate-spin" : ""}`} />
+                    Segarkan Folder
+                  </button>
+                </div>
+              </div>
+
+              {/* List of Server Backup Files */}
+              <div className="space-y-2">
+                <h4 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
+                  Daftar Berkas Cadangan di Folder Aplikasi Server
+                </h4>
+
+                {loadingServerList ? (
+                  <div className="p-8 text-center text-slate-500 space-y-2">
+                    <RefreshCw className="w-6 h-6 animate-spin mx-auto text-emerald-600" />
+                    <p className="text-xs">Memuat daftar file dari folder backup khusus...</p>
+                  </div>
+                ) : serverBackups.length === 0 ? (
+                  <div className="p-6 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl space-y-2">
+                    <FileJson className="w-8 h-8 text-slate-400 mx-auto" />
+                    <p className="font-bold text-slate-700 dark:text-slate-300 text-xs">Belum ada file backup di folder server.</p>
+                    <p className="text-[11px] text-slate-500">
+                      Klik "Buat Snapshot Baru" di atas untuk menyimpan cadangan pertama Anda.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+                    {serverBackups.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:border-emerald-500 transition-colors shadow-2xs"
+                      >
+                        <div className="space-y-1">
+                          <div className="font-bold text-slate-900 dark:text-white text-xs flex items-center gap-1.5 break-all">
+                            <FileJson className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <span>{item.filename}</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-3">
+                            <span>📅 {new Date(item.backupDate).toLocaleString("id-ID")}</span>
+                            <span>💾 {item.sizeFormatted}</span>
+                            <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
+                              🏫 {item.schoolName}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                          <a
+                            href={`/api/backup/download/${encodeURIComponent(item.filename)}`}
+                            download
+                            className="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-lg flex items-center gap-1"
+                            title="Unduh file ke komputer"
+                          >
+                            <Download className="w-3.5 h-3.5 text-indigo-600" />
+                            Unduh
+                          </a>
+
+                          <button
+                            onClick={() => handleRestoreFromServerBackup(item.filename)}
+                            className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center gap-1"
+                            title="Pulihkan data aplikasi dari file ini"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            Pulihkan
+                          </button>
+
+                          <button
+                            onClick={() => handleDeleteServerBackup(item.filename)}
+                            className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-colors"
+                            title="Hapus file backup"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: CLOUD GOOGLE DRIVE FOLDER */}
+          {activeTab === "cloud" && (
+            <div className="space-y-4">
+              <div className="bg-indigo-50/60 dark:bg-indigo-950/40 rounded-2xl p-4 border border-indigo-200 dark:border-indigo-800 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-indigo-200 dark:border-indigo-800 pb-3">
+                  <div>
+                    <span className="font-bold text-indigo-950 dark:text-indigo-200 text-sm block flex items-center gap-2">
+                      <Cloud className="w-4 h-4 text-indigo-600" />
+                      Google Drive Folder: <code className="bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 px-2 py-0.5 rounded">Folder_Backup_Administrasi_Guru</code>
+                    </span>
+                    <span className="text-xs text-slate-600 dark:text-slate-400">
+                      Tersambung langsung ke penyimpanan Google Drive akun Anda secara otomatis.
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={handleUploadToCloudDrive}
+                      disabled={isSyncing || !webAppUrl}
+                      className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold rounded-xl flex items-center gap-1.5 text-xs shadow-2xs transition-colors"
+                    >
+                      <CloudUpload className="w-4 h-4" />
+                      {isSyncing ? "Mengunggah ke Cloud..." : "Unggah Backup ke Cloud Drive"}
+                    </button>
+
+                    <button
+                      onClick={fetchCloudBackups}
+                      disabled={loadingCloudList || !webAppUrl}
+                      className="px-3 py-2 bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-700 hover:bg-indigo-50 rounded-xl flex items-center gap-1.5 text-xs font-bold transition-colors"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${loadingCloudList ? "animate-spin" : ""}`} />
+                      Muat Ulang Berkas Cloud
+                    </button>
+                  </div>
+                </div>
+
+                {!webAppUrl && (
+                  <div className="p-3 bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 rounded-xl text-xs text-amber-900 dark:text-amber-200 flex items-center justify-between">
+                    <span>⚠️ Web App URL Google Apps Script belum terhubung.</span>
+                    <button
+                      onClick={() => setActiveTab("guide")}
+                      className="font-bold underline text-amber-800 dark:text-amber-300 hover:text-amber-950"
+                    >
+                      Lihat Cara Menghubungkan
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Cloud Files List */}
+              <div className="space-y-2">
+                <h4 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
+                  Daftar Berkas Cadangan di Google Drive Cloud
+                </h4>
+
+                {loadingCloudList ? (
+                  <div className="p-8 text-center text-slate-500 space-y-2">
+                    <RefreshCw className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
+                    <p className="text-xs">Mengkoneksikan ke Google Drive Cloud...</p>
+                  </div>
+                ) : cloudBackups.length === 0 ? (
+                  <div className="p-6 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl space-y-2">
+                    <Cloud className="w-8 h-8 text-slate-400 mx-auto" />
+                    <p className="font-bold text-slate-700 dark:text-slate-300 text-xs">Belum ada file backup terdeteksi di Google Drive.</p>
+                    <p className="text-[11px] text-slate-500">
+                      Klik "Unggah Backup ke Cloud Drive" untuk membuat file cadangan di akun Google Anda.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+                    {cloudBackups.map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:border-indigo-500 transition-colors shadow-2xs"
+                      >
+                        <div className="space-y-1">
+                          <div className="font-bold text-slate-900 dark:text-white text-xs flex items-center gap-1.5">
+                            <Cloud className="w-4 h-4 text-indigo-600 shrink-0" />
+                            <span>{item.filename}</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-3">
+                            <span>📅 {new Date(item.backupDate).toLocaleString("id-ID")}</span>
+                            <span>💾 {item.sizeFormatted}</span>
+                            <span className="text-indigo-600 font-semibold">{item.location}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                          <button
+                            onClick={() => handleDownloadCloudBackup(item.id, item.filename)}
+                            className="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-lg flex items-center gap-1"
+                            title="Unduh berkas dari Cloud ke gawai"
+                          >
+                            <CloudDownload className="w-3.5 h-3.5 text-indigo-600" />
+                            Unduh dari Cloud
+                          </button>
+
+                          <button
+                            onClick={() => handleRestoreFromCloudBackup(item.id, item.filename)}
+                            className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg flex items-center gap-1"
+                            title="Pulihkan data aplikasi dari Cloud"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            Pulihkan dari Cloud
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: GUIDE & SCRIPT GENERATOR */}
+          {activeTab === "guide" && (
+            <div className="space-y-4 text-xs">
+              <div className="bg-slate-50 dark:bg-slate-800/80 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2">
+                <h4 className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  Petunjuk Aktivasi Google Drive Backup otomatis (1 Menit)
+                </h4>
+                <ol className="list-decimal list-inside space-y-1 text-slate-600 dark:text-slate-300 leading-relaxed">
+                  <li>Buka Google Spreadsheet atau Google Drive Anda.</li>
+                  <li>
+                    Pilih menu <b>Ekstensi</b> → <b>Apps Script</b>.
+                  </li>
+                  <li>Kosongkan seluruh kode bawaan Google Apps Script.</li>
+                  <li>Salin seluruh kode script di bawah ini, lalu tempelkan (Paste) di Google Apps Script.</li>
+                  <li>
+                    Klik <b>Terapkan (Deploy)</b> → <b>Deployment baru</b> → Pilih jenis <b>Web App</b>.
+                  </li>
+                  <li>
+                    Setel <b>Akses (Who has access)</b> ke <b>Siapa saja (Anyone)</b>.
+                  </li>
+                  <li>Klik Deploy, berikan izin akses Google Drive, lalu tempelkan URL Web App ke aplikasi.</li>
+                </ol>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-900 dark:text-white">Kode Google Apps Script (Drive Backup Auto-Folder):</span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(DEFAULT_GAS_CODE);
+                      setCopiedCode(true);
+                      setTimeout(() => setCopiedCode(false), 2000);
+                    }}
+                    className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center gap-1"
+                  >
+                    {copiedCode ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedCode ? "Tersalin!" : "Salin Kode Script"}
+                  </button>
+                </div>
+                <pre className="p-3 bg-slate-950 text-emerald-400 rounded-xl overflow-x-auto text-[11px] font-mono leading-relaxed max-h-48 border border-slate-800">
+                  {DEFAULT_GAS_CODE}
+                </pre>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Modal Footer */}
+        <div className="bg-slate-50 dark:bg-slate-950 p-4 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center text-xs">
+          <span className="text-slate-500 dark:text-slate-400">
+            🔒 Backup tersimpan aman & dapat diakses dari gawai/HP/laptop mana saja.
+          </span>
           <button
             onClick={onClose}
-            className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-lg transition-colors"
+            className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl transition-colors"
           >
             Tutup
           </button>
