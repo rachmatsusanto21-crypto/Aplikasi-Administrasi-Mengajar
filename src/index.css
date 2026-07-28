@@ -277,8 +277,8 @@ body {
   }
 
   @page {
-    size: A4;
-    margin: 20mm;
+    size: auto;
+    margin: 10mm;
   }
 }
 

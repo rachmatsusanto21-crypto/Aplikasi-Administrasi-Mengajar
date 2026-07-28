@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { ProtaItem, PromesItem, CPTPItem, TimetableSlot, CalendarEvent, IncidentalJournalEntry, SchoolIdentity } from "../../types";
-import { CalendarRange, Plus, Trash2, Edit2, Download, Printer, FileText, Check, ChevronRight, Calculator, Save } from "lucide-react";
+import { CalendarRange, Plus, Trash2, Edit2, Download, Printer, FileText, Check, ChevronRight, Calculator, Save, Calendar } from "lucide-react";
 import { exportToCSV } from "../../lib/storage";
 import { exportHtmlToDoc } from "../../lib/exportDoc";
 import { exportProtaToExcel, exportPromesToExcel } from "../../lib/exportExcel";
@@ -235,6 +235,186 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
   // W1, W2, W3, W4, W5 (5 Minggu per Bulan)
   const weeksPerMonth = [1, 2, 3, 4, 5];
 
+  // Precision Week Analysis Map for Partial Week (Orange) & Semester Break (Gray Blockout)
+  const weekAnalysisMap = useMemo(() => {
+    const map: Record<
+      string,
+      {
+        status: "NORMAL" | "PARTIAL_ORANGE" | "BLOCKOUT_GRAY";
+        availableJP: number;
+        normalJP: number;
+        reason: string;
+      }
+    > = {};
+
+    const parseLocalYMD = (str: string) => {
+      const parts = (str || "").split("-").map(Number);
+      if (parts.length < 3) return new Date();
+      return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+    };
+
+    const formatLocalYMD = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
+
+    const startYMD = schoolIdentity?.academicYearStartDate || "2026-07-13";
+    const endYMD = schoolIdentity?.academicYearEndDate || "2027-06-25";
+
+    const startYear = parseInt(startYMD.split("-")[0]) || 2026;
+    const endYear = parseInt(endYMD.split("-")[0]) || 2027;
+
+    const monthNameToIndexSem1: Record<string, number> = {
+      Juli: 6,
+      Agustus: 7,
+      September: 8,
+      Oktober: 9,
+      November: 10,
+      Desember: 11,
+    };
+    const monthNameToIndexSem2: Record<string, number> = {
+      Januari: 0,
+      Februari: 1,
+      Maret: 2,
+      April: 3,
+      Mei: 4,
+      Juni: 5,
+    };
+
+    const normalizeSub = (str: string) => (str || "").toLowerCase().trim().replace(/\s+/g, " ");
+    const targetSubNorm = normalizeSub(selectedSubject);
+
+    // Build day slots for target subject from Timetable
+    const daySlots: Record<string, number> = {};
+    const uniqueSlotsMap = new Map<string, TimetableSlot>();
+    (timetable || []).forEach((slot) => {
+      if (slot.day && slot.period && slot.subject && slot.subject.trim() !== "") {
+        const key = `${slot.day.trim()}_${slot.period}`;
+        uniqueSlotsMap.set(key, slot);
+      }
+    });
+
+    uniqueSlotsMap.forEach((slot) => {
+      if (normalizeSub(slot.subject) === targetSubNorm) {
+        const dayKey = slot.day.trim();
+        daySlots[dayKey] = (daySlots[dayKey] || 0) + 1;
+      }
+    });
+
+    const normalWeeklyJP = Object.values(daySlots).reduce((a, b) => a + b, 0);
+
+    const monthsList = selectedSemester === 1 ? Object.keys(monthNameToIndexSem1) : Object.keys(monthNameToIndexSem2);
+
+    monthsList.forEach((m) => {
+      const monthIdx = selectedSemester === 1 ? monthNameToIndexSem1[m] : monthNameToIndexSem2[m];
+      const yr = selectedSemester === 1 ? startYear : endYear;
+
+      weeksPerMonth.forEach((w) => {
+        const key = `${m}_w${w}`;
+
+        const startDayNum = (w - 1) * 7 + 1;
+        const daysInMonth = new Date(yr, monthIdx + 1, 0).getDate();
+        const endDayNum = w === 5 ? daysInMonth : Math.min(daysInMonth, w * 7);
+
+        let activeSchoolDaysInWeek = 0;
+        let daysOutsideAcademicYear = 0;
+        let daysSemesterBreak = 0;
+
+        let scheduledJPThisWeek = 0;
+        let lostJPThisWeek = 0;
+        let holidayReasons: string[] = [];
+
+        for (let dayNum = startDayNum; dayNum <= endDayNum; dayNum++) {
+          const testDate = new Date(yr, monthIdx, dayNum, 12, 0, 0);
+          const dayOfWeek = testDate.getDay(); // 0 = Sun
+          if (dayOfWeek === 0) continue; // skip Sunday
+
+          activeSchoolDaysInWeek++;
+          const dateStr = formatLocalYMD(testDate);
+
+          // Check if outside academic year range
+          if (dateStr < startYMD || dateStr > endYMD) {
+            daysOutsideAcademicYear++;
+          }
+
+          // Check calendar events for Semester Break
+          const semBreakEvt = (calendarEvents || []).find(
+            (e) =>
+              dateStr >= e.startDate &&
+              dateStr <= (e.endDate || e.startDate) &&
+              (e.type === "Libur Semester" || (e.title && e.title.toLowerCase().includes("semester")))
+          );
+
+          if (semBreakEvt) {
+            daysSemesterBreak++;
+          }
+
+          // Check subject scheduled JP for this day name
+          const dayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+          const dayName = dayNames[dayOfWeek];
+          const jpOnThisDay = daySlots[dayName] || 0;
+
+          if (jpOnThisDay > 0) {
+            scheduledJPThisWeek += jpOnThisDay;
+
+            // Check if day is holiday or event
+            const isHolidayDay =
+              dateStr < startYMD ||
+              dateStr > endYMD ||
+              (calendarEvents || []).some((e) => dateStr >= e.startDate && dateStr <= (e.endDate || e.startDate)) ||
+              (incidentalJournals || []).some((i) => i.date === dateStr);
+
+            if (isHolidayDay) {
+              lostJPThisWeek += jpOnThisDay;
+              const matchEvt = (calendarEvents || []).find((e) => dateStr >= e.startDate && dateStr <= (e.endDate || e.startDate));
+              if (matchEvt) holidayReasons.push(`${dayName} (${matchEvt.title})`);
+              else if (dateStr < startYMD || dateStr > endYMD) holidayReasons.push(`${dayName} (Libur Semester / Diluar TP)`);
+            }
+          }
+        }
+
+        // Determine Week Status:
+        if (
+          activeSchoolDaysInWeek > 0 &&
+          (daysOutsideAcademicYear >= activeSchoolDaysInWeek || daysSemesterBreak >= activeSchoolDaysInWeek / 2)
+        ) {
+          map[key] = {
+            status: "BLOCKOUT_GRAY",
+            availableJP: 0,
+            normalJP: normalWeeklyJP,
+            reason: "Libur Semester / Acuan Tanggal Masuk Sekolah",
+          };
+        } else if (scheduledJPThisWeek > 0 && lostJPThisWeek > 0 && lostJPThisWeek < scheduledJPThisWeek) {
+          const remainingJP = scheduledJPThisWeek - lostJPThisWeek;
+          map[key] = {
+            status: "PARTIAL_ORANGE",
+            availableJP: remainingJP,
+            normalJP: scheduledJPThisWeek,
+            reason: `Minggu Efektif Sebagian (${holidayReasons.join(", ")}) — Hanya sisa ${remainingJP} JP dari normal ${scheduledJPThisWeek} JP`,
+          };
+        } else if (scheduledJPThisWeek > 0 && lostJPThisWeek >= scheduledJPThisWeek) {
+          map[key] = {
+            status: "BLOCKOUT_GRAY",
+            availableJP: 0,
+            normalJP: scheduledJPThisWeek,
+            reason: `Seluruh jam ${selectedSubject} libur/kegiatan (${holidayReasons.join(", ")})`,
+          };
+        } else {
+          map[key] = {
+            status: "NORMAL",
+            availableJP: scheduledJPThisWeek || normalWeeklyJP,
+            normalJP: scheduledJPThisWeek || normalWeeklyJP,
+            reason: "Minggu Efektif Penuh",
+          };
+        }
+      });
+    });
+
+    return map;
+  }, [selectedSubject, selectedSemester, timetable, calendarEvents, incidentalJournals, schoolIdentity]);
+
   // State for Promes weekly allocation map
   // Key: `${protaId}_${monthName}_w${weekNumber}` -> JP allocation number (e.g., 2)
   const [promesWeeklyAllocations, setPromesWeeklyAllocations] = useState<Record<string, number>>({});
@@ -394,10 +574,19 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
       promesMonths.forEach((m) => {
         weeksPerMonth.forEach((w) => {
           const key = `${p.id}_${m}_w${w}`;
-          if (allocated < target) {
-            const jpToGive = Math.min(2, target - allocated);
-            newMap[key] = jpToGive;
-            allocated += jpToGive;
+          const weekAnalysis = weekAnalysisMap[`${m}_w${w}`];
+
+          if (weekAnalysis?.status === "BLOCKOUT_GRAY") {
+            newMap[key] = 0;
+          } else if (allocated < target) {
+            const maxFillForWeek = weekAnalysis?.status === "PARTIAL_ORANGE" ? weekAnalysis.availableJP : 2;
+            if (maxFillForWeek > 0) {
+              const jpToGive = Math.min(maxFillForWeek, target - allocated);
+              newMap[key] = jpToGive;
+              allocated += jpToGive;
+            } else {
+              newMap[key] = 0;
+            }
           } else {
             newMap[key] = 0;
           }
@@ -582,6 +771,19 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
               <span>Total Alokasi Waktu: {totalJP} JP</span>
             </div>
 
+            {/* Legend for Print */}
+            <div className="flex items-center gap-4 text-[10px] font-bold text-slate-700 bg-slate-50 p-2 border border-slate-300 rounded">
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 bg-emerald-600 inline-block rounded-xs"></span> Minggu Efektif Penuh
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 bg-amber-400 border border-amber-600 inline-block rounded-xs"></span> Minggu Efektif Sebagian (Terpotong Libur/Event)
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 bg-slate-300 border border-slate-500 inline-block rounded-xs"></span> Libur Semester / Blockout
+              </span>
+            </div>
+
             <table className="w-full border-collapse border border-slate-400 text-[10px]">
               <thead>
                 <tr className="bg-slate-100 font-bold text-slate-900 text-center">
@@ -595,11 +797,27 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                 </tr>
                 <tr className="bg-slate-50 font-bold text-slate-700 text-center text-[9px]">
                   {promesMonths.map((m) =>
-                    weeksPerMonth.map((w) => (
-                      <th key={`${m}_w${w}`} className="border border-slate-400 p-0.5 w-6">
-                        W{w}
-                      </th>
-                    ))
+                    weeksPerMonth.map((w) => {
+                      const weekInfo = weekAnalysisMap[`${m}_w${w}`];
+                      const isOrange = weekInfo?.status === "PARTIAL_ORANGE";
+                      const isGray = weekInfo?.status === "BLOCKOUT_GRAY";
+
+                      return (
+                        <th
+                          key={`${m}_w${w}`}
+                          className={`border border-slate-400 p-0.5 w-6 ${
+                            isGray
+                              ? "bg-slate-300 text-slate-600"
+                              : isOrange
+                              ? "bg-amber-300 text-amber-950 font-black"
+                              : "bg-slate-50 text-slate-800"
+                          }`}
+                          title={weekInfo?.reason || ""}
+                        >
+                          W{w}{isOrange ? "⚡" : isGray ? "x" : ""}
+                        </th>
+                      );
+                    })
                   )}
                 </tr>
               </thead>
@@ -620,14 +838,27 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                         weeksPerMonth.map((w) => {
                           const key = `${p.id}_${m}_w${w}`;
                           const val = promesWeeklyAllocations[key] || 0;
+                          const weekInfo = weekAnalysisMap[`${m}_w${w}`];
+                          const isOrange = weekInfo?.status === "PARTIAL_ORANGE";
+                          const isGray = weekInfo?.status === "BLOCKOUT_GRAY";
+
                           return (
                             <td
                               key={key}
                               className={`border border-slate-400 p-0.5 text-center font-bold ${
-                                val > 0 ? "bg-emerald-100 text-emerald-900 font-mono" : "text-slate-200"
+                                isGray
+                                  ? "bg-slate-200 text-slate-400"
+                                  : val > 0 && isOrange
+                                  ? "bg-amber-300 text-amber-950 font-extrabold"
+                                  : val > 0
+                                  ? "bg-emerald-100 text-emerald-900 font-mono"
+                                  : isOrange
+                                  ? "bg-amber-50 text-amber-600"
+                                  : "text-slate-300"
                               }`}
+                              title={weekInfo?.reason || ""}
                             >
-                              {val > 0 ? val : "-"}
+                              {isGray ? "X" : val > 0 ? val : "-"}
                             </td>
                           );
                         })
@@ -1024,37 +1255,77 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
             </div>
           )}
 
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          {/* Legend Box for Week Status Indicators */}
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold">
+            <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+              <Calendar className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Keterangan Status Alokasi Minggu Promes:</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="flex items-center gap-1.5 px-2.5 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200">
+                <span className="w-3 h-3 bg-emerald-600 rounded-xs"></span>
+                Minggu Efektif Penuh
+              </span>
+              <span className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 dark:bg-amber-950/70 border border-amber-400 dark:border-amber-700 text-amber-950 dark:text-amber-200 font-bold rounded-lg shadow-2xs">
+                <span className="w-3 h-3 bg-amber-500 rounded-xs"></span>
+                Minggu Efektif Sebagian (Terpotong Libur/Event)
+              </span>
+              <span className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 rounded-lg">
+                <span className="w-3 h-3 bg-slate-400 dark:bg-slate-600 rounded-xs"></span>
+                Libur Semester / Non-Efektif (Blockout)
+              </span>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-center text-xs border-collapse">
-                <thead className="bg-slate-50 font-bold border-b border-slate-200 text-slate-800 text-[10px] uppercase">
+                <thead className="bg-slate-50 dark:bg-slate-900 font-bold border-b border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 text-[10px] uppercase">
                   <tr>
-                    <th rowSpan={2} className="p-3 border-r border-slate-200 text-left min-w-[220px]">
+                    <th rowSpan={2} className="p-3 border-r border-slate-200 dark:border-slate-800 text-left min-w-[220px]">
                       Tujuan Pembelajaran (TP)
                     </th>
-                    <th rowSpan={2} className="p-2 border-r border-slate-200 w-16">
+                    <th rowSpan={2} className="p-2 border-r border-slate-200 dark:border-slate-800 w-16">
                       Target Prota
                     </th>
-                    <th rowSpan={2} className="p-2 border-r border-slate-200 w-16 bg-emerald-50 text-emerald-900">
+                    <th rowSpan={2} className="p-2 border-r border-slate-200 dark:border-slate-800 w-16 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-900 dark:text-emerald-300">
                       Terisi JP
                     </th>
                     {promesMonths.map((m) => (
-                      <th colSpan={5} key={m} className="p-2 border-r border-slate-200 bg-slate-100 font-bold text-slate-900">
+                      <th colSpan={5} key={m} className="p-2 border-r border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 font-bold text-slate-900 dark:text-slate-100">
                         {m}
                       </th>
                     ))}
                   </tr>
-                  <tr className="border-t border-slate-200">
+                  <tr className="border-t border-slate-200 dark:border-slate-800">
                     {promesMonths.map((m) =>
-                      weeksPerMonth.map((w) => (
-                        <th key={`${m}_w${w}`} className={`p-1 border-r border-slate-200 text-[9px] ${w === 5 ? "bg-amber-50 text-amber-900 font-extrabold" : ""}`}>
-                          W{w}
-                        </th>
-                      ))
+                      weeksPerMonth.map((w) => {
+                        const weekInfo = weekAnalysisMap[`${m}_w${w}`];
+                        const isOrange = weekInfo?.status === "PARTIAL_ORANGE";
+                        const isGray = weekInfo?.status === "BLOCKOUT_GRAY";
+
+                        return (
+                          <th
+                            key={`${m}_w${w}`}
+                            className={`p-1 border-r border-slate-200 dark:border-slate-800 text-[9px] font-extrabold transition-all ${
+                              isGray
+                                ? "bg-slate-300 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+                                : isOrange
+                                ? "bg-amber-400 dark:bg-amber-600 text-amber-950 dark:text-amber-100 ring-1 ring-amber-500 shadow-2xs"
+                                : w === 5
+                                ? "bg-amber-50 dark:bg-slate-800/80 text-amber-900 dark:text-amber-300"
+                                : ""
+                            }`}
+                            title={weekInfo?.reason || `Minggu ${w} ${m}`}
+                          >
+                            W{w}{isOrange ? " ⚡" : isGray ? " x" : ""}
+                          </th>
+                        );
+                      })
                     )}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-800">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200">
                   {filteredProta.length === 0 ? (
                     <tr>
                       <td colSpan={3 + promesMonths.length * 5} className="text-center py-8 text-slate-400">
@@ -1068,22 +1339,22 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                       const isMatching = currentAllocatedPromes === targetJP;
 
                       return (
-                        <tr key={p.id} className="hover:bg-slate-50/60">
-                          <td className="p-2.5 text-left border-r border-slate-200 font-semibold text-slate-900">
-                            <span className="font-mono text-emerald-700 block text-[10px]">{p.tpCode || p.codeTP}</span>
+                        <tr key={p.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                          <td className="p-2.5 text-left border-r border-slate-200 dark:border-slate-800 font-semibold text-slate-900 dark:text-slate-100">
+                            <span className="font-mono text-emerald-700 dark:text-emerald-400 block text-[10px]">{p.tpCode || p.codeTP}</span>
                             {p.tpDescription}
                           </td>
-                          <td className="p-2 border-r border-slate-200 font-bold text-slate-700 bg-slate-50/50">
+                          <td className="p-2 border-r border-slate-200 dark:border-slate-800 font-bold text-slate-700 dark:text-slate-300 bg-slate-50/50 dark:bg-slate-900/50">
                             {targetJP} JP
                           </td>
-                          <td className="p-2 border-r border-slate-200 font-extrabold font-mono text-xs">
+                          <td className="p-2 border-r border-slate-200 dark:border-slate-800 font-extrabold font-mono text-xs">
                             <span
                               className={`px-1.5 py-0.5 rounded ${
                                 isMatching
-                                  ? "bg-emerald-100 text-emerald-800"
+                                  ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300"
                                   : currentAllocatedPromes > targetJP
-                                  ? "bg-red-100 text-red-800"
-                                  : "bg-amber-100 text-amber-800"
+                                  ? "bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-300"
+                                  : "bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300"
                               }`}
                               title={
                                 isMatching
@@ -1102,12 +1373,26 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                               const defaultVal = (idx * 2 + w) % 5 === 0 ? 2 : 0;
                               const val = promesWeeklyAllocations[key] !== undefined ? promesWeeklyAllocations[key] : defaultVal;
 
+                              const weekInfo = weekAnalysisMap[`${m}_w${w}`];
+                              const isOrange = weekInfo?.status === "PARTIAL_ORANGE";
+                              const isGray = weekInfo?.status === "BLOCKOUT_GRAY";
+
                               return (
                                 <td
                                   key={`${m}_w${w}`}
-                                  className="p-0.5 border-r border-slate-200 text-center font-mono"
+                                  className={`p-0.5 border-r border-slate-200 dark:border-slate-800 text-center font-mono ${
+                                    isGray ? "bg-slate-200/80 dark:bg-slate-800/80" : isOrange ? "bg-amber-50/70 dark:bg-amber-950/40" : ""
+                                  }`}
+                                  title={weekInfo?.reason || ""}
                                 >
-                                  {promesInputMode === "manual" ? (
+                                  {isGray ? (
+                                    <div
+                                      className="w-full h-7 flex items-center justify-center font-black text-slate-400 dark:text-slate-600 cursor-not-allowed select-none bg-slate-200/90 dark:bg-slate-800/90 rounded"
+                                      title={weekInfo?.reason || "Minggu Libur Semester"}
+                                    >
+                                      X
+                                    </div>
+                                  ) : promesInputMode === "manual" ? (
                                     <input
                                       type="number"
                                       min={0}
@@ -1116,9 +1401,13 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                                       placeholder="-"
                                       onChange={(e) => handleUpdatePromesJP(p.id, m, w, parseInt(e.target.value, 10) || 0)}
                                       className={`w-8 h-7 text-center font-bold text-xs rounded border transition-all ${
-                                        val > 0
+                                        val > 0 && isOrange
+                                          ? "bg-amber-500 text-slate-950 border-amber-600 font-black ring-1 ring-amber-400"
+                                          : val > 0
                                           ? "bg-emerald-600 text-white border-emerald-700 font-extrabold"
-                                          : "bg-white text-slate-400 border-slate-200 hover:border-slate-300"
+                                          : isOrange
+                                          ? "bg-amber-100/80 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 border-amber-300 hover:border-amber-500"
+                                          : "bg-white dark:bg-slate-900 text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-300"
                                       }`}
                                     />
                                   ) : (
@@ -1126,9 +1415,13 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                                       type="button"
                                       onClick={() => handleTogglePromesWeek(p.id, m, w)}
                                       className={`w-full h-7 font-bold text-xs rounded transition-colors ${
-                                        val > 0
+                                        val > 0 && isOrange
+                                          ? "bg-amber-500 text-slate-950 font-black"
+                                          : val > 0
                                           ? "bg-emerald-600 text-white font-extrabold"
-                                          : "bg-white text-slate-300 hover:bg-slate-100"
+                                          : isOrange
+                                          ? "bg-amber-100/80 dark:bg-amber-950 text-amber-900 dark:text-amber-200 hover:bg-amber-200"
+                                          : "bg-white dark:bg-slate-900 text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                                       }`}
                                     >
                                       {val > 0 ? val : "-"}

@@ -44,7 +44,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   >("ALL");
 
   // Paper Size & Orientation
-  const [paperSize, setPaperSize] = useState<"A4" | "F4" | "Letter" | "Legal">("A4");
+  const [paperSize, setPaperSize] = useState<"A4" | "F4" | "Letter" | "Legal" | "Auto">("A4");
   const [orientation, setOrientation] = useState<"portrait" | "landscape">("portrait");
 
   // Margin Configuration (in mm)
@@ -99,12 +99,25 @@ export const PrintModal: React.FC<PrintModalProps> = ({
       const cleanTitle = (title || "Dokumen_Administrasi_Guru").replace(/[^a-zA-Z0-9_]/g, "_");
       const filename = `${cleanTitle}.pdf`;
 
+      const jsPdfFormat =
+        paperSize === "Auto"
+          ? orientation === "landscape"
+            ? [297, 420]
+            : [210, 350]
+          : paperSize.toLowerCase();
+
       const opt = {
-        margin: [marginTop || 15, marginLeft || 15, marginBottom || 15, marginRight || 15] as [number, number, number, number],
+        margin: [marginTop || 10, marginLeft || 10, marginBottom || 10, marginRight || 10] as [number, number, number, number],
         filename: filename,
         image: { type: "jpeg" as const, quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
-        jsPDF: { unit: "mm", format: paperSize.toLowerCase(), orientation: orientation },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          windowWidth: printablePaperRef.current.scrollWidth || 1200,
+        },
+        jsPDF: { unit: "mm", format: jsPdfFormat, orientation: orientation },
+        pagebreak: { mode: ["avoid-all", "css", "legacy"] },
       };
 
       await html2pdf().set(opt).from(printablePaperRef.current).save();
@@ -244,6 +257,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
               <option value="F4">F4 / Folio (215 x 330 mm)</option>
               <option value="Letter">Letter (216 x 279 mm)</option>
               <option value="Legal">Legal (216 x 356 mm)</option>
+              <option value="Auto">✨ Auto Fit Konten (Tanpa Batas Potong)</option>
             </select>
 
             <select
