@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { ProtaItem, PromesItem, CPTPItem, TimetableSlot, CalendarEvent, IncidentalJournalEntry, SchoolIdentity } from "../../types";
 import { CalendarRange, Plus, Trash2, Edit2, Download, Printer, FileText, Check, ChevronRight, Calculator, Save, Calendar } from "lucide-react";
 import { exportToCSV } from "../../lib/storage";
@@ -140,12 +140,22 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
     };
   }, [selectedSubject, timetable, calendarEvents, incidentalJournals, schoolIdentity, protaList]);
 
-  const filteredProta = protaList.filter(
-    (p) => p.subject === selectedSubject && (p.semester === selectedSemester || p.semester === (selectedSemester === 1 ? "Ganjil" : "Genap"))
+  const filteredProta = useMemo(
+    () =>
+      protaList.filter(
+        (p) =>
+          p.subject === selectedSubject &&
+          (p.semester === selectedSemester ||
+            p.semester === (selectedSemester === 1 ? "Ganjil" : "Genap"))
+      ),
+    [protaList, selectedSubject, selectedSemester]
   );
 
   // Available CPs/TPs for selected subject
-  const availableTPs = cptpItems.filter((item) => item.subject === selectedSubject);
+  const availableTPs = useMemo(
+    () => cptpItems.filter((item) => item.subject === selectedSubject),
+    [cptpItems, selectedSubject]
+  );
 
   const [protaForm, setProtaForm] = useState<Partial<ProtaItem>>({
     subject: selectedSubject,
@@ -224,16 +234,22 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
     setIsModalOpen(false);
   };
 
-  const totalJP = filteredProta.reduce((acc, curr) => acc + (curr.allocatedJP || curr.timeAllocationJP || 0), 0);
+  const totalJP = useMemo(
+    () => filteredProta.reduce((acc, curr) => acc + (curr.allocatedJP || curr.timeAllocationJP || 0), 0),
+    [filteredProta]
+  );
 
   // Promes Months depending on selected semester
-  const promesMonths =
-    selectedSemester === 1
-      ? ["Juli", "Agustus", "September", "Oktober", "November", "Desember"]
-      : ["Januari", "Februari", "Maret", "April", "Mei", "Juni"];
+  const promesMonths = useMemo(
+    () =>
+      selectedSemester === 1
+        ? ["Juli", "Agustus", "September", "Oktober", "November", "Desember"]
+        : ["Januari", "Februari", "Maret", "April", "Mei", "Juni"],
+    [selectedSemester]
+  );
 
   // W1, W2, W3, W4, W5 (5 Minggu per Bulan)
-  const weeksPerMonth = [1, 2, 3, 4, 5];
+  const weeksPerMonth = useMemo(() => [1, 2, 3, 4, 5], []);
 
   // Precision Week Analysis Map for Partial Week / Event Holidays (Orange Amber)
   const weekAnalysisMap = useMemo(() => {
@@ -386,11 +402,68 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
   const [promesInputMode, setPromesInputMode] = useState<"manual" | "click">("manual");
   const [savedPromesAlert, setSavedPromesAlert] = useState(false);
 
-  // Sync / Load saved Promes data from prop promesList when subject, semester, or list changes
+  // Function to calculate sequential schedule-aware Promes allocation
+  const computeAutoFill = useCallback(
+    (
+      protaItems: ProtaItem[],
+      months: string[],
+      weeks: number[],
+      analysisMap: Record<string, { availableJP: number }>
+    ) => {
+      const newMap: Record<string, number> = {};
+      if (!protaItems || protaItems.length === 0) return newMap;
+
+      const weekKeys: string[] = [];
+      months.forEach((m) => {
+        weeks.forEach((w) => {
+          weekKeys.push(`${m}_w${w}`);
+        });
+      });
+
+      const weekCapacity: Record<string, number> = {};
+      weekKeys.forEach((wk) => {
+        const weekAnalysis = analysisMap[wk];
+        weekCapacity[wk] = weekAnalysis ? weekAnalysis.availableJP : 0;
+      });
+
+      let currentWeekIdx = 0;
+
+      protaItems.forEach((p) => {
+        const target = p.allocatedJP || p.timeAllocationJP || 0;
+        let remainingTP = target;
+
+        while (remainingTP > 0 && currentWeekIdx < weekKeys.length) {
+          const wk = weekKeys[currentWeekIdx];
+          const cap = weekCapacity[wk] || 0;
+
+          if (cap <= 0) {
+            currentWeekIdx++;
+            continue;
+          }
+
+          const allocate = Math.min(cap, remainingTP);
+          const altCellKey = `${p.id}_${wk}`;
+          newMap[altCellKey] = (newMap[altCellKey] || 0) + allocate;
+
+          remainingTP -= allocate;
+          weekCapacity[wk] -= allocate;
+
+          if (weekCapacity[wk] <= 0) {
+            currentWeekIdx++;
+          }
+        }
+      });
+
+      return newMap;
+    },
+    []
+  );
+
+  // Sync / Load saved Promes data from prop promesList when subject or semester changes
   React.useEffect(() => {
     const loadedMap: Record<string, number> = {};
 
-    filteredProta.forEach((p, idx) => {
+    filteredProta.forEach((p) => {
       const matchingPromes = promesList.find(
         (item) =>
           (item as any).protaId === p.id ||
@@ -416,11 +489,13 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
       });
     });
 
-    if (Object.keys(loadedMap).length > 0) {
-      setPromesWeeklyAllocations((prev) => ({
-        ...prev,
-        ...loadedMap,
-      }));
+    const hasValues = Object.values(loadedMap).some((v) => v > 0);
+
+    if (hasValues) {
+      setPromesWeeklyAllocations(loadedMap);
+    } else {
+      const autoFilled = computeAutoFill(filteredProta, promesMonths, weeksPerMonth, weekAnalysisMap);
+      setPromesWeeklyAllocations(autoFilled);
     }
   }, [selectedSubject, selectedSemester, promesList, protaList]);
 
@@ -446,7 +521,7 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
   const handleSavePromes = () => {
     if (filteredProta.length === 0) return;
 
-    const updatedPromesForCurrentSubject = filteredProta.map((p, idx) => {
+    const updatedPromesForCurrentSubject = filteredProta.map((p) => {
       const weeklyAllocationsForP: Record<string, number> = {};
       const monthlyAllocationForP: Record<string, number[]> = {};
 
@@ -454,11 +529,7 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
         monthlyAllocationForP[m] = [];
         weeksPerMonth.forEach((w) => {
           const key = `${p.id}_${m}_w${w}`;
-          const defaultVal = (idx * 2 + w) % 5 === 0 ? 2 : 0;
-          const val =
-            promesWeeklyAllocations[key] !== undefined
-              ? promesWeeklyAllocations[key]
-              : defaultVal;
+          const val = promesWeeklyAllocations[key] ?? 0;
 
           weeklyAllocationsForP[`${m}_w${w}`] = val;
           weeklyAllocationsForP[key] = val;
@@ -530,27 +601,8 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
   };
 
   const handleAutoFillPromes = () => {
-    const newMap: Record<string, number> = {};
-    filteredProta.forEach((p) => {
-      let target = p.allocatedJP || p.timeAllocationJP || 6;
-      let allocated = 0;
-      promesMonths.forEach((m) => {
-        weeksPerMonth.forEach((w) => {
-          const key = `${p.id}_${m}_w${w}`;
-          const weekAnalysis = weekAnalysisMap[`${m}_w${w}`];
-          const availableInWeek = weekAnalysis ? weekAnalysis.availableJP : 2;
-
-          if (allocated < target && availableInWeek > 0) {
-            const jpToGive = Math.min(availableInWeek, target - allocated);
-            newMap[key] = jpToGive;
-            allocated += jpToGive;
-          } else {
-            newMap[key] = 0;
-          }
-        });
-      });
-    });
-    setPromesWeeklyAllocations((prev) => ({ ...prev, ...newMap }));
+    const autoFilled = computeAutoFill(filteredProta, promesMonths, weeksPerMonth, weekAnalysisMap);
+    setPromesWeeklyAllocations(autoFilled);
   };
 
   const handleResetPromes = () => {
