@@ -235,12 +235,12 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
   // W1, W2, W3, W4, W5 (5 Minggu per Bulan)
   const weeksPerMonth = [1, 2, 3, 4, 5];
 
-  // Precision Week Analysis Map for Partial Week (Orange) & Semester Break (Gray Blockout)
+  // Precision Week Analysis Map for Partial Week / Event Holidays (Orange Amber)
   const weekAnalysisMap = useMemo(() => {
     const map: Record<
       string,
       {
-        status: "NORMAL" | "PARTIAL_ORANGE" | "BLOCKOUT_GRAY";
+        status: "NORMAL" | "PARTIAL_ORANGE";
         availableJP: number;
         normalJP: number;
         reason: string;
@@ -318,10 +318,6 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
         const daysInMonth = new Date(yr, monthIdx + 1, 0).getDate();
         const endDayNum = w === 5 ? daysInMonth : Math.min(daysInMonth, w * 7);
 
-        let activeSchoolDaysInWeek = 0;
-        let daysOutsideAcademicYear = 0;
-        let daysSemesterBreak = 0;
-
         let scheduledJPThisWeek = 0;
         let lostJPThisWeek = 0;
         let holidayReasons: string[] = [];
@@ -331,82 +327,50 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
           const dayOfWeek = testDate.getDay(); // 0 = Sun
           if (dayOfWeek === 0) continue; // skip Sunday
 
-          activeSchoolDaysInWeek++;
           const dateStr = formatLocalYMD(testDate);
 
-          // Check if outside academic year range
-          if (dateStr < startYMD || dateStr > endYMD) {
-            daysOutsideAcademicYear++;
-          }
-
-          // Check calendar events for Semester Break
-          const semBreakEvt = (calendarEvents || []).find(
-            (e) =>
-              dateStr >= e.startDate &&
-              dateStr <= (e.endDate || e.startDate) &&
-              (e.type === "Libur Semester" || (e.title && e.title.toLowerCase().includes("semester")))
-          );
-
-          if (semBreakEvt) {
-            daysSemesterBreak++;
-          }
-
-          // Check subject scheduled JP for this day name
           const dayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
           const dayName = dayNames[dayOfWeek];
           const jpOnThisDay = daySlots[dayName] || 0;
 
+          // Check if date has holiday or special calendar event or incidental journal
+          const isHolidayDay =
+            dateStr < startYMD ||
+            dateStr > endYMD ||
+            (calendarEvents || []).some((e) => dateStr >= e.startDate && dateStr <= (e.endDate || e.startDate)) ||
+            (incidentalJournals || []).some((i) => i.date === dateStr);
+
           if (jpOnThisDay > 0) {
             scheduledJPThisWeek += jpOnThisDay;
-
-            // Check if day is holiday or event
-            const isHolidayDay =
-              dateStr < startYMD ||
-              dateStr > endYMD ||
-              (calendarEvents || []).some((e) => dateStr >= e.startDate && dateStr <= (e.endDate || e.startDate)) ||
-              (incidentalJournals || []).some((i) => i.date === dateStr);
-
             if (isHolidayDay) {
               lostJPThisWeek += jpOnThisDay;
               const matchEvt = (calendarEvents || []).find((e) => dateStr >= e.startDate && dateStr <= (e.endDate || e.startDate));
               if (matchEvt) holidayReasons.push(`${dayName} (${matchEvt.title})`);
-              else if (dateStr < startYMD || dateStr > endYMD) holidayReasons.push(`${dayName} (Libur Semester / Diluar TP)`);
+              else if (dateStr < startYMD || dateStr > endYMD) holidayReasons.push(`${dayName} (Diluar TP)`);
+              else holidayReasons.push(`${dayName} (Kegiatan/Libur)`);
             }
+          } else if (isHolidayDay) {
+            const matchEvt = (calendarEvents || []).find((e) => dateStr >= e.startDate && dateStr <= (e.endDate || e.startDate));
+            if (matchEvt) holidayReasons.push(`${dayName} (${matchEvt.title})`);
           }
         }
 
-        // Determine Week Status:
-        if (
-          activeSchoolDaysInWeek > 0 &&
-          (daysOutsideAcademicYear >= activeSchoolDaysInWeek || daysSemesterBreak >= activeSchoolDaysInWeek / 2)
-        ) {
-          map[key] = {
-            status: "BLOCKOUT_GRAY",
-            availableJP: 0,
-            normalJP: normalWeeklyJP,
-            reason: "Libur Semester / Acuan Tanggal Masuk Sekolah",
-          };
-        } else if (scheduledJPThisWeek > 0 && lostJPThisWeek > 0 && lostJPThisWeek < scheduledJPThisWeek) {
-          const remainingJP = scheduledJPThisWeek - lostJPThisWeek;
+        const baseNormal = scheduledJPThisWeek || normalWeeklyJP || 2;
+
+        if (lostJPThisWeek > 0 || holidayReasons.length > 0) {
+          const remainingJP = Math.max(0, (scheduledJPThisWeek || baseNormal) - lostJPThisWeek);
           map[key] = {
             status: "PARTIAL_ORANGE",
             availableJP: remainingJP,
-            normalJP: scheduledJPThisWeek,
-            reason: `Minggu Efektif Sebagian (${holidayReasons.join(", ")}) — Hanya sisa ${remainingJP} JP dari normal ${scheduledJPThisWeek} JP`,
-          };
-        } else if (scheduledJPThisWeek > 0 && lostJPThisWeek >= scheduledJPThisWeek) {
-          map[key] = {
-            status: "BLOCKOUT_GRAY",
-            availableJP: 0,
-            normalJP: scheduledJPThisWeek,
-            reason: `Seluruh jam ${selectedSubject} libur/kegiatan (${holidayReasons.join(", ")})`,
+            normalJP: baseNormal,
+            reason: `Ada Libur/Event (${holidayReasons.join(", ")}) — Sisa ${remainingJP} JP dari normal ${baseNormal} JP`,
           };
         } else {
           map[key] = {
             status: "NORMAL",
-            availableJP: scheduledJPThisWeek || normalWeeklyJP,
-            normalJP: scheduledJPThisWeek || normalWeeklyJP,
-            reason: "Minggu Efektif Penuh",
+            availableJP: baseNormal,
+            normalJP: baseNormal,
+            reason: `Minggu Efektif Penuh (${baseNormal} JP)`,
           };
         }
       });
@@ -575,18 +539,12 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
         weeksPerMonth.forEach((w) => {
           const key = `${p.id}_${m}_w${w}`;
           const weekAnalysis = weekAnalysisMap[`${m}_w${w}`];
+          const availableInWeek = weekAnalysis ? weekAnalysis.availableJP : 2;
 
-          if (weekAnalysis?.status === "BLOCKOUT_GRAY") {
-            newMap[key] = 0;
-          } else if (allocated < target) {
-            const maxFillForWeek = weekAnalysis?.status === "PARTIAL_ORANGE" ? weekAnalysis.availableJP : 2;
-            if (maxFillForWeek > 0) {
-              const jpToGive = Math.min(maxFillForWeek, target - allocated);
-              newMap[key] = jpToGive;
-              allocated += jpToGive;
-            } else {
-              newMap[key] = 0;
-            }
+          if (allocated < target && availableInWeek > 0) {
+            const jpToGive = Math.min(availableInWeek, target - allocated);
+            newMap[key] = jpToGive;
+            allocated += jpToGive;
           } else {
             newMap[key] = 0;
           }
@@ -800,21 +758,18 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                     weeksPerMonth.map((w) => {
                       const weekInfo = weekAnalysisMap[`${m}_w${w}`];
                       const isOrange = weekInfo?.status === "PARTIAL_ORANGE";
-                      const isGray = weekInfo?.status === "BLOCKOUT_GRAY";
 
                       return (
                         <th
                           key={`${m}_w${w}`}
                           className={`border border-slate-400 p-0.5 w-6 ${
-                            isGray
-                              ? "bg-slate-300 text-slate-600"
-                              : isOrange
+                            isOrange
                               ? "bg-amber-300 text-amber-950 font-black"
                               : "bg-slate-50 text-slate-800"
                           }`}
                           title={weekInfo?.reason || ""}
                         >
-                          W{w}{isOrange ? "⚡" : isGray ? "x" : ""}
+                          W{w}{isOrange ? "⚡" : ""}
                         </th>
                       );
                     })
@@ -840,15 +795,12 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                           const val = promesWeeklyAllocations[key] || 0;
                           const weekInfo = weekAnalysisMap[`${m}_w${w}`];
                           const isOrange = weekInfo?.status === "PARTIAL_ORANGE";
-                          const isGray = weekInfo?.status === "BLOCKOUT_GRAY";
 
                           return (
                             <td
                               key={key}
                               className={`border border-slate-400 p-0.5 text-center font-bold ${
-                                isGray
-                                  ? "bg-slate-200 text-slate-400"
-                                  : val > 0 && isOrange
+                                val > 0 && isOrange
                                   ? "bg-amber-300 text-amber-950 font-extrabold"
                                   : val > 0
                                   ? "bg-emerald-100 text-emerald-900 font-mono"
@@ -858,7 +810,7 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                               }`}
                               title={weekInfo?.reason || ""}
                             >
-                              {isGray ? "X" : val > 0 ? val : "-"}
+                              {val > 0 ? val : "-"}
                             </td>
                           );
                         })
@@ -1268,11 +1220,11 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
               </span>
               <span className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 dark:bg-amber-950/70 border border-amber-400 dark:border-amber-700 text-amber-950 dark:text-amber-200 font-bold rounded-lg shadow-2xs">
                 <span className="w-3 h-3 bg-amber-500 rounded-xs"></span>
-                Minggu Efektif Sebagian (Terpotong Libur/Event)
+                Sisa Jam Terpotong Libur/Event (Amber)
               </span>
-              <span className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 rounded-lg">
-                <span className="w-3 h-3 bg-slate-400 dark:bg-slate-600 rounded-xs"></span>
-                Libur Semester / Non-Efektif (Blockout)
+              <span className="flex items-center gap-1.5 px-2.5 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg">
+                <span className="font-mono font-bold text-emerald-600">✏️</span>
+                Input Manual / Bebas Edit Jam
               </span>
             </div>
           </div>
@@ -1302,15 +1254,12 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                       weeksPerMonth.map((w) => {
                         const weekInfo = weekAnalysisMap[`${m}_w${w}`];
                         const isOrange = weekInfo?.status === "PARTIAL_ORANGE";
-                        const isGray = weekInfo?.status === "BLOCKOUT_GRAY";
 
                         return (
                           <th
                             key={`${m}_w${w}`}
                             className={`p-1 border-r border-slate-200 dark:border-slate-800 text-[9px] font-extrabold transition-all ${
-                              isGray
-                                ? "bg-slate-300 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
-                                : isOrange
+                              isOrange
                                 ? "bg-amber-400 dark:bg-amber-600 text-amber-950 dark:text-amber-100 ring-1 ring-amber-500 shadow-2xs"
                                 : w === 5
                                 ? "bg-amber-50 dark:bg-slate-800/80 text-amber-900 dark:text-amber-300"
@@ -1318,7 +1267,7 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                             }`}
                             title={weekInfo?.reason || `Minggu ${w} ${m}`}
                           >
-                            W{w}{isOrange ? " ⚡" : isGray ? " x" : ""}
+                            W{w}{isOrange ? " ⚡" : ""}
                           </th>
                         );
                       })
@@ -1375,24 +1324,16 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
 
                               const weekInfo = weekAnalysisMap[`${m}_w${w}`];
                               const isOrange = weekInfo?.status === "PARTIAL_ORANGE";
-                              const isGray = weekInfo?.status === "BLOCKOUT_GRAY";
 
                               return (
                                 <td
                                   key={`${m}_w${w}`}
                                   className={`p-0.5 border-r border-slate-200 dark:border-slate-800 text-center font-mono ${
-                                    isGray ? "bg-slate-200/80 dark:bg-slate-800/80" : isOrange ? "bg-amber-50/70 dark:bg-amber-950/40" : ""
+                                    isOrange ? "bg-amber-50/70 dark:bg-amber-950/40" : ""
                                   }`}
                                   title={weekInfo?.reason || ""}
                                 >
-                                  {isGray ? (
-                                    <div
-                                      className="w-full h-7 flex items-center justify-center font-black text-slate-400 dark:text-slate-600 cursor-not-allowed select-none bg-slate-200/90 dark:bg-slate-800/90 rounded"
-                                      title={weekInfo?.reason || "Minggu Libur Semester"}
-                                    >
-                                      X
-                                    </div>
-                                  ) : promesInputMode === "manual" ? (
+                                  {promesInputMode === "manual" ? (
                                     <input
                                       type="number"
                                       min={0}

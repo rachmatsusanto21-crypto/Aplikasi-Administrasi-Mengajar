@@ -12,9 +12,48 @@ import {
   SchoolIdentity,
 } from "../types";
 
-function saveWorkbook(wb: XLSX.WorkBook, filename: string) {
-  const cleanFilename = filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`;
-  XLSX.writeFile(wb, cleanFilename, { bookType: "xlsx", type: "binary" });
+function saveWorkbook(wb: XLSX.WorkBook, filename: string, format: "xlsx" | "xls" | "csv" = "xlsx") {
+  const cleanBase = filename.replace(/\.(xlsx|xls|csv)$/i, "");
+  if (format === "csv") {
+    const firstSheetName = wb.SheetNames[0] || "Sheet1";
+    const worksheet = wb.Sheets[firstSheetName];
+    const csvContent = XLSX.utils.sheet_to_csv(worksheet);
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", `${cleanBase}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } else if (format === "xls") {
+    XLSX.writeFile(wb, `${cleanBase}.xls`, { bookType: "biff8", type: "binary" });
+  } else {
+    XLSX.writeFile(wb, `${cleanBase}.xlsx`, { bookType: "xlsx", type: "binary" });
+  }
+}
+
+export function exportTableToExcelFormat(
+  headers: string[],
+  rows: (string | number)[][],
+  filename: string,
+  format: "xlsx" | "xls" | "csv" = "xlsx",
+  title?: string
+) {
+  const data = rows.map((row) => {
+    const obj: Record<string, any> = {};
+    headers.forEach((h, idx) => {
+      obj[h] = row[idx] ?? "";
+    });
+    return obj;
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  autoWidth(worksheet);
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, title || "Sheet1");
+
+  saveWorkbook(workbook, filename, format);
 }
 
 function autoWidth(worksheet: XLSX.WorkSheet) {

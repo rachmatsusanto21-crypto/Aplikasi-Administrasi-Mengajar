@@ -908,6 +908,7 @@ CATATAN PENTING:
                       k.tingkatKesulitan,
                     ])}
                     onOpenPrintModal={handlePrintExam}
+                    showUpload={false}
                   />
 
                   {/* Header Box Info */}
@@ -995,6 +996,7 @@ CATATAN PENTING:
                     filename={currentExam.title.replace(/[^a-zA-Z0-9]/g, "_")}
                     schoolIdentity={schoolIdentity}
                     onOpenPrintModal={handlePrintExam}
+                    showUpload={false}
                   />
 
                   {/* PAPER SIMULATION CONTAINER */}

@@ -7,12 +7,10 @@ import {
   Download,
   Upload,
   FileCheck,
-  FileType,
-  Loader2,
 } from "lucide-react";
 import { SchoolIdentity } from "../types";
-import { exportToCSV } from "../lib/storage";
 import { exportHtmlToDoc } from "../lib/exportDoc";
+import { exportTableToExcelFormat } from "../lib/exportExcel";
 
 export interface ExportActionBarProps {
   title: string;
@@ -26,6 +24,7 @@ export interface ExportActionBarProps {
   onUploadDocsWord?: (file: File) => void;
   htmlContentForDoc?: string;
   customButtons?: React.ReactNode;
+  showUpload?: boolean;
 }
 
 export const ExportActionBar: React.FC<ExportActionBarProps> = ({
@@ -40,13 +39,15 @@ export const ExportActionBar: React.FC<ExportActionBarProps> = ({
   onUploadDocsWord,
   htmlContentForDoc,
   customButtons,
+  showUpload = true,
 }) => {
   const sheetsFileInputRef = useRef<HTMLInputElement>(null);
   const docsFileInputRef = useRef<HTMLInputElement>(null);
   const [notification, setNotification] = useState<string | null>(null);
+  const [excelFormat, setExcelFormat] = useState<"xlsx" | "xls" | "csv">("xlsx");
 
-  const handleExportCSV = () => {
-    exportToCSV(headers, rows, filename);
+  const handleExportExcel = () => {
+    exportTableToExcelFormat(headers, rows, filename, excelFormat, title);
   };
 
   const handleExportDoc = () => {
@@ -121,46 +122,62 @@ export const ExportActionBar: React.FC<ExportActionBarProps> = ({
             Opsi Dokumen:
           </span>
 
-          {/* 1. PDF Save Button */}
+          {/* 1. Print / PDF Button */}
           {onOpenPrintModal && (
             <button
               onClick={onOpenPrintModal}
               className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-all hover:scale-[1.02]"
-              title="Simpan Laporan dalam bentuk file PDF (.pdf) atau Cetak"
+              title="Cetak Laporan atau Simpan sebagai PDF"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span>Simpan PDF</span>
+              <span>Cetak / PDF</span>
             </button>
           )}
 
-          {/* 2. Google Sheets / Excel DOWNLOAD */}
-          <button
-            onClick={handleExportCSV}
-            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-all hover:scale-[1.02]"
-            title="Unduh data dalam format Google Sheets / Excel (.xlsx/.csv)"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-200" />
-            <span>Unduh Sheets / Excel</span>
-          </button>
+          {/* 2. Google Sheets / Excel DOWNLOAD with format options */}
+          <div className="flex items-center rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs overflow-hidden">
+            <button
+              onClick={handleExportExcel}
+              className="px-3 py-1.5 font-bold text-xs flex items-center gap-1.5 transition-all hover:bg-black/10"
+              title={`Unduh data dalam format Excel (${excelFormat.toUpperCase()})`}
+            >
+              <Download className="w-3.5 h-3.5" />
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-200" />
+              <span>Unduh Excel ({excelFormat.toUpperCase()})</span>
+            </button>
+            <select
+              value={excelFormat}
+              onChange={(e) => setExcelFormat(e.target.value as any)}
+              className="bg-emerald-700 text-white text-[11px] font-extrabold px-1.5 py-1 border-l border-emerald-500 cursor-pointer focus:outline-none"
+              title="Pilih Format Excel"
+            >
+              <option value="xlsx">.XLSX</option>
+              <option value="xls">.XLS</option>
+              <option value="csv">.CSV</option>
+            </select>
+          </div>
 
           {/* 3. Google Sheets / Excel UPLOAD */}
-          <button
-            onClick={() => sheetsFileInputRef.current?.click()}
-            className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-all hover:scale-[1.02]"
-            title="Unggah / Impor file Google Sheets / Excel (.xlsx, .csv)"
-          >
-            <Upload className="w-3.5 h-3.5" />
-            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-200" />
-            <span>Unggah Sheets / Excel</span>
-          </button>
-          <input
-            ref={sheetsFileInputRef}
-            type="file"
-            accept=".xlsx,.xls,.csv,.json"
-            onChange={handleSheetsFileChange}
-            className="hidden"
-          />
+          {showUpload && (
+            <>
+              <button
+                onClick={() => sheetsFileInputRef.current?.click()}
+                className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-all hover:scale-[1.02]"
+                title="Unggah / Impor file Google Sheets / Excel (.xlsx, .xls, .csv)"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-200" />
+                <span>Unggah Sheets / Excel</span>
+              </button>
+              <input
+                ref={sheetsFileInputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv,.json"
+                onChange={handleSheetsFileChange}
+                className="hidden"
+              />
+            </>
+          )}
 
           {/* 4. Google Docs / Word DOWNLOAD */}
           <button
@@ -174,22 +191,26 @@ export const ExportActionBar: React.FC<ExportActionBarProps> = ({
           </button>
 
           {/* 5. Google Docs / Word UPLOAD */}
-          <button
-            onClick={() => docsFileInputRef.current?.click()}
-            className="px-3 py-1.5 bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-all hover:scale-[1.02]"
-            title="Unggah / Impor berkas Google Docs / Word (.docx, .doc)"
-          >
-            <Upload className="w-3.5 h-3.5" />
-            <FileText className="w-3.5 h-3.5 text-blue-200" />
-            <span>Unggah Docs / Word</span>
-          </button>
-          <input
-            ref={docsFileInputRef}
-            type="file"
-            accept=".docx,.doc,.txt"
-            onChange={handleDocsFileChange}
-            className="hidden"
-          />
+          {showUpload && (
+            <>
+              <button
+                onClick={() => docsFileInputRef.current?.click()}
+                className="px-3 py-1.5 bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-all hover:scale-[1.02]"
+                title="Unggah / Impor berkas Google Docs / Word (.docx, .doc)"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <FileText className="w-3.5 h-3.5 text-blue-200" />
+                <span>Unggah Docs / Word</span>
+              </button>
+              <input
+                ref={docsFileInputRef}
+                type="file"
+                accept=".docx,.doc,.txt"
+                onChange={handleDocsFileChange}
+                className="hidden"
+              />
+            </>
+          )}
 
           {/* 6. Sync Google Sheets */}
           {onSyncGoogleSheets && (
