@@ -337,27 +337,28 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
           const isHolidayDay =
             dateStr < startYMD ||
             dateStr > endYMD ||
-            (calendarEvents || []).some((e) => dateStr >= e.startDate && dateStr <= (e.endDate || e.startDate)) ||
+            (calendarEvents || []).some(
+              (e) => e.startDate && dateStr >= e.startDate && dateStr <= (e.endDate || e.startDate)
+            ) ||
             (incidentalJournals || []).some((i) => i.date === dateStr);
 
           if (jpOnThisDay > 0) {
             scheduledJPThisWeek += jpOnThisDay;
             if (isHolidayDay) {
               lostJPThisWeek += jpOnThisDay;
-              const matchEvt = (calendarEvents || []).find((e) => dateStr >= e.startDate && dateStr <= (e.endDate || e.startDate));
+              const matchEvt = (calendarEvents || []).find(
+                (e) => e.startDate && dateStr >= e.startDate && dateStr <= (e.endDate || e.startDate)
+              );
               if (matchEvt) holidayReasons.push(`${dayName} (${matchEvt.title})`);
               else if (dateStr < startYMD || dateStr > endYMD) holidayReasons.push(`${dayName} (Diluar TP)`);
               else holidayReasons.push(`${dayName} (Kegiatan/Libur)`);
             }
-          } else if (isHolidayDay) {
-            const matchEvt = (calendarEvents || []).find((e) => dateStr >= e.startDate && dateStr <= (e.endDate || e.startDate));
-            if (matchEvt) holidayReasons.push(`${dayName} (${matchEvt.title})`);
           }
         }
 
         const baseNormal = scheduledJPThisWeek || normalWeeklyJP || 2;
 
-        if (lostJPThisWeek > 0 || holidayReasons.length > 0) {
+        if (lostJPThisWeek > 0) {
           const remainingJP = Math.max(0, (scheduledJPThisWeek || baseNormal) - lostJPThisWeek);
           map[key] = {
             status: "PARTIAL_ORANGE",
@@ -510,8 +511,7 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
     promesMonths.forEach((m) => {
       weeksPerMonth.forEach((w) => {
         const key = `${protaId}_${m}_w${w}`;
-        const defaultVal = (idx * 2 + w) % 5 === 0 ? 2 : 0;
-        const val = promesWeeklyAllocations[key] !== undefined ? promesWeeklyAllocations[key] : defaultVal;
+        const val = promesWeeklyAllocations[key] ?? 0;
         sum += val;
       });
     });
@@ -521,10 +521,9 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
   // Helper to calculate total allocated JP for a specific month & week across all Prota items
   const getColumnTotalJP = (m: string, w: number) => {
     let sum = 0;
-    filteredProta.forEach((p, idx) => {
+    filteredProta.forEach((p) => {
       const key = `${p.id}_${m}_w${w}`;
-      const defaultVal = (idx * 2 + w) % 5 === 0 ? 2 : 0;
-      const val = promesWeeklyAllocations[key] !== undefined ? promesWeeklyAllocations[key] : defaultVal;
+      const val = promesWeeklyAllocations[key] ?? 0;
       sum += val;
     });
     return sum;
@@ -1234,21 +1233,21 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-center text-xs border-collapse">
-                <thead className="bg-slate-50 dark:bg-slate-900 font-bold border-b border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 text-[10px] uppercase">
+            <div className="w-full overflow-x-auto">
+              <table className="w-full text-center border-collapse table-fixed text-[10px]">
+                <thead className="bg-slate-50 dark:bg-slate-900 font-bold border-b border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 uppercase">
                   <tr>
-                    <th rowSpan={2} className="p-3 border-r border-slate-200 dark:border-slate-800 text-left min-w-[220px]">
+                    <th rowSpan={2} className="p-1.5 border-r border-slate-200 dark:border-slate-800 text-left w-[24%] min-w-[140px]">
                       Tujuan Pembelajaran (TP)
                     </th>
-                    <th rowSpan={2} className="p-2 border-r border-slate-200 dark:border-slate-800 w-16">
-                      Target Prota
+                    <th rowSpan={2} className="p-0.5 border-r border-slate-200 dark:border-slate-800 w-[3.5%] text-[8px] sm:text-[9px]">
+                      Target
                     </th>
-                    <th rowSpan={2} className="p-2 border-r border-slate-200 dark:border-slate-800 w-16 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-900 dark:text-emerald-300">
-                      Terisi JP
+                    <th rowSpan={2} className="p-0.5 border-r border-slate-200 dark:border-slate-800 w-[3.5%] bg-emerald-50 dark:bg-emerald-950/50 text-emerald-900 dark:text-emerald-300 text-[8px] sm:text-[9px]">
+                      Terisi
                     </th>
                     {promesMonths.map((m) => (
-                      <th colSpan={5} key={m} className="p-2 border-r border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 font-bold text-slate-900 dark:text-slate-100">
+                      <th colSpan={5} key={m} className="p-1 border-r border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 font-bold text-slate-900 dark:text-slate-100 text-[9px]">
                         {m}
                       </th>
                     ))}
@@ -1262,16 +1261,14 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                         return (
                           <th
                             key={`${m}_w${w}`}
-                            className={`p-1 border-r border-slate-200 dark:border-slate-800 text-[9px] font-extrabold transition-all ${
+                            className={`p-0.5 border-r border-slate-200 dark:border-slate-800 text-[8px] font-extrabold transition-all ${
                               isOrange
-                                ? "bg-amber-400 dark:bg-amber-600 text-amber-950 dark:text-amber-100 ring-1 ring-amber-500 shadow-2xs"
-                                : w === 5
-                                ? "bg-amber-50 dark:bg-slate-800/80 text-amber-900 dark:text-amber-300"
-                                : ""
+                                ? "bg-amber-400 dark:bg-amber-600 text-amber-950 dark:text-amber-100"
+                                : "bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300"
                             }`}
                             title={weekInfo?.reason || `Minggu ${w} ${m}`}
                           >
-                            W{w}{isOrange ? " ⚡" : ""}
+                            W{w}{isOrange ? "⚡" : ""}
                           </th>
                         );
                       })
@@ -1293,16 +1290,16 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
 
                       return (
                         <tr key={p.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
-                          <td className="p-2.5 text-left border-r border-slate-200 dark:border-slate-800 font-semibold text-slate-900 dark:text-slate-100">
-                            <span className="font-mono text-emerald-700 dark:text-emerald-400 block text-[10px]">{p.tpCode || p.codeTP}</span>
-                            {p.tpDescription}
+                          <td className="p-1.5 text-left border-r border-slate-200 dark:border-slate-800 font-semibold text-slate-900 dark:text-slate-100 leading-tight break-words">
+                            <span className="font-mono text-emerald-700 dark:text-emerald-400 block text-[9px] font-bold">{p.tpCode || p.codeTP}</span>
+                            <span className="text-[10px] leading-snug">{p.tpDescription}</span>
                           </td>
-                          <td className="p-2 border-r border-slate-200 dark:border-slate-800 font-bold text-slate-700 dark:text-slate-300 bg-slate-50/50 dark:bg-slate-900/50">
-                            {targetJP} JP
+                          <td className="p-0.5 border-r border-slate-200 dark:border-slate-800 font-bold text-slate-700 dark:text-slate-300 bg-slate-50/50 dark:bg-slate-900/50 text-[10px]">
+                            {targetJP}
                           </td>
-                          <td className="p-2 border-r border-slate-200 dark:border-slate-800 font-extrabold font-mono text-xs">
+                          <td className="p-0.5 border-r border-slate-200 dark:border-slate-800 font-extrabold font-mono text-[10px]">
                             <span
-                              className={`px-1.5 py-0.5 rounded ${
+                              className={`px-1 py-0.5 rounded text-[9px] inline-block ${
                                 isMatching
                                   ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300"
                                   : currentAllocatedPromes > targetJP
@@ -1317,14 +1314,13 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                                   : `Kurang ${targetJP - currentAllocatedPromes} JP`
                               }
                             >
-                              {currentAllocatedPromes} JP
+                              {currentAllocatedPromes}
                             </span>
                           </td>
                           {promesMonths.map((m) =>
                             weeksPerMonth.map((w) => {
                               const key = `${p.id}_${m}_w${w}`;
-                              const defaultVal = (idx * 2 + w) % 5 === 0 ? 2 : 0;
-                              const val = promesWeeklyAllocations[key] !== undefined ? promesWeeklyAllocations[key] : defaultVal;
+                              const val = promesWeeklyAllocations[key] ?? 0;
 
                               const weekInfo = weekAnalysisMap[`${m}_w${w}`];
                               const isOrange = weekInfo?.status === "PARTIAL_ORANGE";
@@ -1332,7 +1328,7 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                               return (
                                 <td
                                   key={`${m}_w${w}`}
-                                  className={`p-0.5 border-r border-slate-200 dark:border-slate-800 text-center font-mono ${
+                                  className={`p-0 border-r border-slate-200 dark:border-slate-800 text-center font-mono ${
                                     isOrange ? "bg-amber-50/70 dark:bg-amber-950/40" : ""
                                   }`}
                                   title={weekInfo?.reason || ""}
@@ -1345,28 +1341,28 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                                       value={val === 0 ? "" : val}
                                       placeholder="-"
                                       onChange={(e) => handleUpdatePromesJP(p.id, m, w, parseInt(e.target.value, 10) || 0)}
-                                      className={`w-8 h-7 text-center font-bold text-xs rounded border transition-all ${
+                                      className={`w-full h-6 text-center font-bold text-[10px] rounded-2xs border-0 transition-all p-0 focus:ring-1 ${
                                         val > 0 && isOrange
-                                          ? "bg-amber-500 text-slate-950 border-amber-600 font-black ring-1 ring-amber-400"
+                                          ? "bg-amber-500 text-slate-950 font-black"
                                           : val > 0
-                                          ? "bg-emerald-600 text-white border-emerald-700 font-extrabold"
+                                          ? "bg-emerald-600 text-white font-extrabold"
                                           : isOrange
-                                          ? "bg-amber-100/80 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 border-amber-300 hover:border-amber-500"
-                                          : "bg-white dark:bg-slate-900 text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-300"
+                                          ? "bg-amber-100/80 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 hover:bg-amber-200"
+                                          : "bg-transparent text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                                       }`}
                                     />
                                   ) : (
                                     <button
                                       type="button"
                                       onClick={() => handleTogglePromesWeek(p.id, m, w)}
-                                      className={`w-full h-7 font-bold text-xs rounded transition-colors ${
+                                      className={`w-full h-6 font-bold text-[10px] rounded-2xs transition-colors p-0 ${
                                         val > 0 && isOrange
                                           ? "bg-amber-500 text-slate-950 font-black"
                                           : val > 0
                                           ? "bg-emerald-600 text-white font-extrabold"
                                           : isOrange
                                           ? "bg-amber-100/80 dark:bg-amber-950 text-amber-900 dark:text-amber-200 hover:bg-amber-200"
-                                          : "bg-white dark:bg-slate-900 text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                          : "bg-transparent text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                                       }`}
                                     >
                                       {val > 0 ? val : "-"}
@@ -1382,23 +1378,23 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                   )}
                 </tbody>
                 {filteredProta.length > 0 && (
-                  <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-300 text-slate-900 text-[11px]">
+                  <tfoot className="bg-slate-100 dark:bg-slate-800 font-bold border-t-2 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-[10px]">
                     <tr>
-                      <td className="p-2.5 text-left border-r border-slate-300 font-black">
-                        TOTAL ALOKASI JP MINGGUAN
+                      <td className="p-1.5 text-left border-r border-slate-300 dark:border-slate-700 font-black">
+                        TOTAL ALOKASI JP
                       </td>
-                      <td className="p-2 border-r border-slate-300 font-black text-slate-900">
-                        {totalJP} JP
+                      <td className="p-0.5 border-r border-slate-300 dark:border-slate-700 font-black text-slate-900 dark:text-slate-100">
+                        {totalJP}
                       </td>
-                      <td className="p-2 border-r border-slate-300 font-black text-emerald-800">
-                        {filteredProta.reduce((acc, p, idx) => acc + getProtaAllocatedPromesJP(p.id, idx), 0)} JP
+                      <td className="p-0.5 border-r border-slate-300 dark:border-slate-700 font-black text-emerald-800 dark:text-emerald-400">
+                        {filteredProta.reduce((acc, p, idx) => acc + getProtaAllocatedPromesJP(p.id, idx), 0)}
                       </td>
                       {promesMonths.map((m) =>
                         weeksPerMonth.map((w) => {
                           const colTotal = getColumnTotalJP(m, w);
                           return (
-                            <td key={`total_${m}_w${w}`} className="p-1 border-r border-slate-300 font-extrabold font-mono text-[10px]">
-                              {colTotal > 0 ? <span className="text-emerald-800">{colTotal}</span> : <span className="text-slate-400">-</span>}
+                            <td key={`total_${m}_w${w}`} className="p-0.5 border-r border-slate-300 dark:border-slate-700 font-extrabold font-mono text-[9px]">
+                              {colTotal > 0 ? <span className="text-emerald-800 dark:text-emerald-400">{colTotal}</span> : <span className="text-slate-400">-</span>}
                             </td>
                           );
                         })
