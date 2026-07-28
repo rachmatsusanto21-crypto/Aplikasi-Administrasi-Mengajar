@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { generateAIContent } from "../../lib/aiHelper";
 import {
   SchoolIdentity,
   CPTPItem,
@@ -246,30 +247,21 @@ CATATAN PENTING:
 `;
 
     try {
-      const response = await fetch("/api/ai/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt,
-          model: aiSettings.selectedAgent || "gemini-3.6-flash",
-          manualApiKey: aiSettings.manualApiKey,
-          systemInstruction:
-            "Anda adalah AI pembuatan soal kurikulum merdeka SD. Selalu hasilkan JSON valid tanpa teks tambahan.",
-        }),
+      const resultText = await generateAIContent({
+        prompt,
+        model: aiSettings.selectedAgent || "gemini-3.6-flash",
+        manualApiKey: aiSettings.manualApiKey || undefined,
       });
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || "Gagal menghubungi layanan AI.");
-      }
-
-      const data = await response.json();
-      let rawText = data.result || "";
-
-      // Clean JSON string
-      rawText = rawText.trim();
+      let rawText = (resultText || "").trim();
       if (rawText.startsWith("```")) {
         rawText = rawText.replace(/^```json/i, "").replace(/^```/, "").replace(/```$/, "").trim();
+      }
+
+      const firstBrace = rawText.indexOf("{");
+      const lastBrace = rawText.lastIndexOf("}");
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        rawText = rawText.slice(firstBrace, lastBrace + 1);
       }
 
       const parsed = JSON.parse(rawText);
