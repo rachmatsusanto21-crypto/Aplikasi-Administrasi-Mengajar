@@ -46,6 +46,7 @@ import {
   exportTimetableToExcel,
 } from "../../lib/exportExcel";
 import { exportTeachingModuleToDocx, exportGuestBookToDocx } from "../../lib/exportDocx";
+import { ExportActionBar } from "../ExportActionBar";
 
 interface DashboardSummaryViewProps {
   schoolIdentity: SchoolIdentity;
@@ -152,6 +153,54 @@ export const DashboardSummaryView: React.FC<DashboardSummaryViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Global Export & Sync Bar */}
+      <ExportActionBar
+        title="RINGKASAN DASHBOARD UTAMA ADM GURU"
+        filename="Ringkasan_Dashboard_Utama"
+        schoolIdentity={schoolIdentity}
+        headers={["Kategori", "Jumlah / Status"]}
+        rows={[
+          ["Total Murid/Siswa", `${totalStudents} Siswa`],
+          ["Total Catatan Jurnal Mengajar", `${totalLogs} Entri`],
+          ["Total Modul Ajar", `${totalModules} Modul`],
+          ["Tingkat Kehadiran", `${attPercentage}%`],
+        ]}
+        onOpenPrintModal={() =>
+          onOpenPrint(
+            "RINGKASAN DASHBOARD UTAMA ADM GURU",
+            "Ringkasan Kinerja & Data Administrasi Mengajar",
+            <div className="space-y-4">
+              <table className="w-full border-collapse border border-slate-300 text-xs">
+                <thead>
+                  <tr className="bg-slate-100 font-bold text-slate-800">
+                    <th className="border border-slate-300 p-2 text-left">Indikator</th>
+                    <th className="border border-slate-300 p-2 text-left">Nilai / Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="border border-slate-300 p-2 font-bold">Total Siswa Terdaftar</td>
+                    <td className="border border-slate-300 p-2">{totalStudents} Siswa (L: {maleStudents}, P: {femaleStudents})</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-slate-300 p-2 font-bold">Total Catatan Jurnal Mengajar</td>
+                    <td className="border border-slate-300 p-2">{totalLogs} Log Hari Ini</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-slate-300 p-2 font-bold">Modul Ajar Deep Learning</td>
+                    <td className="border border-slate-300 p-2">{totalModules} Modul Tersimpan</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-slate-300 p-2 font-bold">Rata-rata Presensi Kelas</td>
+                    <td className="border border-slate-300 p-2">{attPercentage}% Kehadiran</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )
+        }
+      />
 
       {/* Quick Statistics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

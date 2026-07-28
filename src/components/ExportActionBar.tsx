@@ -1,17 +1,29 @@
-import React from "react";
-import { Printer, Download, FileText, FileSpreadsheet, Cloud } from "lucide-react";
+import React, { useRef, useState } from "react";
+import {
+  Printer,
+  FileText,
+  FileSpreadsheet,
+  Cloud,
+  Download,
+  Upload,
+  FileCheck,
+  FileType,
+  Loader2,
+} from "lucide-react";
 import { SchoolIdentity } from "../types";
 import { exportToCSV } from "../lib/storage";
 import { exportHtmlToDoc } from "../lib/exportDoc";
 
-interface ExportActionBarProps {
+export interface ExportActionBarProps {
   title: string;
   filename: string;
-  headers: string[];
-  rows: (string | number)[][];
-  schoolIdentity: SchoolIdentity;
+  headers?: string[];
+  rows?: (string | number)[][];
+  schoolIdentity?: SchoolIdentity;
   onOpenPrintModal?: () => void;
   onSyncGoogleSheets?: () => void;
+  onUploadExcelSheets?: (file: File) => void;
+  onUploadDocsWord?: (file: File) => void;
   htmlContentForDoc?: string;
   customButtons?: React.ReactNode;
 }
@@ -19,14 +31,20 @@ interface ExportActionBarProps {
 export const ExportActionBar: React.FC<ExportActionBarProps> = ({
   title,
   filename,
-  headers,
-  rows,
+  headers = [],
+  rows = [],
   schoolIdentity,
   onOpenPrintModal,
   onSyncGoogleSheets,
+  onUploadExcelSheets,
+  onUploadDocsWord,
   htmlContentForDoc,
   customButtons,
 }) => {
+  const sheetsFileInputRef = useRef<HTMLInputElement>(null);
+  const docsFileInputRef = useRef<HTMLInputElement>(null);
+  const [notification, setNotification] = useState<string | null>(null);
+
   const handleExportCSV = () => {
     exportToCSV(headers, rows, filename);
   };
@@ -71,53 +89,131 @@ export const ExportActionBar: React.FC<ExportActionBarProps> = ({
     }
   };
 
+  const handleSheetsFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (onUploadExcelSheets) {
+      onUploadExcelSheets(file);
+    }
+    setNotification(`✅ Berkas Google Sheets / Excel (${file.name}) berhasil diunggah!`);
+    setTimeout(() => setNotification(null), 4000);
+    if (sheetsFileInputRef.current) sheetsFileInputRef.current.value = "";
+  };
+
+  const handleDocsFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (onUploadDocsWord) {
+      onUploadDocsWord(file);
+    }
+    setNotification(`✅ Dokumen Google Docs / Word (${file.name}) berhasil diunggah!`);
+    setTimeout(() => setNotification(null), 4000);
+    if (docsFileInputRef.current) docsFileInputRef.current.value = "";
+  };
+
   return (
-    <div className="flex flex-wrap items-center gap-2 bg-slate-100 p-2 sm:p-3 rounded-xl border border-slate-200 no-print">
-      <span className="text-xs font-bold text-slate-700 uppercase tracking-wider mr-1 hidden sm:inline">
-        Opsi Ekspor & Cetak:
-      </span>
+    <div className="space-y-2 no-print w-full">
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-100 dark:bg-slate-900 p-2.5 sm:p-3 rounded-2xl border border-slate-200 dark:border-slate-800">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider hidden sm:inline">
+            Opsi Dokumen:
+          </span>
 
-      {onOpenPrintModal && (
-        <button
-          onClick={onOpenPrintModal}
-          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-lg flex items-center gap-1.5 shadow transition-colors"
-          title="Cetak Laporan / Simpan dalam format PDF"
-        >
-          <Printer className="w-3.5 h-3.5" />
-          <span>Cetak / PDF</span>
-        </button>
+          {/* 1. PDF Save Button */}
+          {onOpenPrintModal && (
+            <button
+              onClick={onOpenPrintModal}
+              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-all hover:scale-[1.02]"
+              title="Simpan Laporan dalam bentuk file PDF (.pdf) atau Cetak"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Simpan PDF</span>
+            </button>
+          )}
+
+          {/* 2. Google Sheets / Excel DOWNLOAD */}
+          <button
+            onClick={handleExportCSV}
+            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-all hover:scale-[1.02]"
+            title="Unduh data dalam format Google Sheets / Excel (.xlsx/.csv)"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-200" />
+            <span>Unduh Sheets / Excel</span>
+          </button>
+
+          {/* 3. Google Sheets / Excel UPLOAD */}
+          <button
+            onClick={() => sheetsFileInputRef.current?.click()}
+            className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-all hover:scale-[1.02]"
+            title="Unggah / Impor file Google Sheets / Excel (.xlsx, .csv)"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-200" />
+            <span>Unggah Sheets / Excel</span>
+          </button>
+          <input
+            ref={sheetsFileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv,.json"
+            onChange={handleSheetsFileChange}
+            className="hidden"
+          />
+
+          {/* 4. Google Docs / Word DOWNLOAD */}
+          <button
+            onClick={handleExportDoc}
+            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-all hover:scale-[1.02]"
+            title="Unduh dokumen dalam format Google Docs / Word (.docx/.doc)"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <FileText className="w-3.5 h-3.5 text-blue-200" />
+            <span>Unduh Docs / Word</span>
+          </button>
+
+          {/* 5. Google Docs / Word UPLOAD */}
+          <button
+            onClick={() => docsFileInputRef.current?.click()}
+            className="px-3 py-1.5 bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-all hover:scale-[1.02]"
+            title="Unggah / Impor berkas Google Docs / Word (.docx, .doc)"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            <FileText className="w-3.5 h-3.5 text-blue-200" />
+            <span>Unggah Docs / Word</span>
+          </button>
+          <input
+            ref={docsFileInputRef}
+            type="file"
+            accept=".docx,.doc,.txt"
+            onChange={handleDocsFileChange}
+            className="hidden"
+          />
+
+          {/* 6. Sync Google Sheets */}
+          {onSyncGoogleSheets && (
+            <button
+              onClick={onSyncGoogleSheets}
+              className="px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-all hover:scale-[1.02]"
+              title="Sinkronkan data modul ini ke Google Sheets"
+            >
+              <Cloud className="w-3.5 h-3.5 text-teal-200" />
+              <span>Sync Sheets</span>
+            </button>
+          )}
+        </div>
+
+        {customButtons && <div className="flex items-center gap-2">{customButtons}</div>}
+      </div>
+
+      {notification && (
+        <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 rounded-xl text-xs font-bold flex items-center gap-2 animate-fadeIn">
+          <FileCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>{notification}</span>
+        </div>
       )}
-
-      <button
-        onClick={handleExportCSV}
-        className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white font-semibold text-xs rounded-lg flex items-center gap-1.5 shadow transition-colors"
-        title="Simpan data dalam bentuk file Excel / CSV"
-      >
-        <FileSpreadsheet className="w-3.5 h-3.5" />
-        <span>Excel / CSV</span>
-      </button>
-
-      <button
-        onClick={handleExportDoc}
-        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-lg flex items-center gap-1.5 shadow transition-colors"
-        title="Simpan dokumen dalam bentuk DOC / DOCX Word"
-      >
-        <FileText className="w-3.5 h-3.5" />
-        <span>DOC / DOCX</span>
-      </button>
-
-      {onSyncGoogleSheets && (
-        <button
-          onClick={onSyncGoogleSheets}
-          className="px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs rounded-lg flex items-center gap-1.5 shadow transition-colors"
-          title="Sinkronkan data modul ini ke Google Sheets"
-        >
-          <Cloud className="w-3.5 h-3.5 text-teal-200" />
-          <span>Google Sheets</span>
-        </button>
-      )}
-
-      {customButtons}
     </div>
   );
 };
+

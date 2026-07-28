@@ -4,6 +4,7 @@ import { BookMarked, Plus, Trash2, Edit2, Download, Printer, Search, User, Calen
 import { exportToCSV } from "../../lib/storage";
 import { exportHtmlToDoc } from "../../lib/exportDoc";
 import { exportGuestBookToDocx } from "../../lib/exportDocx";
+import { ExportActionBar } from "../ExportActionBar";
 
 interface IncidentalGuestBookViewProps {
   guestBook: GuestBookEntry[];
@@ -357,84 +358,52 @@ export const IncidentalGuestBookView: React.FC<IncidentalGuestBookViewProps> = (
       </div>
 
       {/* Action Bar */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4">
-        <div className="relative w-full max-w-xs">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari kata kunci..."
-            className="w-full pl-9 pr-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {activeTab === "guest" ? (
-            <button
-              onClick={handleOpenAddGuest}
-              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm"
-            >
-              <Plus className="w-4 h-4" />
-              Tambah Tamu
-            </button>
-          ) : (
-            <button
-              onClick={handleOpenAddIncidental}
-              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm"
-            >
-              <Plus className="w-4 h-4" />
-              Tambah Kegiatan Insidental
-            </button>
-          )}
-
-          <button
-            onClick={handleExportCSV}
-            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 flex items-center gap-1.5"
-            title="Ekspor ke Excel / CSV"
-          >
-            <Download className="w-4 h-4" />
-            Excel / CSV
-          </button>
-          <button
-            onClick={() => {
-              const mappedGuests = guestBook.map((g) => ({
-                id: g.id,
-                date: g.date,
-                guestName: g.visitorName,
-                institution: g.institution,
-                position: g.position || "-",
-                purpose: g.purpose,
-                notes: g.notes || "-",
-              }));
-
-              const mappedIncidental = incidentalJournals.map((j) => ({
-                id: j.id,
-                date: j.date,
-                incident: j.activityName || (j as any).incident || "-",
-                involvedParties: j.organizer || (j as any).involvedParties || "-",
-                actionTaken: j.description || (j as any).actionTaken || "-",
-                followUp: j.notes || (j as any).followUp || "-",
-              }));
-
-              exportGuestBookToDocx(mappedGuests, mappedIncidental);
-            }}
-            className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-colors"
-            title="Ekspor Buku Tamu & Jurnal Insidental ke Format Native Word (.docx)"
-          >
-            <FileText className="w-4 h-4 text-blue-100" />
-            Ekspor Word (.docx)
-          </button>
-          <button
-            onClick={handlePrint}
-            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-colors"
-            title="Cetak Laporan / PDF"
-          >
-            <Printer className="w-4 h-4" />
-            Cetak / PDF
-          </button>
-        </div>
-      </div>
+      <ExportActionBar
+        title={activeTab === "guest" ? "BUKU TAMU DINAS SEKOLAH" : "JURNAL KEGIATAN INSIDENTAL"}
+        filename={activeTab === "guest" ? "Buku_Tamu_Sekolah" : "Jurnal_Kegiatan_Insidental"}
+        headers={
+          activeTab === "guest"
+            ? ["No", "Tanggal", "Jam", "Nama Tamu", "Instansi/Jabatan", "Keperluan", "No Telp", "Kesan/Pesan"]
+            : ["No", "Tanggal", "Waktu", "Nama Kegiatan", "Penyelenggara", "Lokasi", "Uraian Kegiatan", "Tindak Lanjut"]
+        }
+        rows={
+          activeTab === "guest"
+            ? guestBook.map((g, idx) => [idx + 1, g.date, g.time, g.visitorName, g.institution, g.purpose, g.phone || "-", g.notes || "-"])
+            : incidentalJournals.map((j, idx) => [idx + 1, j.date, j.time, j.activityName, j.organizer, j.location, j.description, j.followUp || "-"])
+        }
+        onOpenPrintModal={handlePrint}
+        customButtons={
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative w-44 sm:w-56">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Cari..."
+                className="w-full pl-8 pr-2.5 py-1 text-xs border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-slate-800"
+              />
+            </div>
+            {activeTab === "guest" ? (
+              <button
+                onClick={handleOpenAddGuest}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1 shadow-xs shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Tambah Tamu
+              </button>
+            ) : (
+              <button
+                onClick={handleOpenAddIncidental}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1 shadow-xs shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Tambah Kegiatan
+              </button>
+            )}
+          </div>
+        }
+      />
 
       {/* TAB 1: BUKU TAMU */}
       {activeTab === "guest" && (

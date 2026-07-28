@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { SchoolIdentity } from "../../types";
 import { Building2, Save, Printer, Image, UserCheck, ShieldCheck, Check } from "lucide-react";
+import { ExportActionBar } from "../ExportActionBar";
 
 interface SchoolIdentityViewProps {
   identity: SchoolIdentity;
@@ -94,6 +95,25 @@ export const SchoolIdentityView: React.FC<SchoolIdentityViewProps> = ({
           </button>
         </div>
       </div>
+
+      <ExportActionBar
+        title="IDENTITAS SATUAN PENDIDIKAN & GURU"
+        filename="Identitas_Sekolah_Dan_Guru"
+        schoolIdentity={identity}
+        headers={["Field", "Nilai / Keterangan"]}
+        rows={[
+          ["Nama Sekolah", formData.schoolName || "-"],
+          ["NPSN", formData.npsn || "-"],
+          ["NSS", formData.nss || "-"],
+          ["Alamat", `${formData.address}, Desa ${formData.village}, Kec. ${formData.district}, ${formData.regency}`],
+          ["Tahun Pelajaran", formData.academicYear || "-"],
+          ["Semester", formData.semester || "-"],
+          ["Fase & Kelas", `Fase ${formData.phase} - Kelas ${formData.gradeClass}`],
+          ["Kepala Sekolah", `${formData.headmasterName} (NIP: ${formData.headmasterNip})`],
+          ["Guru Kelas", `${formData.teacherName} (NIP: ${formData.teacherNip})`],
+        ]}
+        onOpenPrintModal={handlePrint}
+      />
 
       {savedSuccess && (
         <div className="p-3 bg-emerald-100 border border-emerald-300 text-emerald-900 font-semibold text-xs rounded-xl flex items-center gap-2 animate-fadeIn">
