@@ -19,6 +19,7 @@ import {
   GASConfig,
   NavModule,
   UserAccount,
+  ExamPackage,
 } from "./types";
 import { DEFAULT_SUBJECTS } from "./constants/subjects";
 import {
@@ -66,6 +67,7 @@ import { ProtaPromesView } from "./components/modules/ProtaPromesView";
 import { TeachingModuleGeneratorView } from "./components/modules/TeachingModuleGeneratorView";
 import { LearningAnalysisView } from "./components/modules/LearningAnalysisView";
 import { DashboardSummaryView } from "./components/modules/DashboardSummaryView";
+import { ExamGeneratorView } from "./components/modules/ExamGeneratorView";
 
 export default function App() {
   const [activeModule, setActiveModule] = useState<NavModule>("dashboard");
@@ -139,6 +141,32 @@ export default function App() {
   const [teachingModules, setTeachingModules] = useState<TeachingModule[]>(() =>
     loadFromStorage("teachingModules", INITIAL_TEACHING_MODULES)
   );
+  const [savedExams, setSavedExams] = useState<ExamPackage[]>(() =>
+    loadFromStorage("savedExams", [])
+  );
+
+  const handleSaveExam = (exam: ExamPackage) => {
+    setSavedExams((prev) => {
+      const idx = prev.findIndex((e) => e.id === exam.id);
+      let updated: ExamPackage[];
+      if (idx >= 0) {
+        updated = [...prev];
+        updated[idx] = exam;
+      } else {
+        updated = [exam, ...prev];
+      }
+      saveToStorage("savedExams", updated);
+      return updated;
+    });
+  };
+
+  const handleDeleteExam = (id: string) => {
+    setSavedExams((prev) => {
+      const updated = prev.filter((e) => e.id !== id);
+      saveToStorage("savedExams", updated);
+      return updated;
+    });
+  };
   const [aiSettings, setAiSettings] = useState<AISettings>(() => {
     const loaded = loadFromStorage("aiSettings", INITIAL_AI_SETTINGS);
     return {
@@ -495,6 +523,20 @@ export default function App() {
                 aiSettings={aiSettings}
                 onSaveModules={setTeachingModules}
                 onOpenPrint={handleOpenPrint}
+              />
+            )}
+
+            {activeModule === "exam_generator" && (
+              <ExamGeneratorView
+                schoolIdentity={schoolIdentity}
+                cptpItems={cptpItems}
+                subjects={subjects}
+                protaList={protaList}
+                savedExams={savedExams}
+                onSaveExam={handleSaveExam}
+                onDeleteExam={handleDeleteExam}
+                onOpenPrint={handleOpenPrint}
+                aiSettings={aiSettings}
               />
             )}
           </main>

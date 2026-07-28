@@ -309,9 +309,47 @@ export type NavModule =
   | "daily_log"
   | "calendar"
   | "prota_promes"
-  | "teaching_module";
+  | "teaching_module"
+  | "exam_generator";
 
 export type ActiveModule = NavModule;
+
+export type ExamType = "Ulangan Akhir Bab" | "STS (Sumatif Tengah Semester)" | "SAS (Sumatif Akhir Semester)";
+
+export interface ExamKisiKisi {
+  no: number;
+  tpCode: string;
+  tpDescription: string;
+  materiPokok: string;
+  indikatorSoal: string;
+  bentukSoal: "Pilihan Ganda" | "Isian Pendek" | "Uraian";
+  nomorSoal: string;
+  tingkatKesulitan: "L1 (Mudah)" | "L2 (Sedang)" | "L3 (HOTS/Sukar)" | string;
+}
+
+export interface ExamQuestion {
+  no: number;
+  jenis: "PG" | "ISIAN" | "URAIAN";
+  pertanyaan: string;
+  pilihan?: string[];
+  kunciJawaban: string;
+  bobotSkor?: number;
+}
+
+export interface ExamPackage {
+  id: string;
+  title: string;
+  examType: ExamType;
+  subject: string;
+  gradeClass: string;
+  materiList: string[];
+  selectedTPs: { code: string; desc: string }[];
+  timeAllocation: string;
+  examDate: string;
+  kisiKisi: ExamKisiKisi[];
+  questions: ExamQuestion[];
+  createdAt: string;
+}
 
 export interface PromesItem {
   id: string;
