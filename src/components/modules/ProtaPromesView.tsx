@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { ProtaItem, PromesItem, CPTPItem, TimetableSlot, CalendarEvent, IncidentalJournalEntry, SchoolIdentity } from "../../types";
-import { CalendarRange, Plus, Trash2, Edit2, Download, Printer, FileText, Check, ChevronRight, Calculator, Save, Calendar } from "lucide-react";
+import { CalendarRange, Plus, Trash2, Edit2, Download, Printer, FileText, Check, ChevronRight, Calculator, Save, Calendar, BarChart3, TrendingUp, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Layers } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { exportToCSV } from "../../lib/storage";
 import { exportHtmlToDoc } from "../../lib/exportDoc";
 import { exportProtaToExcel, exportPromesToExcel } from "../../lib/exportExcel";
@@ -37,6 +38,10 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
   const [selectedSemester, setSelectedSemester] = useState<1 | 2>(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Dashboard Chart state
+  const [showDashboardChart, setShowDashboardChart] = useState(true);
+  const [chartViewMode, setChartViewMode] = useState<"all_subjects" | "monthly_distribution">("all_subjects");
 
   // Precision Calculation for Effective JP & Remaining JP (Sisa JP) per Semester
   const jpSummary = useMemo(() => {
@@ -498,6 +503,107 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
       setPromesWeeklyAllocations(autoFilled);
     }
   }, [selectedSubject, selectedSemester, promesList, protaList]);
+
+  // Workload comparison per subject across the current semester
+  const subjectWorkloadStats = useMemo(() => {
+    return subjects.map((sub) => {
+      const normalizeSub = (str: string) => (str || "").toLowerCase().trim().replace(/\s+/g, " ");
+      const subNorm = normalizeSub(sub);
+
+      // Target JP from Prota for selected semester
+      const subProta = protaList.filter(
+        (p) =>
+          normalizeSub(p.subject) === subNorm &&
+          (p.semester === selectedSemester || p.semester === (selectedSemester === 1 ? "Ganjil" : "Genap"))
+      );
+      const targetJP = subProta.reduce((acc, p) => acc + (p.allocatedJP || p.timeAllocationJP || 0), 0);
+
+      // Timetable weekly slots
+      const weeklySlots = (timetable || []).filter(
+        (t) => t.subject && normalizeSub(t.subject) === subNorm
+      ).length;
+
+      // Total filled Promes JP
+      let filledPromesJP = 0;
+      if (sub === selectedSubject) {
+        filledPromesJP = (Object.values(promesWeeklyAllocations) as number[]).reduce((acc: number, v: number) => acc + Number(v || 0), 0);
+      } else {
+        const subPromes = promesList.filter((pr) => normalizeSub(pr.subject || "") === subNorm);
+        filledPromesJP = subPromes.reduce((acc: number, pr) => {
+          const alloc = pr.monthlyAllocation || {};
+          let sumW = 0;
+          Object.values(alloc).forEach((weeks) => {
+            if (Array.isArray(weeks)) {
+              weeks.forEach((w) => {
+                sumW += Number(w || 0);
+              });
+            }
+          });
+          return acc + sumW;
+        }, 0);
+      }
+
+      return {
+        subject: sub,
+        shortSubject: sub.length > 10 ? sub.substring(0, 9) + "…" : sub,
+        "Target Prota (JP)": targetJP,
+        "Terisi Promes (JP)": filledPromesJP,
+        "Jadwal Mingguan (JP)": weeklySlots,
+        balance: filledPromesJP - targetJP,
+      };
+    });
+  }, [subjects, protaList, selectedSemester, timetable, selectedSubject, promesWeeklyAllocations, promesList]);
+
+  // Monthly JP distribution for current selected subject
+  const monthlyDistributionData = useMemo(() => {
+    return promesMonths.map((m) => {
+      let monthFilled = 0;
+      let monthCapacity = 0;
+
+      weeksPerMonth.forEach((w) => {
+        const wk = `${m}_w${w}`;
+        const weekInfo = weekAnalysisMap[wk];
+        monthCapacity += weekInfo ? weekInfo.availableJP : 0;
+
+        filteredProta.forEach((p) => {
+          const key = `${p.id}_${m}_w${w}`;
+          monthFilled += promesWeeklyAllocations[key] || 0;
+        });
+      });
+
+      return {
+        month: m,
+        "Kapasitas Efektif (JP)": monthCapacity,
+        "Terisi Promes (JP)": monthFilled,
+      };
+    });
+  }, [promesMonths, weeksPerMonth, weekAnalysisMap, filteredProta, promesWeeklyAllocations]);
+
+  // Dashboard summary stats
+  const dashboardSummary = useMemo(() => {
+    const totalSubjects = subjects.length;
+    let optimalCount = 0;
+    let underCount = 0;
+    let overCount = 0;
+
+    subjectWorkloadStats.forEach((stat) => {
+      const target = stat["Target Prota (JP)"];
+      const filled = stat["Terisi Promes (JP)"];
+      if (filled === target && target > 0) optimalCount++;
+      else if (filled < target) underCount++;
+      else if (filled > target) overCount++;
+    });
+
+    const totalTimetableWeeklySlots = (timetable || []).filter((t) => t.subject && t.subject.trim() !== "").length;
+
+    return {
+      totalSubjects,
+      optimalCount,
+      underCount,
+      overCount,
+      totalTimetableWeeklySlots,
+    };
+  }, [subjects, subjectWorkloadStats, timetable]);
 
   const handleUpdatePromesJP = (protaId: string, month: string, week: number, val: number) => {
     const key = `${protaId}_${month}_w${week}`;
@@ -1123,6 +1229,155 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* DASHBOARD VISUAL CHART WORKLOAD MONITORING */}
+      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2.5 bg-emerald-100 text-emerald-900 rounded-xl">
+              <BarChart3 className="w-5 h-5 text-emerald-700" />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                Dashboard Monitoring Beban Kerja & Distribusi JP Kurikulum
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Visualisasi perbandingan Target Prota, Terisi Promes, dan Alokasi Jadwal Mingguan per Mata Pelajaran (Semester {selectedSemester})
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setChartViewMode("all_subjects")}
+                className={`px-3 py-1 rounded-lg transition-all ${
+                  chartViewMode === "all_subjects"
+                    ? "bg-white text-emerald-900 shadow-2xs font-extrabold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                📊 Semua Mapel vs Target
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartViewMode("monthly_distribution")}
+                className={`px-3 py-1 rounded-lg transition-all ${
+                  chartViewMode === "monthly_distribution"
+                    ? "bg-white text-emerald-900 shadow-2xs font-extrabold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                📅 Distribusi Bulanan ({selectedSubject})
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowDashboardChart(!showDashboardChart)}
+              className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors"
+              title={showDashboardChart ? "Sembunyikan Grafik" : "Tampilkan Grafik"}
+            >
+              {showDashboardChart ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Summary Badges */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center gap-3">
+            <div className="p-2 bg-blue-100 text-blue-700 rounded-lg">
+              <Layers className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-500 font-medium block">Total Mata Pelajaran</span>
+              <span className="font-mono font-extrabold text-sm text-slate-800">{dashboardSummary.totalSubjects} Mapel</span>
+            </div>
+          </div>
+
+          <div className="bg-emerald-50/70 p-3 rounded-xl border border-emerald-200 flex items-center gap-3">
+            <div className="p-2 bg-emerald-100 text-emerald-800 rounded-lg">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-[10px] text-emerald-700 font-medium block">Promes Sesuai Target</span>
+              <span className="font-mono font-extrabold text-sm text-emerald-900">{dashboardSummary.optimalCount} Mapel</span>
+            </div>
+          </div>
+
+          <div className="bg-amber-50/70 p-3 rounded-xl border border-amber-200 flex items-center gap-3">
+            <div className="p-2 bg-amber-100 text-amber-800 rounded-lg">
+              <AlertCircle className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-[10px] text-amber-700 font-medium block">Belum Sesuai Target</span>
+              <span className="font-mono font-extrabold text-sm text-amber-900">{dashboardSummary.underCount + dashboardSummary.overCount} Mapel</span>
+            </div>
+          </div>
+
+          <div className="bg-teal-50/70 p-3 rounded-xl border border-teal-200 flex items-center gap-3">
+            <div className="p-2 bg-teal-100 text-teal-800 rounded-lg">
+              <TrendingUp className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-[10px] text-teal-700 font-medium block">Beban Jadwal Mingguan</span>
+              <span className="font-mono font-extrabold text-sm text-teal-900">{dashboardSummary.totalTimetableWeeklySlots} JP / Minggu</span>
+            </div>
+          </div>
+        </div>
+
+        {showDashboardChart && (
+          <div className="pt-2">
+            {chartViewMode === "all_subjects" ? (
+              <div className="space-y-2">
+                <div className="h-[280px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={subjectWorkloadStats} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="shortSubject" tick={{ fontSize: 11, fill: '#475569' }} />
+                      <YAxis tick={{ fontSize: 11, fill: '#475569' }} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#ffffff', borderRadius: '12px', borderColor: '#cbd5e1', fontSize: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                        formatter={(val: number) => [`${val} JP`, '']}
+                      />
+                      <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
+                      <Bar dataKey="Target Prota (JP)" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="Terisi Promes (JP)" fill="#10b981" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="Jadwal Mingguan (JP)" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <p className="text-[11px] text-slate-500 text-center italic">
+                  * Batang Biru = Target JP Prota, Batang Hijau = Total JP yang Dialokasikan di Promes, Batang Kuning = Frekuensi Jam Mengajar per Minggu dari Jadwal
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="h-[280px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={monthlyDistributionData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#475569' }} />
+                      <YAxis tick={{ fontSize: 11, fill: '#475569' }} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#ffffff', borderRadius: '12px', borderColor: '#cbd5e1', fontSize: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                        formatter={(val: number) => [`${val} JP`, '']}
+                      />
+                      <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
+                      <Bar dataKey="Kapasitas Efektif (JP)" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="Terisi Promes (JP)" fill="#059669" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <p className="text-[11px] text-slate-500 text-center italic">
+                  * Distribusi Jam Pelajaran {selectedSubject} per Bulan di Semester {selectedSemester} (Kapasitas Kalender Efektif vs Terisi di Promes)
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* PROTA TAB */}
