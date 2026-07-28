@@ -735,10 +735,7 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                 <span className="w-3 h-3 bg-emerald-600 inline-block rounded-xs"></span> Minggu Efektif Penuh
               </span>
               <span className="flex items-center gap-1">
-                <span className="w-3 h-3 bg-amber-400 border border-amber-600 inline-block rounded-xs"></span> Minggu Efektif Sebagian (Terpotong Libur/Event)
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-3 h-3 bg-slate-300 border border-slate-500 inline-block rounded-xs"></span> Libur Semester / Blockout
+                <span className="w-3 h-3 bg-amber-400 border border-amber-600 inline-block rounded-xs"></span> Ada Libur/Event (Amber)
               </span>
             </div>
 
@@ -930,7 +927,14 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
               if (activeTab === "prota") {
                 exportProtaToExcel(protaList, schoolIdentity);
               } else {
-                exportPromesToExcel(promesList, schoolIdentity);
+                exportPromesToExcel(
+                  promesList,
+                  schoolIdentity,
+                  promesWeeklyAllocations,
+                  filteredProta,
+                  selectedSubject,
+                  selectedSemester
+                );
               }
             }}
             className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-colors"

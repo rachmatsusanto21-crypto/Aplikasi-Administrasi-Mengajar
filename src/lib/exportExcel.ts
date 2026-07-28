@@ -240,24 +240,123 @@ export function exportProtaToExcel(protaList: ProtaItem[], schoolIdentity?: Part
   saveWorkbook(workbook, `Program_Tahunan_Prota_${schoolIdentity?.gradeClass || "Kelas"}.xlsx`);
 }
 
-// 6. Export Promes (Program Semester)
-export function exportPromesToExcel(promesList: PromesItem[], schoolIdentity?: Partial<SchoolIdentity>) {
-  const data = promesList.map((p, idx) => ({
-    No: idx + 1,
-    Semester: String(p.semester),
-    "Mata Pelajaran": p.subject,
-    "Kode TP": p.codeTP,
-    "Tujuan Pembelajaran (TP)": p.tpDescription,
-    "Alokasi Waktu (JP)": p.timeAllocationJP,
-  }));
-
-  const worksheet = XLSX.utils.json_to_sheet(data);
-  autoWidth(worksheet);
-
+// 6. Export Promes (Program Semester) with full weekly matrix (W1-W5 per month)
+export function exportPromesToExcel(
+  promesList: PromesItem[],
+  schoolIdentity?: Partial<SchoolIdentity>,
+  currentAllocations?: Record<string, number>,
+  currentProta?: ProtaItem[],
+  selectedSubject?: string,
+  selectedSemester?: number
+) {
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Promes");
 
-  saveWorkbook(workbook, `Program_Semester_Promes_${schoolIdentity?.gradeClass || "Kelas"}.xlsx`);
+  const semesters = [1, 2];
+
+  semesters.forEach((sem) => {
+    const semLabel = sem === 1 ? "Ganjil (Sem 1)" : "Genap (Sem 2)";
+    const months =
+      sem === 1
+        ? ["Juli", "Agustus", "September", "Oktober", "November", "Desember"]
+        : ["Januari", "Februari", "Maret", "April", "Mei", "Juni"];
+    const weeks = [1, 2, 3, 4, 5];
+
+    // Get items for this semester
+    let semItems = promesList.filter(
+      (p) =>
+        String(p.semester) === String(sem) ||
+        p.semester === (sem === 1 ? "Ganjil" : "Genap")
+    );
+
+    // If active Prota items are passed for current screen view, merge them
+    if (
+      currentProta &&
+      currentProta.length > 0 &&
+      selectedSemester === sem &&
+      selectedSubject
+    ) {
+      const activeProta = currentProta.filter(
+        (p) =>
+          p.subject === selectedSubject &&
+          (String(p.semester) === String(sem) || p.semester === (sem === 1 ? "Ganjil" : "Genap"))
+      );
+
+      activeProta.forEach((p) => {
+        const code = p.tpCode || p.codeTP || "TP-1";
+        const existingIdx = semItems.findIndex(
+          (item) => item.codeTP === code && item.subject === p.subject
+        );
+        if (existingIdx === -1) {
+          semItems.push({
+            id: p.id,
+            subject: p.subject,
+            codeTP: code,
+            tpDescription: p.tpDescription,
+            timeAllocationJP: p.allocatedJP || p.timeAllocationJP || 0,
+            semester: sem === 1 ? "Ganjil" : "Genap",
+            monthlyAllocation: {},
+            weeklyAllocations: {},
+          } as PromesItem);
+        }
+      });
+    }
+
+    if (semItems.length === 0) return;
+
+    const rows = semItems.map((p, idx) => {
+      const rowObj: Record<string, any> = {
+        No: idx + 1,
+        "Mata Pelajaran": p.subject,
+        "Kode TP": p.codeTP || (p as any).tpCode || "-",
+        "Tujuan Pembelajaran (TP)": p.tpDescription || "-",
+        "Target JP": p.timeAllocationJP || (p as any).allocatedJP || 0,
+      };
+
+      let sumAllocated = 0;
+
+      months.forEach((m) => {
+        weeks.forEach((w) => {
+          const colName = `${m} (W${w})`;
+          const key1 = `${p.id}_${m}_w${w}`;
+          const key2 = `${m}_w${w}`;
+
+          let val = 0;
+          if (currentAllocations && currentAllocations[key1] !== undefined) {
+            val = currentAllocations[key1];
+          } else if (p.weeklyAllocations && p.weeklyAllocations[key1] !== undefined) {
+            val = p.weeklyAllocations[key1];
+          } else if (p.weeklyAllocations && p.weeklyAllocations[key2] !== undefined) {
+            val = p.weeklyAllocations[key2];
+          } else if (p.monthlyAllocation && Array.isArray(p.monthlyAllocation[m])) {
+            val = p.monthlyAllocation[m][w - 1] || 0;
+          }
+
+          sumAllocated += val;
+          rowObj[colName] = val > 0 ? val : "";
+        });
+      });
+
+      rowObj["Total Teralokasi (JP)"] = sumAllocated;
+      return rowObj;
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    autoWidth(worksheet);
+    XLSX.utils.book_append_sheet(workbook, worksheet, `Promes ${semLabel}`);
+  });
+
+  // Fallback if no sheets were added
+  if (workbook.SheetNames.length === 0) {
+    const defaultSheet = XLSX.utils.json_to_sheet([
+      { Information: "Belum ada data Program Semester (Promes)." },
+    ]);
+    XLSX.utils.book_append_sheet(workbook, defaultSheet, "Promes");
+  }
+
+  saveWorkbook(
+    workbook,
+    `Program_Semester_Promes_${schoolIdentity?.gradeClass || "Kelas"}.xlsx`
+  );
 }
 
 // 7. Export CP / TP Kurikulum

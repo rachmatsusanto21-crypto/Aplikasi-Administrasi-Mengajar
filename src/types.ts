@@ -359,6 +359,7 @@ export interface PromesItem {
   timeAllocationJP: number;
   semester: SemesterType;
   monthlyAllocation: Record<string, number[]>; // e.g., "Juli": [2, 2, 0, 0]
+  weeklyAllocations?: Record<string, number>;
 }
 
 export interface ModulAjar {
