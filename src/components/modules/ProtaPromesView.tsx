@@ -256,7 +256,106 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
   // W1, W2, W3, W4, W5 (5 Minggu per Bulan)
   const weeksPerMonth = useMemo(() => [1, 2, 3, 4, 5], []);
 
-  // Precision Week Analysis Map for Partial Week / Event Holidays (Orange Amber)
+  // Indonesian National Holiday helper function
+  const getIndonesianNationalHolidayName = (dateStr: string): string | null => {
+    if (!dateStr || dateStr.length < 10) return null;
+    const monthDay = dateStr.slice(5);
+
+    // Fixed date national holidays (Every year)
+    const fixedHolidays: Record<string, string> = {
+      "01-01": "Tahun Baru Masehi",
+      "05-01": "Hari Buruh Internasional",
+      "06-01": "Hari Lahir Pancasila",
+      "08-17": "Hari Kemerdekaan RI",
+      "10-28": "Hari Sumpah Pemuda",
+      "11-10": "Hari Pahlawan",
+      "12-25": "Hari Raya Natal",
+      "12-26": "Cuti Bersama Natal",
+    };
+    if (fixedHolidays[monthDay]) return fixedHolidays[monthDay];
+
+    // Moveable / Lunar National Holidays & Cuti Bersama (2024 - 2028)
+    const moveableHolidays: Record<string, string> = {
+      // 2024
+      "2024-02-08": "Isra Mikraj Nabi Muhammad SAW",
+      "2024-02-10": "Tahun Baru Imlek 2575",
+      "2024-03-11": "Hari Suci Nyepi Saka 1946",
+      "2024-03-29": "Wafat Yesus Kristus",
+      "2024-03-31": "Hari Paskah",
+      "2024-04-10": "Hari Raya Idul Fitri 1445 H",
+      "2024-04-11": "Hari Raya Idul Fitri 1445 H",
+      "2024-05-09": "Kenaikan Yesus Kristus",
+      "2024-05-23": "Hari Raya Waisak 2568 BE",
+      "2024-06-17": "Hari Raya Idul Adha 1445 H",
+      "2024-07-07": "Tahun Baru Islam 1446 H",
+      "2024-09-16": "Maulid Nabi Muhammad SAW",
+
+      // 2025
+      "2025-01-27": "Isra Mikraj Nabi Muhammad SAW",
+      "2025-01-29": "Tahun Baru Imlek 2576",
+      "2025-03-29": "Hari Suci Nyepi Saka 1947",
+      "2025-03-31": "Hari Raya Idul Fitri 1446 H",
+      "2025-04-01": "Hari Raya Idul Fitri 1446 H",
+      "2025-04-02": "Cuti Bersama Idul Fitri 1446 H",
+      "2025-04-03": "Cuti Bersama Idul Fitri 1446 H",
+      "2025-04-04": "Cuti Bersama Idul Fitri 1446 H",
+      "2025-04-07": "Cuti Bersama Idul Fitri 1446 H",
+      "2025-04-18": "Wafat Yesus Kristus",
+      "2025-04-20": "Hari Paskah",
+      "2025-05-12": "Hari Raya Waisak 2569 BE",
+      "2025-05-29": "Kenaikan Yesus Kristus",
+      "2025-06-06": "Hari Raya Idul Adha 1446 H",
+      "2025-06-27": "Tahun Baru Islam 1447 H",
+      "2025-09-05": "Maulid Nabi Muhammad SAW",
+
+      // 2026
+      "2026-01-16": "Isra Mikraj Nabi Muhammad SAW",
+      "2026-02-17": "Tahun Baru Imlek 2577",
+      "2026-03-19": "Hari Suci Nyepi Saka 1948",
+      "2026-03-20": "Hari Raya Idul Fitri 1447 H",
+      "2026-03-21": "Hari Raya Idul Fitri 1447 H",
+      "2026-03-22": "Cuti Bersama Idul Fitri 1447 H",
+      "2026-03-23": "Cuti Bersama Idul Fitri 1447 H",
+      "2026-03-24": "Cuti Bersama Idul Fitri 1447 H",
+      "2026-03-25": "Cuti Bersama Idul Fitri 1447 H",
+      "2026-04-03": "Wafat Yesus Kristus",
+      "2026-05-14": "Kenaikan Yesus Kristus",
+      "2026-05-27": "Hari Raya Idul Adha 1447 H",
+      "2026-05-31": "Hari Raya Waisak 2570 BE",
+      "2026-06-16": "Tahun Baru Islam 1448 H",
+      "2026-08-25": "Maulid Nabi Muhammad SAW",
+
+      // 2027
+      "2027-02-06": "Tahun Baru Imlek 2578",
+      "2027-02-15": "Isra Mikraj Nabi Muhammad SAW",
+      "2027-03-09": "Hari Suci Nyepi Saka 1949",
+      "2027-03-10": "Hari Raya Idul Fitri 1448 H",
+      "2027-03-11": "Hari Raya Idul Fitri 1448 H",
+      "2027-03-26": "Wafat Yesus Kristus",
+      "2027-05-06": "Kenaikan Yesus Kristus",
+      "2027-05-16": "Hari Raya Idul Adha 1448 H",
+      "2027-05-20": "Hari Raya Waisak 2571 BE",
+      "2027-06-06": "Tahun Baru Islam 1449 H",
+      "2027-08-15": "Maulid Nabi Muhammad SAW",
+
+      // 2028
+      "2028-01-24": "Isra Mikraj Nabi Muhammad SAW",
+      "2028-01-26": "Tahun Baru Imlek 2579",
+      "2028-02-26": "Hari Raya Idul Fitri 1449 H",
+      "2028-02-27": "Hari Raya Idul Fitri 1449 H",
+      "2028-03-26": "Hari Suci Nyepi Saka 1950",
+      "2028-04-14": "Wafat Yesus Kristus",
+      "2028-05-08": "Hari Raya Waisak 2572 BE",
+      "2028-05-25": "Kenaikan Yesus Kristus",
+      "2028-06-05": "Hari Raya Idul Adha 1449 H",
+      "2028-06-25": "Tahun Baru Islam 1450 H",
+      "2028-08-03": "Maulid Nabi Muhammad SAW",
+    };
+
+    return moveableHolidays[dateStr] || null;
+  };
+
+  // Precision Week Analysis Map for Partial Week / Event / National Holidays (Orange Amber)
   const weekAnalysisMap = useMemo(() => {
     const map: Record<
       string,
@@ -264,6 +363,8 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
         status: "NORMAL" | "PARTIAL_ORANGE";
         availableJP: number;
         normalJP: number;
+        hasNationalHoliday?: boolean;
+        nationalHolidaysList?: string[];
         reason: string;
       }
     > = {};
@@ -342,6 +443,7 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
         let scheduledJPThisWeek = 0;
         let lostJPThisWeek = 0;
         let holidayReasons: string[] = [];
+        let nationalHolidaysInWeek: string[] = [];
 
         for (let dayNum = startDayNum; dayNum <= endDayNum; dayNum++) {
           const testDate = new Date(yr, monthIdx, dayNum, 12, 0, 0);
@@ -354,44 +456,56 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
           const dayName = dayNames[dayOfWeek];
           const jpOnThisDay = daySlots[dayName] || 0;
 
-          // Check if date has holiday or special calendar event or incidental journal
-          const isHolidayDay =
-            dateStr < startYMD ||
-            dateStr > endYMD ||
-            (calendarEvents || []).some(
-              (e) => e.startDate && dateStr >= e.startDate && dateStr <= (e.endDate || e.startDate)
-            ) ||
-            (incidentalJournals || []).some((i) => i.date === dateStr);
+          const natHolidayName = getIndonesianNationalHolidayName(dateStr);
+          const matchEvt = (calendarEvents || []).find(
+            (e) => e.startDate && dateStr >= e.startDate && dateStr <= (e.endDate || e.startDate)
+          );
+          const matchIncidental = (incidentalJournals || []).some((i) => i.date === dateStr);
+          const isOutOfTerm = dateStr < startYMD || dateStr > endYMD;
+
+          const isHolidayDay = isOutOfTerm || Boolean(natHolidayName) || Boolean(matchEvt) || matchIncidental;
 
           if (jpOnThisDay > 0) {
             scheduledJPThisWeek += jpOnThisDay;
             if (isHolidayDay) {
               lostJPThisWeek += jpOnThisDay;
-              const matchEvt = (calendarEvents || []).find(
-                (e) => e.startDate && dateStr >= e.startDate && dateStr <= (e.endDate || e.startDate)
-              );
-              if (matchEvt) holidayReasons.push(`${dayName} (${matchEvt.title})`);
-              else if (dateStr < startYMD || dateStr > endYMD) holidayReasons.push(`${dayName} (Diluar TP)`);
-              else holidayReasons.push(`${dayName} (Kegiatan/Libur)`);
+              if (natHolidayName) {
+                holidayReasons.push(`${dayName} (Libur Nasional: ${natHolidayName})`);
+                nationalHolidaysInWeek.push(`${dayName}: ${natHolidayName}`);
+              } else if (matchEvt) {
+                holidayReasons.push(`${dayName} (${matchEvt.title})`);
+              } else if (isOutOfTerm) {
+                holidayReasons.push(`${dayName} (Diluar TP)`);
+              } else {
+                holidayReasons.push(`${dayName} (Kegiatan/Libur)`);
+              }
             }
+          } else if (natHolidayName) {
+            nationalHolidaysInWeek.push(`${dayName}: ${natHolidayName}`);
           }
         }
 
         const baseNormal = scheduledJPThisWeek || normalWeeklyJP || 2;
+        const remainingJP = Math.max(0, (scheduledJPThisWeek || baseNormal) - lostJPThisWeek);
 
-        if (lostJPThisWeek > 0) {
-          const remainingJP = Math.max(0, (scheduledJPThisWeek || baseNormal) - lostJPThisWeek);
+        if (lostJPThisWeek > 0 || nationalHolidaysInWeek.length > 0) {
           map[key] = {
             status: "PARTIAL_ORANGE",
             availableJP: remainingJP,
             normalJP: baseNormal,
-            reason: `Ada Libur/Event (${holidayReasons.join(", ")}) — Sisa ${remainingJP} JP dari normal ${baseNormal} JP`,
+            hasNationalHoliday: nationalHolidaysInWeek.length > 0,
+            nationalHolidaysList: nationalHolidaysInWeek,
+            reason: lostJPThisWeek > 0
+              ? `Ada Libur/Event (${holidayReasons.join(", ")}) — Sisa ${remainingJP} JP dari normal ${baseNormal} JP`
+              : `Ada Libur Nasional (${nationalHolidaysInWeek.join(", ")})`,
           };
         } else {
           map[key] = {
             status: "NORMAL",
             availableJP: baseNormal,
             normalJP: baseNormal,
+            hasNationalHoliday: false,
+            nationalHolidaysList: [],
             reason: `Minggu Efektif Penuh (${baseNormal} JP)`,
           };
         }
@@ -696,7 +810,7 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
   };
 
   // Helper to calculate total allocated JP for a specific month & week across all Prota items
-  const getColumnTotalJP = (m: string, w: number) => {
+  const getColumnTotalJP = useCallback((m: string, w: number) => {
     let sum = 0;
     filteredProta.forEach((p) => {
       const key = `${p.id}_${m}_w${w}`;
@@ -704,7 +818,35 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
       sum += val;
     });
     return sum;
-  };
+  }, [filteredProta, promesWeeklyAllocations]);
+
+  // Column warning mapping to highlight weekly mismatch against scheduled capacity
+  const columnWarningsMap = useMemo<Record<string, { colTotal: number; availableJP: number; isOver: boolean; isUnder: boolean; diff: number }>>(() => {
+    const warnings: Record<string, { colTotal: number; availableJP: number; isOver: boolean; isUnder: boolean; diff: number }> = {};
+
+    promesMonths.forEach((m) => {
+      weeksPerMonth.forEach((w) => {
+        const wkKey = `${m}_w${w}`;
+        const colTotal = getColumnTotalJP(m, w);
+        const weekInfo = weekAnalysisMap[wkKey];
+        const availableJP = weekInfo ? weekInfo.availableJP : 0;
+
+        const isOver = colTotal > availableJP;
+        const isUnder = colTotal > 0 && colTotal < availableJP;
+        const diff = Math.abs(colTotal - availableJP);
+
+        if (isOver || isUnder) {
+          warnings[wkKey] = { colTotal, availableJP, isOver, isUnder, diff };
+        }
+      });
+    });
+
+    return warnings;
+  }, [promesMonths, weeksPerMonth, getColumnTotalJP, weekAnalysisMap]);
+
+  const totalOverCapacityWeeks = useMemo(() => {
+    return (Object.values(columnWarningsMap) as Array<{ isOver: boolean }>).filter((w) => w.isOver).length;
+  }, [columnWarningsMap]);
 
   const handleAutoFillPromes = () => {
     const autoFilled = computeAutoFill(filteredProta, promesMonths, weeksPerMonth, weekAnalysisMap);
@@ -1517,24 +1659,47 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
             </div>
           )}
 
+          {savedPromesAlert && (
+            <div className="p-3.5 bg-emerald-100 border border-emerald-300 text-emerald-950 rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs transition-all animate-fadeIn">
+              <Check className="w-5 h-5 text-emerald-700 shrink-0" />
+              <span>Data Alokasi Program Semester (Promes) mata pelajaran <b>{selectedSubject}</b> Semester {selectedSemester} berhasil disimpan secara permanen!</span>
+            </div>
+          )}
+
+          {/* Over-Capacity Warning Alert */}
+          {totalOverCapacityWeeks > 0 && (
+            <div className="p-3 bg-red-100 border border-red-300 text-red-900 rounded-xl text-xs font-bold flex items-center justify-between shadow-xs">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+                <span>
+                  <b>Peringatan Beban Kurikulum:</b> Terdapat <b>{totalOverCapacityWeeks} minggu</b> di mana total alokasi JP terisi melebihi kapasitas jam mengajar efektif yang ditetapkan! Periksa kolom bertanda <b>⚠️</b>.
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Legend Box for Week Status Indicators */}
           <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold">
             <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
               <Calendar className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Keterangan Status Alokasi Minggu Promes:</span>
+              <span>Keterangan Status Alokasi & Peringatan Minggu Promes:</span>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="flex items-center gap-1.5 px-2.5 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200">
-                <span className="w-3 h-3 bg-emerald-600 rounded-xs"></span>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="flex items-center gap-1 px-2.5 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200">
+                <span className="w-2.5 h-2.5 bg-emerald-600 rounded-xs"></span>
                 Minggu Efektif Penuh
               </span>
-              <span className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 dark:bg-amber-950/70 border border-amber-400 dark:border-amber-700 text-amber-950 dark:text-amber-200 font-bold rounded-lg shadow-2xs">
-                <span className="w-3 h-3 bg-amber-500 rounded-xs"></span>
-                Sisa Jam Terpotong Libur/Event (Amber)
+              <span className="flex items-center gap-1 px-2.5 py-1 bg-amber-100 dark:bg-amber-950/70 border border-amber-400 dark:border-amber-700 text-amber-950 dark:text-amber-200 font-bold rounded-lg shadow-2xs">
+                <span className="w-2.5 h-2.5 bg-amber-500 rounded-xs"></span>
+                Terpotong Event / Libur (Amber)
               </span>
-              <span className="flex items-center gap-1.5 px-2.5 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg">
-                <span className="font-mono font-bold text-emerald-600">✏️</span>
-                Input Manual / Bebas Edit Jam
+              <span className="flex items-center gap-1 px-2.5 py-1 bg-red-100 dark:bg-red-950/80 border border-red-400 dark:border-red-700 text-red-950 dark:text-red-200 font-extrabold rounded-lg">
+                <span className="text-red-600 font-bold">⚠️</span>
+                Peringatan: Kelebihan JP (Merah)
+              </span>
+              <span className="flex items-center gap-1 px-2.5 py-1 bg-red-50 dark:bg-red-950/50 border border-red-300 text-red-900 dark:text-red-300 font-bold rounded-lg">
+                <span>🇮🇩</span>
+                Libur Nasional Terdeteksi
               </span>
             </div>
           </div>
@@ -1562,20 +1727,42 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                   <tr className="border-t border-slate-200 dark:border-slate-800">
                     {promesMonths.map((m) =>
                       weeksPerMonth.map((w) => {
-                        const weekInfo = weekAnalysisMap[`${m}_w${w}`];
+                        const wkKey = `${m}_w${w}`;
+                        const weekInfo = weekAnalysisMap[wkKey];
                         const isOrange = weekInfo?.status === "PARTIAL_ORANGE";
+                        const hasNatHoliday = weekInfo?.hasNationalHoliday;
+                        const colTotal = getColumnTotalJP(m, w);
+                        const available = weekInfo ? weekInfo.availableJP : 0;
+                        const isOver = colTotal > available;
 
                         return (
                           <th
-                            key={`${m}_w${w}`}
-                            className={`p-0.5 border-r border-slate-200 dark:border-slate-800 text-[8px] font-extrabold transition-all ${
-                              isOrange
+                            key={wkKey}
+                            className={`p-0.5 border-r border-slate-200 dark:border-slate-800 text-[8px] font-extrabold transition-all relative ${
+                              isOver
+                                ? "bg-red-500 text-white font-black"
+                                : hasNatHoliday
+                                ? "bg-red-100 text-red-950 dark:bg-red-950 dark:text-red-200 border-t-2 border-t-red-500"
+                                : isOrange
                                 ? "bg-amber-400 dark:bg-amber-600 text-amber-950 dark:text-amber-100"
                                 : "bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300"
                             }`}
-                            title={weekInfo?.reason || `Minggu ${w} ${m}`}
+                            title={
+                              isOver
+                                ? `⚠️ PERINGATAN BEBAN MELEBIHI KAPASITAS! Total terisi (${colTotal} JP) melebihi kapasitas jam mengajar (${available} JP). ${weekInfo?.reason || ""}`
+                                : hasNatHoliday
+                                ? `🇮🇩 HARI LIBUR NASIONAL: ${weekInfo?.nationalHolidaysList?.join(", ")}. ${weekInfo?.reason || ""}`
+                                : weekInfo?.reason || `Minggu ${w} ${m}`
+                            }
                           >
-                            W{w}{isOrange ? "⚡" : ""}
+                            <div className="flex flex-col items-center justify-center leading-tight py-0.5">
+                              <span>W{w}</span>
+                              <span className="flex items-center justify-center gap-0.5 text-[8px] font-bold">
+                                {isOver && <span title="Kelebihan JP vs Kapasitas">⚠️</span>}
+                                {hasNatHoliday && <span title={weekInfo?.nationalHolidaysList?.join(", ")}>🇮🇩</span>}
+                                {!isOver && !hasNatHoliday && isOrange && <span>⚡</span>}
+                              </span>
+                            </div>
                           </th>
                         );
                       })
@@ -1698,10 +1885,43 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                       </td>
                       {promesMonths.map((m) =>
                         weeksPerMonth.map((w) => {
+                          const wkKey = `${m}_w${w}`;
                           const colTotal = getColumnTotalJP(m, w);
+                          const weekInfo = weekAnalysisMap[wkKey];
+                          const available = weekInfo ? weekInfo.availableJP : 0;
+                          const isOver = colTotal > available;
+                          const isUnder = colTotal > 0 && colTotal < available;
+                          const isMatch = colTotal > 0 && colTotal === available;
+
                           return (
-                            <td key={`total_${m}_w${w}`} className="p-0.5 border-r border-slate-300 dark:border-slate-700 font-extrabold font-mono text-[9px]">
-                              {colTotal > 0 ? <span className="text-emerald-800 dark:text-emerald-400">{colTotal}</span> : <span className="text-slate-400">-</span>}
+                            <td
+                              key={`total_${m}_w${w}`}
+                              className={`p-0.5 border-r border-slate-300 dark:border-slate-700 font-extrabold font-mono text-[9px] ${
+                                isOver
+                                  ? "bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-200 border-b-2 border-b-red-600 font-black"
+                                  : isMatch
+                                  ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+                                  : isUnder
+                                  ? "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+                                  : "text-slate-400"
+                              }`}
+                              title={
+                                isOver
+                                  ? `⚠️ Kelebihan JP: Total terisi (${colTotal} JP) melebihi kapasitas (${available} JP)!`
+                                  : isMatch
+                                  ? `✓ Sesuai Beban: ${colTotal} JP`
+                                  : isUnder
+                                  ? `⚡ Kurang: Terisi ${colTotal} JP dari ${available} JP`
+                                  : `Kapasitas efektif: ${available} JP`
+                              }
+                            >
+                              <div className="flex flex-col items-center leading-none py-0.5">
+                                <span className="flex items-center gap-0.5">
+                                  {colTotal > 0 ? colTotal : "-"}
+                                  {isOver && <span className="text-[8px] text-red-600 font-black">⚠️</span>}
+                                </span>
+                                <span className="text-[7px] font-normal opacity-70">/{available}</span>
+                              </div>
                             </td>
                           );
                         })
