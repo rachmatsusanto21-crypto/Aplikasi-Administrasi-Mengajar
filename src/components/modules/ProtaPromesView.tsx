@@ -425,7 +425,41 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
       }
     });
 
-    const normalWeeklyJP = Object.values(daySlots).reduce((a, b) => a + b, 0);
+    let normalWeeklyJP = Object.values(daySlots).reduce((a, b) => a + b, 0);
+
+    // Fallback if Timetable is not configured for target subject
+    if (normalWeeklyJP === 0) {
+      const totalProtaAllocated = filteredProta.reduce(
+        (sum, p) => sum + (p.allocatedJP || p.timeAllocationJP || 0),
+        0
+      );
+      if (totalProtaAllocated > 0) {
+        normalWeeklyJP = Math.max(2, Math.round(totalProtaAllocated / 18));
+      } else {
+        const normName = normalizeSub(selectedSubject);
+        if (normName.includes("indonesia") || normName.includes("indo")) normalWeeklyJP = 6;
+        else if (normName.includes("matematika") || normName.includes("ipas")) normalWeeklyJP = 5;
+        else if (normName.includes("pancasila") || normName.includes("pkn")) normalWeeklyJP = 4;
+        else if (normName.includes("agama") || normName.includes("pjok") || normName.includes("seni")) normalWeeklyJP = 3;
+        else if (normName.includes("inggris")) normalWeeklyJP = 2;
+        else normalWeeklyJP = 4;
+      }
+
+      if (normalWeeklyJP === 6) {
+        daySlots["Senin"] = 3;
+        daySlots["Rabu"] = 3;
+      } else if (normalWeeklyJP === 5) {
+        daySlots["Selasa"] = 3;
+        daySlots["Kamis"] = 2;
+      } else if (normalWeeklyJP === 4) {
+        daySlots["Senin"] = 2;
+        daySlots["Kamis"] = 2;
+      } else if (normalWeeklyJP === 3) {
+        daySlots["Jumat"] = 3;
+      } else {
+        daySlots["Rabu"] = 2;
+      }
+    }
 
     const monthsList = selectedSemester === 1 ? Object.keys(monthNameToIndexSem1) : Object.keys(monthNameToIndexSem2);
 
@@ -485,8 +519,8 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
           }
         }
 
-        const baseNormal = scheduledJPThisWeek || normalWeeklyJP || 2;
-        const remainingJP = Math.max(0, (scheduledJPThisWeek || baseNormal) - lostJPThisWeek);
+        const baseNormal = scheduledJPThisWeek > 0 ? scheduledJPThisWeek : normalWeeklyJP;
+        const remainingJP = Math.max(0, baseNormal - lostJPThisWeek);
 
         if (lostJPThisWeek > 0 || nationalHolidaysInWeek.length > 0) {
           map[key] = {
@@ -513,7 +547,7 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
     });
 
     return map;
-  }, [selectedSubject, selectedSemester, timetable, calendarEvents, incidentalJournals, schoolIdentity]);
+  }, [selectedSubject, selectedSemester, timetable, calendarEvents, incidentalJournals, schoolIdentity, filteredProta]);
 
   // State for Promes weekly allocation map
   // Key: `${protaId}_${monthName}_w${weekNumber}` -> JP allocation number (e.g., 2)
@@ -1650,13 +1684,6 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
               </button>
             </div>
           </div>
-
-          {savedPromesAlert && (
-            <div className="p-3.5 bg-emerald-100 border border-emerald-300 text-emerald-950 rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs transition-all animate-fadeIn">
-              <Check className="w-5 h-5 text-emerald-700 shrink-0" />
-              <span>Data Alokasi Program Semester (Promes) mata pelajaran <b>{selectedSubject}</b> Semester {selectedSemester} berhasil disimpan secara permanen!</span>
-            </div>
-          )}
 
           {savedPromesAlert && (
             <div className="p-3.5 bg-emerald-100 border border-emerald-300 text-emerald-950 rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs transition-all animate-fadeIn">

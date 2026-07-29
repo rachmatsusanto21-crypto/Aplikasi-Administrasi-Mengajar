@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Student, AttendanceRecord, AttendanceStatus } from "../../types";
+import { Student, AttendanceRecord, AttendanceStatus, SchoolIdentity } from "../../types";
 import {
   UserCheck,
   Calendar,
@@ -31,6 +31,7 @@ interface BulkAttendanceViewProps {
   attendanceRecords: AttendanceRecord[];
   onSaveAttendance: (updatedRecords: AttendanceRecord[]) => void;
   onOpenPrint: (title: string, subtitle: string, content: React.ReactNode) => void;
+  schoolIdentity?: SchoolIdentity;
 }
 
 export const BulkAttendanceView: React.FC<BulkAttendanceViewProps> = ({
@@ -38,10 +39,16 @@ export const BulkAttendanceView: React.FC<BulkAttendanceViewProps> = ({
   attendanceRecords,
   onSaveAttendance,
   onOpenPrint,
+  schoolIdentity,
 }) => {
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().slice(0, 10)
   );
+
+  // Derive Academic Year from school identity
+  const academicYear = schoolIdentity?.academicYear || "2025/2026";
+  const startYear = parseInt(academicYear.split(/[\/\-]/)[0] || "2025", 10);
+  const endYear = startYear + 1;
 
   // Local state for bulk entry on selected date
   const [dailyStatusMap, setDailyStatusMap] = useState<
@@ -62,7 +69,7 @@ export const BulkAttendanceView: React.FC<BulkAttendanceViewProps> = ({
   const [activeTab, setActiveTab] = useState<"input" | "history" | "matrix" | "rekap">("input");
   const [selectedMonthFilter, setSelectedMonthFilter] = useState<string>("all");
   const [selectedMatrixMonth, setSelectedMatrixMonth] = useState<string>(
-    new Date().toISOString().slice(0, 7)
+    `${startYear}-07`
   );
   const [savedAlert, setSavedAlert] = useState<string | boolean>(false);
 
@@ -86,20 +93,20 @@ export const BulkAttendanceView: React.FC<BulkAttendanceViewProps> = ({
     currentReason: string;
   } | null>(null);
 
-  // Month options dropdown helper
+  // Month options dropdown helper dynamically derived from academic year
   const availableMonths = [
-    { value: "2025-07", label: "Juli 2025" },
-    { value: "2025-08", label: "Agustus 2025" },
-    { value: "2025-09", label: "September 2025" },
-    { value: "2025-10", label: "Oktober 2025" },
-    { value: "2025-11", label: "November 2025" },
-    { value: "2025-12", label: "Desember 2025" },
-    { value: "2026-01", label: "Januari 2026" },
-    { value: "2026-02", label: "Februari 2026" },
-    { value: "2026-03", label: "Maret 2026" },
-    { value: "2026-04", label: "April 2026" },
-    { value: "2026-05", label: "Mei 2026" },
-    { value: "2026-06", label: "Juni 2026" },
+    { value: `${startYear}-07`, label: `Juli ${startYear}` },
+    { value: `${startYear}-08`, label: `Agustus ${startYear}` },
+    { value: `${startYear}-09`, label: `September ${startYear}` },
+    { value: `${startYear}-10`, label: `Oktober ${startYear}` },
+    { value: `${startYear}-11`, label: `November ${startYear}` },
+    { value: `${startYear}-12`, label: `Desember ${startYear}` },
+    { value: `${endYear}-01`, label: `Januari ${endYear}` },
+    { value: `${endYear}-02`, label: `Februari ${endYear}` },
+    { value: `${endYear}-03`, label: `Maret ${endYear}` },
+    { value: `${endYear}-04`, label: `April ${endYear}` },
+    { value: `${endYear}-05`, label: `Mei ${endYear}` },
+    { value: `${endYear}-06`, label: `Juni ${endYear}` },
   ];
 
   const getMonthLabel = (val: string) => {
@@ -1313,7 +1320,7 @@ export const BulkAttendanceView: React.FC<BulkAttendanceViewProps> = ({
 
             <div className="flex flex-wrap items-center gap-2">
               <button
-                onClick={() => exportAttendanceToExcel(students, attendanceRecords, selectedMonthFilter)}
+                onClick={() => exportAttendanceToExcel(students, attendanceRecords, selectedMonthFilter, schoolIdentity)}
                 className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-xs flex items-center gap-1.5 transition-colors"
                 title="Ekspor ke Excel (.xlsx)"
               >

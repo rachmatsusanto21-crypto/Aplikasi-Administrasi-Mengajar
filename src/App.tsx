@@ -406,6 +406,7 @@ export default function App() {
                 attendanceRecords={attendanceRecords}
                 onSaveAttendance={setAttendanceRecords}
                 onOpenPrint={handleOpenPrint}
+                schoolIdentity={schoolIdentity}
               />
             )}
 

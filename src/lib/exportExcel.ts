@@ -165,7 +165,14 @@ export function exportAttendanceToExcel(
   schoolIdentity?: Partial<SchoolIdentity>
 ) {
   const data = students.map((s, idx) => {
-    const studentRecs = attendanceRecords.filter((r) => r.studentId === s.id);
+    const studentRecs = attendanceRecords.filter((r) => {
+      if (r.studentId !== s.id) return false;
+      if (periodStr && periodStr !== "all") {
+        return (r.date || "").startsWith(periodStr);
+      }
+      return true;
+    });
+
     const hadir = studentRecs.filter((r) => r.status === "H").length;
     const sakit = studentRecs.filter((r) => r.status === "S").length;
     const izin = studentRecs.filter((r) => r.status === "I").length;
@@ -173,16 +180,25 @@ export function exportAttendanceToExcel(
     const total = studentRecs.length;
     const persentase = total > 0 ? Math.round((hadir / total) * 100) + "%" : "100%";
 
+    const logs = studentRecs
+      .filter((r) => r.status !== "H")
+      .map((r) => {
+        const [, m, d] = (r.date || "").split("-");
+        const formattedDate = m && d ? `${d}/${m}` : r.date;
+        return `${formattedDate} [${r.status}]${r.reason ? " - " + r.reason : ""}`;
+      })
+      .join(" ; ");
+
     return {
       No: idx + 1,
+      NIS: s.nis || "-",
       "Nama Siswa": s.name,
-      NISN: s.nisn || "-",
-      Hadir: hadir,
-      Sakit: sakit,
-      Izin: izin,
-      Alfa: alfa,
-      "Total Pertemuan": total,
-      "Kehadiran (%)": persentase,
+      "Sakit (S)": sakit,
+      "Izin (I)": izin,
+      "Alpa (A)": alfa,
+      "Total Pertemuan Absen": sakit + izin + alfa,
+      "Persentase Kehadiran": persentase,
+      "Log Keterangan / Penyebab Absen": logs || "Hadir Penuh",
     };
   });
 
@@ -192,8 +208,9 @@ export function exportAttendanceToExcel(
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Rekap Presensi");
 
+  const school = schoolIdentity?.schoolName ? `${schoolIdentity.schoolName}_` : "";
   const periodLabel = periodStr && periodStr !== "all" ? `_${periodStr.replace(/\s+/g, "_")}` : "";
-  saveWorkbook(workbook, `Rekap_Presensi_Siswa${periodLabel}.xlsx`);
+  saveWorkbook(workbook, `Rekap_Presensi_Siswa_${school}${schoolIdentity?.gradeClass || "Kelas"}${periodLabel}.xlsx`);
 }
 
 // 4. Export Jurnal Mengajar Harian
