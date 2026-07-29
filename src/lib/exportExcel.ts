@@ -406,3 +406,60 @@ export function exportTimetableToExcel(
 
   saveWorkbook(workbook, `Jadwal_Pelajaran_${schoolIdentity?.gradeClass || "Kelas"}.xlsx`);
 }
+
+// 9. Export Matriks Absensi Bulanan 1-31
+export function exportMonthlyMatrixToExcel(
+  students: Student[],
+  attendanceRecords: AttendanceRecord[],
+  monthStr: string,
+  monthLabel: string
+) {
+  const [yearStr, mStr] = monthStr.split("-");
+  const year = parseInt(yearStr || "2025", 10);
+  const month = parseInt(mStr || "7", 10);
+  const daysInMonth = new Date(year, month, 0).getDate();
+
+  const rows = students.map((s, idx) => {
+    const row: any = {
+      No: idx + 1,
+      NIS: s.nis || "-",
+      "Nama Siswa": s.name,
+    };
+
+    let totalS = 0;
+    let totalI = 0;
+    let totalA = 0;
+
+    for (let day = 1; day <= 31; day++) {
+      if (day > daysInMonth) {
+        row[`Tgl ${day}`] = "-";
+        continue;
+      }
+      const dayStr = day < 10 ? `0${day}` : `${day}`;
+      const dateKey = `${monthStr}-${dayStr}`;
+      const rec = attendanceRecords.find((r) => r.studentId === s.id && r.date === dateKey);
+
+      if (rec) {
+        row[`Tgl ${day}`] = rec.status;
+        if (rec.status === "S") totalS++;
+        if (rec.status === "I") totalI++;
+        if (rec.status === "A") totalA++;
+      } else {
+        row[`Tgl ${day}`] = "-";
+      }
+    }
+
+    row["Sakit (S)"] = totalS;
+    row["Izin (I)"] = totalI;
+    row["Alpa (A)"] = totalA;
+
+    return row;
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  autoWidth(worksheet);
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, `Matriks_${monthLabel.replace(/\s+/g, "_")}`);
+  saveWorkbook(workbook, `Rekap_Presensi_Matriks_${monthLabel.replace(/\s+/g, "_")}.xlsx`);
+}

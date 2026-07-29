@@ -1385,7 +1385,7 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                 Dashboard Monitoring Beban Kerja & Distribusi JP Kurikulum
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Visualisasi perbandingan Target Prota, Terisi Promes, dan Alokasi Jadwal Mingguan per Mata Pelajaran (Semester {selectedSemester})
+                Visualisasi perbandingan Target Prota dan Terisi Promes per Mata Pelajaran (Semester {selectedSemester})
               </p>
             </div>
           </div>
@@ -1487,12 +1487,11 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                       <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
                       <Bar dataKey="Target Prota (JP)" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="Terisi Promes (JP)" fill="#10b981" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="Jadwal Mingguan (JP)" fill="#f59e0b" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
                 <p className="text-[11px] text-slate-500 text-center italic">
-                  * Batang Biru = Target JP Prota, Batang Hijau = Total JP yang Dialokasikan di Promes, Batang Kuning = Frekuensi Jam Mengajar per Minggu dari Jadwal
+                  * Batang Biru = Target JP Prota, Batang Hijau = Total JP yang Dialokasikan di Promes
                 </p>
               </div>
             ) : (
