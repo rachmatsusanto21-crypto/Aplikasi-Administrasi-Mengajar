@@ -854,34 +854,6 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
     return sum;
   }, [filteredProta, promesWeeklyAllocations]);
 
-  // Column warning mapping to highlight weekly mismatch against scheduled capacity
-  const columnWarningsMap = useMemo<Record<string, { colTotal: number; availableJP: number; isOver: boolean; isUnder: boolean; diff: number }>>(() => {
-    const warnings: Record<string, { colTotal: number; availableJP: number; isOver: boolean; isUnder: boolean; diff: number }> = {};
-
-    promesMonths.forEach((m) => {
-      weeksPerMonth.forEach((w) => {
-        const wkKey = `${m}_w${w}`;
-        const colTotal = getColumnTotalJP(m, w);
-        const weekInfo = weekAnalysisMap[wkKey];
-        const availableJP = weekInfo ? weekInfo.availableJP : 0;
-
-        const isOver = colTotal > availableJP;
-        const isUnder = colTotal > 0 && colTotal < availableJP;
-        const diff = Math.abs(colTotal - availableJP);
-
-        if (isOver || isUnder) {
-          warnings[wkKey] = { colTotal, availableJP, isOver, isUnder, diff };
-        }
-      });
-    });
-
-    return warnings;
-  }, [promesMonths, weeksPerMonth, getColumnTotalJP, weekAnalysisMap]);
-
-  const totalOverCapacityWeeks = useMemo(() => {
-    return (Object.values(columnWarningsMap) as Array<{ isOver: boolean }>).filter((w) => w.isOver).length;
-  }, [columnWarningsMap]);
-
   const handleAutoFillPromes = () => {
     const autoFilled = computeAutoFill(filteredProta, promesMonths, weeksPerMonth, weekAnalysisMap);
     setPromesWeeklyAllocations(autoFilled);
@@ -1692,23 +1664,13 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
             </div>
           )}
 
-          {/* Over-Capacity Warning Alert */}
-          {totalOverCapacityWeeks > 0 && (
-            <div className="p-3 bg-red-100 border border-red-300 text-red-900 rounded-xl text-xs font-bold flex items-center justify-between shadow-xs">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
-                <span>
-                  <b>Peringatan Beban Kurikulum:</b> Terdapat <b>{totalOverCapacityWeeks} minggu</b> di mana total alokasi JP terisi melebihi kapasitas jam mengajar efektif yang ditetapkan! Periksa kolom bertanda <b>⚠️</b>.
-                </span>
-              </div>
-            </div>
-          )}
+
 
           {/* Legend Box for Week Status Indicators */}
           <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold">
             <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
               <Calendar className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Keterangan Status Alokasi & Peringatan Minggu Promes:</span>
+              <span>Keterangan Status Alokasi Minggu Promes:</span>
             </div>
             <div className="flex flex-wrap items-center gap-2.5">
               <span className="flex items-center gap-1 px-2.5 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200">
@@ -1717,15 +1679,11 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
               </span>
               <span className="flex items-center gap-1 px-2.5 py-1 bg-amber-100 dark:bg-amber-950/70 border border-amber-400 dark:border-amber-700 text-amber-950 dark:text-amber-200 font-bold rounded-lg shadow-2xs">
                 <span className="w-2.5 h-2.5 bg-amber-500 rounded-xs"></span>
-                Terpotong Event / Libur (Amber)
-              </span>
-              <span className="flex items-center gap-1 px-2.5 py-1 bg-red-100 dark:bg-red-950/80 border border-red-400 dark:border-red-700 text-red-950 dark:text-red-200 font-extrabold rounded-lg">
-                <span className="text-red-600 font-bold">⚠️</span>
-                Peringatan: Kelebihan JP (Merah)
+                Terpotong Event / Libur
               </span>
               <span className="flex items-center gap-1 px-2.5 py-1 bg-red-50 dark:bg-red-950/50 border border-red-300 text-red-900 dark:text-red-300 font-bold rounded-lg">
                 <span>🇮🇩</span>
-                Libur Nasional Terdeteksi
+                Libur Nasional
               </span>
             </div>
           </div>
@@ -1736,7 +1694,7 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                 <thead className="bg-slate-50 dark:bg-slate-900 font-bold border-b border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 uppercase">
                   <tr>
                     <th rowSpan={2} className="p-1.5 border-r border-slate-200 dark:border-slate-800 text-left w-[24%] min-w-[140px]">
-                      Tujuan Pembelajaran (TP)
+                      Tujuan Pembelajaran (TP) / Lingkup Materi
                     </th>
                     <th rowSpan={2} className="p-0.5 border-r border-slate-200 dark:border-slate-800 w-[3.5%] text-[8px] sm:text-[9px]">
                       Target
@@ -1757,26 +1715,19 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                         const weekInfo = weekAnalysisMap[wkKey];
                         const isOrange = weekInfo?.status === "PARTIAL_ORANGE";
                         const hasNatHoliday = weekInfo?.hasNationalHoliday;
-                        const colTotal = getColumnTotalJP(m, w);
-                        const available = weekInfo ? weekInfo.availableJP : 0;
-                        const isOver = colTotal > available;
 
                         return (
                           <th
                             key={wkKey}
                             className={`p-0.5 border-r border-slate-200 dark:border-slate-800 text-[8px] font-extrabold transition-all relative ${
-                              isOver
-                                ? "bg-red-500 text-white font-black"
-                                : hasNatHoliday
+                              hasNatHoliday
                                 ? "bg-red-100 text-red-950 dark:bg-red-950 dark:text-red-200 border-t-2 border-t-red-500"
                                 : isOrange
-                                ? "bg-amber-400 dark:bg-amber-600 text-amber-950 dark:text-amber-100"
+                                ? "bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100"
                                 : "bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300"
                             }`}
                             title={
-                              isOver
-                                ? `⚠️ PERINGATAN BEBAN MELEBIHI KAPASITAS! Total terisi (${colTotal} JP) melebihi kapasitas jam mengajar (${available} JP). ${weekInfo?.reason || ""}`
-                                : hasNatHoliday
+                              hasNatHoliday
                                 ? `🇮🇩 HARI LIBUR NASIONAL: ${weekInfo?.nationalHolidaysList?.join(", ")}. ${weekInfo?.reason || ""}`
                                 : weekInfo?.reason || `Minggu ${w} ${m}`
                             }
@@ -1784,9 +1735,8 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                             <div className="flex flex-col items-center justify-center leading-tight py-0.5">
                               <span>W{w}</span>
                               <span className="flex items-center justify-center gap-0.5 text-[8px] font-bold">
-                                {isOver && <span title="Kelebihan JP vs Kapasitas">⚠️</span>}
                                 {hasNatHoliday && <span title={weekInfo?.nationalHolidaysList?.join(", ")}>🇮🇩</span>}
-                                {!isOver && !hasNatHoliday && isOrange && <span>⚡</span>}
+                                {!hasNatHoliday && isOrange && <span>⚡</span>}
                               </span>
                             </div>
                           </th>
@@ -1823,14 +1773,14 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                                 isMatching
                                   ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300"
                                   : currentAllocatedPromes > targetJP
-                                  ? "bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-300"
-                                  : "bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300"
+                                  ? "bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300"
+                                  : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
                               }`}
                               title={
                                 isMatching
                                   ? "Sesuai Target Prota"
                                   : currentAllocatedPromes > targetJP
-                                  ? `Kelebihan ${currentAllocatedPromes - targetJP} JP`
+                                  ? `Terisi ${currentAllocatedPromes} JP`
                                   : `Kurang ${targetJP - currentAllocatedPromes} JP`
                               }
                             >
@@ -1849,7 +1799,7 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                                 <td
                                   key={`${m}_w${w}`}
                                   className={`p-0 border-r border-slate-200 dark:border-slate-800 text-center font-mono ${
-                                    isOrange ? "bg-amber-50/70 dark:bg-amber-950/40" : ""
+                                    isOrange ? "bg-amber-50/40 dark:bg-amber-950/20" : ""
                                   }`}
                                   title={weekInfo?.reason || ""}
                                 >
@@ -1862,12 +1812,8 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                                       placeholder="-"
                                       onChange={(e) => handleUpdatePromesJP(p.id, m, w, parseInt(e.target.value, 10) || 0)}
                                       className={`w-full h-6 text-center font-bold text-[10px] rounded-2xs border-0 transition-all p-0 focus:ring-1 ${
-                                        val > 0 && isOrange
-                                          ? "bg-amber-500 text-slate-950 font-black"
-                                          : val > 0
+                                        val > 0
                                           ? "bg-emerald-600 text-white font-extrabold"
-                                          : isOrange
-                                          ? "bg-amber-100/80 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 hover:bg-amber-200"
                                           : "bg-transparent text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                                       }`}
                                     />
@@ -1876,12 +1822,8 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                                       type="button"
                                       onClick={() => handleTogglePromesWeek(p.id, m, w)}
                                       className={`w-full h-6 font-bold text-[10px] rounded-2xs transition-colors p-0 ${
-                                        val > 0 && isOrange
-                                          ? "bg-amber-500 text-slate-950 font-black"
-                                          : val > 0
+                                        val > 0
                                           ? "bg-emerald-600 text-white font-extrabold"
-                                          : isOrange
-                                          ? "bg-amber-100/80 dark:bg-amber-950 text-amber-900 dark:text-amber-200 hover:bg-amber-200"
                                           : "bg-transparent text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                                       }`}
                                     >
@@ -1911,42 +1853,15 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                       </td>
                       {promesMonths.map((m) =>
                         weeksPerMonth.map((w) => {
-                          const wkKey = `${m}_w${w}`;
                           const colTotal = getColumnTotalJP(m, w);
-                          const weekInfo = weekAnalysisMap[wkKey];
-                          const available = weekInfo ? weekInfo.availableJP : 0;
-                          const isOver = colTotal > available;
-                          const isUnder = colTotal > 0 && colTotal < available;
-                          const isMatch = colTotal > 0 && colTotal === available;
 
                           return (
                             <td
                               key={`total_${m}_w${w}`}
-                              className={`p-0.5 border-r border-slate-300 dark:border-slate-700 font-extrabold font-mono text-[9px] ${
-                                isOver
-                                  ? "bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-200 border-b-2 border-b-red-600 font-black"
-                                  : isMatch
-                                  ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
-                                  : isUnder
-                                  ? "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200"
-                                  : "text-slate-400"
-                              }`}
-                              title={
-                                isOver
-                                  ? `⚠️ Kelebihan JP: Total terisi (${colTotal} JP) melebihi kapasitas (${available} JP)!`
-                                  : isMatch
-                                  ? `✓ Sesuai Beban: ${colTotal} JP`
-                                  : isUnder
-                                  ? `⚡ Kurang: Terisi ${colTotal} JP dari ${available} JP`
-                                  : `Kapasitas efektif: ${available} JP`
-                              }
+                              className="p-0.5 border-r border-slate-300 dark:border-slate-700 font-extrabold font-mono text-[9px] text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-900"
                             >
                               <div className="flex flex-col items-center leading-none py-0.5">
-                                <span className="flex items-center gap-0.5">
-                                  {colTotal > 0 ? colTotal : "-"}
-                                  {isOver && <span className="text-[8px] text-red-600 font-black">⚠️</span>}
-                                </span>
-                                <span className="text-[7px] font-normal opacity-70">/{available}</span>
+                                <span>{colTotal > 0 ? colTotal : "-"}</span>
                               </div>
                             </td>
                           );
