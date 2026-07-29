@@ -83,11 +83,32 @@ function doGet(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    // 3. Status Check / Ping
+    // 3. Delete specific backup file(s) from Google Drive
+    if (action === 'deleteBackup') {
+      var fileId = e.parameter.fileId;
+      var folder = getBackupFolder();
+      if (fileId) {
+        try {
+          var file = DriveApp.getFileById(fileId);
+          file.setTrashed(true);
+          return ContentService.createTextOutput(JSON.stringify({
+            status: "success",
+            message: "File backup '" + file.getName() + "' berhasil dihapus dari Google Drive!"
+          })).setMimeType(ContentService.MimeType.JSON);
+        } catch (errDel) {
+          return ContentService.createTextOutput(JSON.stringify({
+            status: "error",
+            message: "Gagal menghapus file: " + errDel.toString()
+          })).setMimeType(ContentService.MimeType.JSON);
+        }
+      }
+    }
+
+    // 4. Status Check / Ping
     return ContentService.createTextOutput(JSON.stringify({ 
       status: "success", 
       message: "Web App Administrasi Guru & Drive Backup Aktif!",
-      version: "2.5-drive-backup",
+      version: "2.6-drive-backup",
       sheets: ss.getSheets().map(function(s) { return s.getName(); })
     })).setMimeType(ContentService.MimeType.JSON);
 
@@ -175,6 +196,42 @@ function doPost(e) {
       return ContentService.createTextOutput(JSON.stringify({ 
         status: "success", 
         message: "Seluruh data modul berhasil disinkronkan ke Google Sheet & Drive Backup!" 
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 3. Delete backup file(s) from Google Drive
+    if (action === 'deleteBackup') {
+      var fileIds = payload.fileIds || (payload.fileId ? [payload.fileId] : []);
+      var deletedCount = 0;
+      for (var i = 0; i < fileIds.length; i++) {
+        if (fileIds[i]) {
+          try {
+            var fileToDelete = DriveApp.getFileById(fileIds[i]);
+            fileToDelete.setTrashed(true);
+            deletedCount++;
+          } catch (eDel) {}
+        }
+      }
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        message: deletedCount + " file backup berhasil dihapus dari Google Drive!"
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 4. Create Google Doc file from HTML content
+    if (action === 'createGoogleDoc') {
+      var docTitle = payload.title || "Dokumen_Administrasi_Guru";
+      var htmlContent = payload.htmlContent || payload.content || "";
+      var docFolder = getBackupFolder();
+      var htmlBlob = Utilities.newBlob(htmlContent, 'text/html', docTitle + '.html');
+      var docFile = docFolder.createFile(htmlBlob);
+
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        message: "Dokumen berhasil disimpan di Google Drive!",
+        fileId: docFile.getId(),
+        docUrl: "https://docs.google.com/document/d/" + docFile.getId() + "/edit",
+        driveUrl: docFile.getUrl()
       })).setMimeType(ContentService.MimeType.JSON);
     }
 

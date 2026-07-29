@@ -66,6 +66,9 @@ export const BackupModal: React.FC<BackupModalProps> = ({
   const [activeTab, setActiveTab] = useState<"server" | "cloud" | "guide">("server");
   const [serverBackups, setServerBackups] = useState<ServerBackupItem[]>([]);
   const [cloudBackups, setCloudBackups] = useState<CloudBackupItem[]>([]);
+  const [selectedCloudIds, setSelectedCloudIds] = useState<string[]>([]);
+  const [confirmDeleteCloudIds, setConfirmDeleteCloudIds] = useState<string[] | null>(null);
+  const [isDeletingCloud, setIsDeletingCloud] = useState(false);
   const [loadingServerList, setLoadingServerList] = useState(false);
   const [loadingCloudList, setLoadingCloudList] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -519,6 +522,63 @@ Di editor Google Apps Script:
     }
   };
 
+  // 7b. Cloud Backup selection & deletion handlers
+  const handleToggleSelectCloud = (id: string) => {
+    setSelectedCloudIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllCloud = () => {
+    if (selectedCloudIds.length === cloudBackups.length) {
+      setSelectedCloudIds([]);
+    } else {
+      setSelectedCloudIds(cloudBackups.map((c) => c.id));
+    }
+  };
+
+  const handleDeleteCloudBackups = async (idsToDelete: string[]) => {
+    if (!webAppUrl || idsToDelete.length === 0) return;
+
+    setIsDeletingCloud(true);
+    setActionMessage(null);
+
+    try {
+      let successCount = 0;
+      for (const id of idsToDelete) {
+        const deleteUrl = webAppUrl.includes("?")
+          ? `${webAppUrl}&action=deleteBackup&fileId=${encodeURIComponent(id)}`
+          : `${webAppUrl}?action=deleteBackup&fileId=${encodeURIComponent(id)}`;
+
+        const res = await fetch(deleteUrl);
+        const text = await res.text();
+        try {
+          const json = JSON.parse(text);
+          if (json.status === "success") {
+            successCount++;
+          }
+        } catch (e) {
+          if (res.ok) successCount++;
+        }
+      }
+
+      setActionMessage({
+        type: "success",
+        text: `✅ Berhasil menghapus ${successCount} file backup dari Google Drive!`,
+      });
+      setSelectedCloudIds((prev) => prev.filter((id) => !idsToDelete.includes(id)));
+      fetchCloudBackups();
+    } catch (err: any) {
+      setActionMessage({
+        type: "error",
+        text: `❌ Gagal menghapus file dari Google Drive: ${err.message || err}`,
+      });
+    } finally {
+      setIsDeletingCloud(false);
+      setConfirmDeleteCloudIds(null);
+    }
+  };
+
   // 8. Download direct local JSON backup file to browser downloads
   const handleDownloadDirectJson = () => {
     const backupPayload = {
@@ -812,9 +872,38 @@ Di editor Google Apps Script:
 
               {/* Cloud Files List */}
               <div className="space-y-2">
-                <h4 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
-                  Daftar Berkas Cadangan di Google Drive Cloud
-                </h4>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h4 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
+                    Daftar Berkas Cadangan di Google Drive Cloud ({cloudBackups.length})
+                  </h4>
+
+                  {cloudBackups.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleSelectAllCloud}
+                        className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:underline flex items-center gap-1"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedCloudIds.length === cloudBackups.length && cloudBackups.length > 0}
+                          onChange={handleSelectAllCloud}
+                          className="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        />
+                        <span>Pilih Semua</span>
+                      </button>
+
+                      {selectedCloudIds.length > 0 && (
+                        <button
+                          onClick={() => setConfirmDeleteCloudIds(selectedCloudIds)}
+                          className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-lg flex items-center gap-1 shadow-xs animate-fadeIn"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Hapus Terpilih ({selectedCloudIds.length})</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 {loadingCloudList ? (
                   <div className="p-8 text-center text-slate-500 space-y-2">
@@ -831,44 +920,67 @@ Di editor Google Apps Script:
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
-                    {cloudBackups.map((item) => (
-                      <div
-                        key={item.id}
-                        className="p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:border-indigo-500 transition-colors shadow-2xs"
-                      >
-                        <div className="space-y-1">
-                          <div className="font-bold text-slate-900 dark:text-white text-xs flex items-center gap-1.5">
-                            <Cloud className="w-4 h-4 text-indigo-600 shrink-0" />
-                            <span>{item.filename}</span>
+                    {cloudBackups.map((item) => {
+                      const isSelected = selectedCloudIds.includes(item.id);
+                      return (
+                        <div
+                          key={item.id}
+                          className={`p-3 border rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 transition-colors shadow-2xs ${
+                            isSelected
+                              ? "bg-indigo-50/80 dark:bg-indigo-950/60 border-indigo-400 dark:border-indigo-600"
+                              : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-indigo-400"
+                          }`}
+                        >
+                          <div className="flex items-start gap-2.5">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleToggleSelectCloud(item.id)}
+                              className="mt-1 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                            />
+                            <div className="space-y-1">
+                              <div className="font-bold text-slate-900 dark:text-white text-xs flex items-center gap-1.5 break-all">
+                                <Cloud className="w-4 h-4 text-indigo-600 shrink-0" />
+                                <span>{item.filename}</span>
+                              </div>
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-3 flex-wrap">
+                                <span>📅 {new Date(item.backupDate).toLocaleString("id-ID")}</span>
+                                <span>💾 {item.sizeFormatted}</span>
+                                <span className="text-indigo-600 font-semibold">{item.location}</span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-3">
-                            <span>📅 {new Date(item.backupDate).toLocaleString("id-ID")}</span>
-                            <span>💾 {item.sizeFormatted}</span>
-                            <span className="text-indigo-600 font-semibold">{item.location}</span>
+
+                          <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                            <button
+                              onClick={() => handleDownloadCloudBackup(item.id, item.filename)}
+                              className="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-lg flex items-center gap-1"
+                              title="Unduh berkas dari Cloud ke gawai"
+                            >
+                              <CloudDownload className="w-3.5 h-3.5 text-indigo-600" />
+                              Unduh
+                            </button>
+
+                            <button
+                              onClick={() => handleRestoreFromCloudBackup(item.id, item.filename)}
+                              className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg flex items-center gap-1"
+                              title="Pulihkan data aplikasi dari Cloud"
+                            >
+                              <RefreshCw className="w-3.5 h-3.5" />
+                              Pulihkan
+                            </button>
+
+                            <button
+                              onClick={() => setConfirmDeleteCloudIds([item.id])}
+                              className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-colors"
+                              title="Hapus file backup ini dari Google Drive"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
-                          <button
-                            onClick={() => handleDownloadCloudBackup(item.id, item.filename)}
-                            className="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-lg flex items-center gap-1"
-                            title="Unduh berkas dari Cloud ke gawai"
-                          >
-                            <CloudDownload className="w-3.5 h-3.5 text-indigo-600" />
-                            Unduh dari Cloud
-                          </button>
-
-                          <button
-                            onClick={() => handleRestoreFromCloudBackup(item.id, item.filename)}
-                            className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg flex items-center gap-1"
-                            title="Pulihkan data aplikasi dari Cloud"
-                          >
-                            <RefreshCw className="w-3.5 h-3.5" />
-                            Pulihkan dari Cloud
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -935,6 +1047,53 @@ Di editor Google Apps Script:
             Tutup
           </button>
         </div>
+        {/* Confirmation Modal for Cloud Delete */}
+        {confirmDeleteCloudIds && confirmDeleteCloudIds.length > 0 && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 animate-fadeIn backdrop-blur-xs">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+              <div className="flex items-center gap-3 text-rose-600">
+                <div className="p-2.5 bg-rose-100 dark:bg-rose-950 rounded-xl">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-base text-slate-900 dark:text-white">Konfirmasi Hapus File Cloud</h4>
+                  <p className="text-xs text-slate-500">Google Drive Storage</p>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                Apakah Anda yakin ingin menghapus <b>{confirmDeleteCloudIds.length} file backup</b> terpilih dari folder Google Drive Anda? Tindakan ini tidak dapat dibatalkan.
+              </p>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  onClick={() => setConfirmDeleteCloudIds(null)}
+                  disabled={isDeletingCloud}
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={() => handleDeleteCloudBackups(confirmDeleteCloudIds)}
+                  disabled={isDeletingCloud}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs"
+                >
+                  {isDeletingCloud ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Menghapus...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Ya, Hapus Sekarang</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

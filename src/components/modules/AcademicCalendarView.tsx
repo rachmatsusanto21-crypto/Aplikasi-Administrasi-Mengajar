@@ -95,6 +95,15 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
     return { isHoliday: false, reason: "", type: "" };
   };
 
+  // Sorted events chronologically from the start of the academic year
+  const sortedEvents = useMemo(() => {
+    return [...events].sort((a, b) => {
+      const dateA = a.date || "";
+      const dateB = b.date || "";
+      return dateA.localeCompare(dateB);
+    });
+  }, [events]);
+
   // Calculation of Effective Days & Hours per Subject
   const subjectCalculations = useMemo(() => {
     // Parse YYYY-MM-DD at noon local time to avoid timezone drift
@@ -359,7 +368,7 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
             </tr>
           </thead>
           <tbody>
-            ${events
+            ${sortedEvents
               .map(
                 (e, idx) => `
               <tr>
@@ -492,7 +501,7 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
                 </tr>
               </thead>
               <tbody>
-                {events.map((e, idx) => (
+                {sortedEvents.map((e, idx) => (
                   <tr key={e.id} className="odd:bg-white even:bg-slate-50">
                     <td className="border border-slate-300 p-2 text-center font-mono">{idx + 1}</td>
                     <td className="border border-slate-300 p-2 text-center font-mono font-bold">
@@ -707,7 +716,7 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {events.map((evt) => (
+          {sortedEvents.map((evt) => (
             <div
               key={evt.id}
               className="p-3.5 rounded-xl border border-slate-200 flex items-center justify-between hover:border-slate-300 transition-all bg-slate-50/50"
