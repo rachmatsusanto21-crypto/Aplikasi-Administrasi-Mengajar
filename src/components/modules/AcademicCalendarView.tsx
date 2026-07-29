@@ -257,6 +257,437 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
     return Object.values(results);
   }, [startDate, endDate, subjects, timetable, events, incidentalJournals]);
 
+  // State for Subject & Semester Active Days/Hours Detailed Breakdown Table
+  const [selectedSubjectTab, setSelectedSubjectTab] = useState<string>(subjects[0] || "Bahasa Indonesia");
+  const [selectedSemesterTab, setSelectedSemesterTab] = useState<number>(1);
+  const [customWeeklyData, setCustomWeeklyData] = useState<
+    Record<string, { activeDates: string; jpPerWeek: string; allocatedHours: number; tpCode: string; tpDescription: string }>
+  >({});
+
+  // Parse start year from academic startDate
+  const startYear = useMemo(() => {
+    const yr = parseInt((startDate || "2026-07-14").split("-")[0], 10);
+    return isNaN(yr) ? 2026 : yr;
+  }, [startDate]);
+
+  // Compute 6 months for selected semester
+  const semesterMonths = useMemo(() => {
+    if (selectedSemesterTab === 1) {
+      return [
+        { name: "Juli", year: startYear, monthNum: 7 },
+        { name: "Agustus", year: startYear, monthNum: 8 },
+        { name: "September", year: startYear, monthNum: 9 },
+        { name: "Oktober", year: startYear, monthNum: 10 },
+        { name: "November", year: startYear, monthNum: 11 },
+        { name: "Desember", year: startYear, monthNum: 12 },
+      ];
+    } else {
+      return [
+        { name: "Januari", year: startYear + 1, monthNum: 1 },
+        { name: "Februari", year: startYear + 1, monthNum: 2 },
+        { name: "Maret", year: startYear + 1, monthNum: 3 },
+        { name: "April", year: startYear + 1, monthNum: 4 },
+        { name: "Mei", year: startYear + 1, monthNum: 5 },
+        { name: "Juni", year: startYear + 1, monthNum: 6 },
+      ];
+    }
+  }, [selectedSemesterTab, startYear]);
+
+  // Map timetable slot day count per subject
+  const currentSubjectDayJPMap = useMemo(() => {
+    const dayMap: Record<string, number> = {
+      Senin: 0,
+      Selasa: 0,
+      Rabu: 0,
+      Kamis: 0,
+      Jumat: 0,
+      Sabtu: 0,
+    };
+    const normSel = (selectedSubjectTab || "").toLowerCase().trim().replace(/\s+/g, " ");
+
+    const uniqueSlotsMap = new Map<string, TimetableSlot>();
+    (timetable || []).forEach((slot) => {
+      if (slot.day && slot.period && slot.subject && slot.subject.trim() !== "") {
+        const key = `${slot.day.trim()}_${slot.period}`;
+        uniqueSlotsMap.set(key, slot);
+      }
+    });
+
+    uniqueSlotsMap.forEach((slot) => {
+      const slotNorm = (slot.subject || "").toLowerCase().trim().replace(/\s+/g, " ");
+      if (slotNorm === normSel) {
+        const dayKey = slot.day.trim();
+        if (dayMap[dayKey] !== undefined) {
+          dayMap[dayKey] += 1;
+        }
+      }
+    });
+
+    return dayMap;
+  }, [selectedSubjectTab, timetable]);
+
+  // Filter protaList for selected subject & semester
+  const subjectProtaList = useMemo(() => {
+    const normSel = (selectedSubjectTab || "").toLowerCase().trim().replace(/\s+/g, " ");
+    return (protaList || []).filter((p) => {
+      const pNorm = (p.subject || "").toLowerCase().trim().replace(/\s+/g, " ");
+      const pSem = String(p.semester);
+      return pNorm === normSel && (pSem === String(selectedSemesterTab) || pSem.includes(String(selectedSemesterTab)));
+    });
+  }, [selectedSubjectTab, selectedSemesterTab, protaList]);
+
+  // All Prota items for selected subject (across both semesters for easy cross-semester lookup)
+  const allSubjectProtaList = useMemo(() => {
+    const normSel = (selectedSubjectTab || "").toLowerCase().trim().replace(/\s+/g, " ");
+    return (protaList || []).filter((p) => {
+      const pNorm = (p.subject || "").toLowerCase().trim().replace(/\s+/g, " ");
+      return pNorm === normSel;
+    });
+  }, [selectedSubjectTab, protaList]);
+
+  // Compute dynamic weekly dataset for the selected subject and semester
+  const computedSubjectWeeklyData = useMemo(() => {
+    const result: Array<{
+      monthIndex: number;
+      monthName: string;
+      year: number;
+      monthTitle: string;
+      weeks: Array<{
+        weekNum: number;
+        activeDates: string;
+        jpPerWeek: string;
+        allocatedHours: number;
+        tpCode: string;
+        tpDescription: string;
+      }>;
+      monthlyTotalHours: number;
+    }> = [];
+
+    let tpPointer = 0;
+
+    semesterMonths.forEach((mObj, mIdx) => {
+      const daysInMonth = new Date(mObj.year, mObj.monthNum, 0).getDate();
+      const weeksArr: Array<{
+        weekNum: number;
+        activeDates: string;
+        jpPerWeek: string;
+        allocatedHours: number;
+        tpCode: string;
+        tpDescription: string;
+      }> = [];
+
+      let monthlySum = 0;
+
+      for (let w = 1; w <= 5; w++) {
+        const key = `${selectedSubjectTab}_s${selectedSemesterTab}_m${mIdx}_w${w}`;
+
+        if (customWeeklyData[key]) {
+          const cust = customWeeklyData[key];
+          weeksArr.push({
+            weekNum: w,
+            activeDates: cust.activeDates,
+            jpPerWeek: cust.jpPerWeek,
+            allocatedHours: cust.allocatedHours,
+            tpCode: cust.tpCode,
+            tpDescription: cust.tpDescription,
+          });
+          monthlySum += cust.allocatedHours;
+        } else {
+          // Auto calculate from calendar dates & timetable
+          const startDay = (w - 1) * 7 + 1;
+          const endDay = w === 5 ? daysInMonth : w * 7;
+
+          const activeDatesList: string[] = [];
+          const jpList: number[] = [];
+          let weekJPSum = 0;
+
+          if (startDay <= daysInMonth) {
+            for (let d = startDay; d <= endDay; d++) {
+              const dt = new Date(mObj.year, mObj.monthNum - 1, d, 12, 0, 0);
+              const dayIdx = dt.getDay(); // 0 = Sun
+              const dayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+              const dayName = dayNames[dayIdx];
+
+              const yStr = dt.getFullYear();
+              const mStr = String(dt.getMonth() + 1).padStart(2, "0");
+              const dStr = String(dt.getDate()).padStart(2, "0");
+              const dateYMD = `${yStr}-${mStr}-${dStr}`;
+
+              if (dayIdx !== 0) {
+                const dayJP = currentSubjectDayJPMap[dayName] || 0;
+                if (dayJP > 0) {
+                  const hol = isDateHolidayOrEvent(dateYMD);
+                  if (!hol.isHoliday) {
+                    activeDatesList.push(`${d}/${mObj.monthNum}`);
+                    jpList.push(dayJP);
+                    weekJPSum += dayJP;
+                  }
+                }
+              }
+            }
+          }
+
+          let activeDatesStr = activeDatesList.length > 0 ? activeDatesList.join("; ") + "; " : "";
+          let jpPerWeekStr = jpList.length > 0 ? jpList.join("; ") : "0";
+          let tpCode = "";
+          let tpDescription = "";
+
+          if (weekJPSum > 0) {
+            if (subjectProtaList.length > 0) {
+              const matchedTP = subjectProtaList[tpPointer % subjectProtaList.length];
+              tpCode = matchedTP.codeTP || matchedTP.tpCode || `TP-${selectedSubjectTab.slice(0, 3).toUpperCase()}-5.${tpPointer + 1}`;
+              tpDescription = matchedTP.tpDescription || "";
+              tpPointer++;
+            }
+          }
+
+          weeksArr.push({
+            weekNum: w,
+            activeDates: activeDatesStr,
+            jpPerWeek: jpPerWeekStr,
+            allocatedHours: weekJPSum,
+            tpCode,
+            tpDescription,
+          });
+
+          monthlySum += weekJPSum;
+        }
+      }
+
+      result.push({
+        monthIndex: mIdx,
+        monthName: mObj.name,
+        year: mObj.year,
+        monthTitle: `${mObj.name} ${mObj.year}`,
+        weeks: weeksArr,
+        monthlyTotalHours: monthlySum,
+      });
+    });
+
+    return result;
+  }, [
+    selectedSubjectTab,
+    selectedSemesterTab,
+    semesterMonths,
+    customWeeklyData,
+    currentSubjectDayJPMap,
+    subjectProtaList,
+    events,
+    incidentalJournals,
+  ]);
+
+  // Grand total hours for subject in selected semester
+  const grandTotalSemesterHours = useMemo(() => {
+    return computedSubjectWeeklyData.reduce((acc, m) => acc + m.monthlyTotalHours, 0);
+  }, [computedSubjectWeeklyData]);
+
+  // Handler for custom cell edit in weekly breakdown table
+  const handleUpdateWeeklyCell = (
+    mIdx: number,
+    wNum: number,
+    field: "activeDates" | "jpPerWeek" | "allocatedHours" | "tpCode" | "tpDescription",
+    val: string | number
+  ) => {
+    const key = `${selectedSubjectTab}_s${selectedSemesterTab}_m${mIdx}_w${wNum}`;
+    const monthData = computedSubjectWeeklyData[mIdx];
+    const currentWeek = monthData ? monthData.weeks[wNum - 1] : null;
+
+    if (!currentWeek) return;
+
+    const updated = {
+      activeDates: currentWeek.activeDates,
+      jpPerWeek: currentWeek.jpPerWeek,
+      allocatedHours: currentWeek.allocatedHours,
+      tpCode: currentWeek.tpCode,
+      tpDescription: currentWeek.tpDescription,
+      [field]: val,
+    };
+
+    setCustomWeeklyData((prev) => ({
+      ...prev,
+      [key]: updated,
+    }));
+  };
+
+  // Handler when selecting a TP from Prota dropdown
+  const handleSelectTPForWeek = (
+    mIdx: number,
+    wNum: number,
+    selectedTpId: string
+  ) => {
+    if (!selectedTpId) {
+      handleUpdateWeeklyCell(mIdx, wNum, "tpCode", "");
+      handleUpdateWeeklyCell(mIdx, wNum, "tpDescription", "");
+      return;
+    }
+
+    const matched = (protaList || []).find((p) => p.id === selectedTpId);
+    if (!matched) return;
+
+    const code = matched.codeTP || matched.tpCode || "";
+    const desc = matched.tpDescription || "";
+
+    const key = `${selectedSubjectTab}_s${selectedSemesterTab}_m${mIdx}_w${wNum}`;
+    const monthData = computedSubjectWeeklyData[mIdx];
+    const currentWeek = monthData ? monthData.weeks[wNum - 1] : null;
+
+    if (!currentWeek) return;
+
+    const updated = {
+      activeDates: currentWeek.activeDates,
+      jpPerWeek: currentWeek.jpPerWeek,
+      allocatedHours: currentWeek.allocatedHours,
+      tpCode: code,
+      tpDescription: desc,
+    };
+
+    setCustomWeeklyData((prev) => ({
+      ...prev,
+      [key]: updated,
+    }));
+  };
+
+  const handleResetWeeklyData = () => {
+    setCustomWeeklyData({});
+  };
+
+  // Export Subject Effective Table to Word (.docx)
+  const handleExportDocSubjectEffectiveTable = () => {
+    let rowsHtml = "";
+
+    computedSubjectWeeklyData.forEach((m) => {
+      // Month Subheader
+      rowsHtml += `
+        <tr style="background-color: #e2e8f0; font-weight: bold;">
+          <td style="border: 1px solid #333; padding: 5px; text-align: center;">-</td>
+          <td style="border: 1px solid #333; padding: 5px; text-align: center; font-weight: bold;">minggu ke</td>
+          <td style="border: 1px solid #333; padding: 5px; text-align: left; font-weight: bold;">tanggal aktif ${m.monthTitle.toLowerCase()}</td>
+          <td style="border: 1px solid #333; padding: 5px; text-align: center; font-weight: bold;">jp per minggu</td>
+          <td style="border: 1px solid #333; padding: 5px; text-align: center; font-weight: bold;">alokasi jam</td>
+          <td style="border: 1px solid #333; padding: 5px; text-align: center; font-weight: bold;">jumlah jam ${m.monthTitle}</td>
+          <td style="border: 1px solid #333; padding: 5px; text-align: center; font-weight: bold;">kode tp</td>
+          <td style="border: 1px solid #333; padding: 5px; text-align: left; font-weight: bold;">deskripsi tp</td>
+        </tr>
+      `;
+
+      m.weeks.forEach((w, wIdx) => {
+        const isFirstRow = wIdx === 0;
+        rowsHtml += `
+          <tr>
+            ${
+              isFirstRow
+                ? `<td rowspan="5" style="border: 1px solid #333; padding: 5px; font-weight: bold; text-align: left; vertical-align: top;">${selectedSubjectTab.toLowerCase()}</td>`
+                : ""
+            }
+            <td style="border: 1px solid #333; padding: 5px; text-align: center;">${w.weekNum}</td>
+            <td style="border: 1px solid #333; padding: 5px;">${w.activeDates || "-"}</td>
+            <td style="border: 1px solid #333; padding: 5px; text-align: center;">${w.jpPerWeek}</td>
+            <td style="border: 1px solid #333; padding: 5px; text-align: center; font-weight: bold;">${w.allocatedHours}</td>
+            ${
+              isFirstRow
+                ? `<td rowspan="5" style="border: 1px solid #333; padding: 5px; text-align: center; font-weight: bold; vertical-align: middle; background-color: #f1f5f9;">${m.monthlyTotalHours}</td>`
+                : ""
+            }
+            <td style="border: 1px solid #333; padding: 5px; font-weight: bold;">${w.tpCode || "-"}</td>
+            <td style="border: 1px solid #333; padding: 5px;">${w.tpDescription || "-"}</td>
+          </tr>
+        `;
+      });
+    });
+
+    const docHtml = `
+      <div style="font-family: Arial, sans-serif; font-size: 10pt;">
+        <h3 style="text-align: center; font-size: 13pt; text-transform: uppercase; margin-bottom: 2px;">TABEL HARI AKTIF PER SEMESTER PER MATA PELAJARAN</h3>
+        <p style="text-align: center; font-weight: bold; margin-top: 0; color: #333;">Mata Pelajaran: ${selectedSubjectTab} | Semester ${selectedSemesterTab} (${selectedSemesterTab === 1 ? "Ganjil" : "Genap"})</p>
+        <p style="text-align: center; font-size: 9pt; color: #555;">Tahun Pelajaran ${academicYearStr} | ${schoolIdentity.schoolName}</p>
+        <hr style="margin: 10px 0; border: 1px solid #000;"/>
+
+        <table border="1" cellpadding="5" cellspacing="0" style="width: 100%; border-collapse: collapse; font-size: 9.5pt;">
+          <thead>
+            <tr style="background-color: #047857; color: #ffffff; text-align: center; font-weight: bold; text-transform: uppercase;">
+              <th style="border: 1px solid #333; padding: 6px;">mata pelajaran</th>
+              <th style="border: 1px solid #333; padding: 6px;">minggu ke</th>
+              <th style="border: 1px solid #333; padding: 6px;">tanggal aktif</th>
+              <th style="border: 1px solid #333; padding: 6px;">jp per minggu</th>
+              <th style="border: 1px solid #333; padding: 6px;">alokasi jam</th>
+              <th style="border: 1px solid #333; padding: 6px;">jumlah jam</th>
+              <th style="border: 1px solid #333; padding: 6px;">kode tp</th>
+              <th style="border: 1px solid #333; padding: 6px;">deskripsi tp</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+          <tfoot>
+            <tr style="background-color: #d1fae5; font-weight: bold; text-align: center; font-size: 10.5pt;">
+              <td colspan="5" style="border: 1px solid #333; padding: 8px; text-align: left; text-transform: uppercase;">
+                JUMLAH JAM PELAJARAN ${selectedSubjectTab.toUpperCase()} SEMESTER ${selectedSemesterTab}
+              </td>
+              <td style="border: 1px solid #333; padding: 8px; font-weight: ext-bold; font-size: 11pt; color: #065f46;">
+                ${grandTotalSemesterHours}
+              </td>
+              <td colspan="2" style="border: 1px solid #333; padding: 8px; text-align: left; font-size: 9pt; color: #064e3b;">
+                Total Net JP Efektif Semester ${selectedSemesterTab}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    `;
+
+    exportHtmlToDoc({
+      htmlContent: docHtml,
+      filename: `Tabel_Hari_Aktif_${selectedSubjectTab.replace(/\s+/g, "_")}_Sem${selectedSemesterTab}`,
+      title: `Tabel Hari Aktif ${selectedSubjectTab} Semester ${selectedSemesterTab}`,
+      schoolIdentity,
+    });
+  };
+
+  // Export Subject Effective Table to CSV/Excel
+  const handleExportCSVSubjectEffectiveTable = () => {
+    const headers = [
+      "Mata Pelajaran",
+      "Minggu ke",
+      "Tanggal Aktif",
+      "JP per minggu",
+      "Alokasi jam",
+      "Jumlah jam (Bulan)",
+      "Kode TP",
+      "Deskripsi TP",
+    ];
+
+    const rows: Array<Array<string | number>> = [];
+
+    computedSubjectWeeklyData.forEach((m) => {
+      rows.push(["", "minggu ke", `tanggal aktif ${m.monthTitle}`, "jp per minggu", "alokasi jam", `jumlah jam ${m.monthTitle}`, "kode tp", "deskripsi tp"]);
+      m.weeks.forEach((w) => {
+        rows.push([
+          selectedSubjectTab,
+          w.weekNum,
+          w.activeDates || "-",
+          w.jpPerWeek,
+          w.allocatedHours,
+          m.monthlyTotalHours,
+          w.tpCode || "-",
+          w.tpDescription || "-",
+        ]);
+      });
+    });
+
+    rows.push([
+      `JUMLAH JAM PELAJARAN ${selectedSubjectTab.toUpperCase()} SEMESTER ${selectedSemesterTab}`,
+      "",
+      "",
+      "",
+      "",
+      grandTotalSemesterHours,
+      "",
+      "",
+    ]);
+
+    exportToCSV(headers, rows, `Tabel_Hari_Aktif_${selectedSubjectTab.replace(/\s+/g, "_")}_Sem${selectedSemesterTab}`);
+  };
+
   const handleDelete = (id: string) => {
     onSaveEvents(events.filter((e) => e.id !== id));
   };
@@ -678,7 +1109,273 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* NEW FEATURE: Tabel Hari & Jam Aktif per Semester per Mata Pelajaran (Rincian Mingguan & TP) */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden space-y-3 p-5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <h3 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
+              <Calculator className="w-5 h-5 text-emerald-600" />
+              Tabel Hari Aktif per Semester per Mata Pelajaran
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Rincian mingguan per bulan, alokasi jam efektif, tanggal aktif, dan otomatisasi pemetaan Kode/Deskripsi TP (Alur Prota/Promes)
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Subject Dropdown */}
+            <select
+              value={selectedSubjectTab}
+              onChange={(e) => setSelectedSubjectTab(e.target.value)}
+              className="px-3 py-2 bg-slate-50 border border-slate-300 font-bold text-xs rounded-xl text-slate-800 focus:ring-2 focus:ring-emerald-500"
+            >
+              {subjects.map((sub) => (
+                <option key={sub} value={sub}>
+                  📚 {sub}
+                </option>
+              ))}
+            </select>
+
+            {/* Semester Selector */}
+            <div className="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setSelectedSemesterTab(1)}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                  selectedSemesterTab === 1
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Semester 1 (Ganjil)
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedSemesterTab(2)}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                  selectedSemesterTab === 2
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Semester 2 (Genap)
+              </button>
+            </div>
+
+            {/* Action Buttons */}
+            <button
+              onClick={handleResetWeeklyData}
+              className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 flex items-center gap-1.5"
+              title="Hitung & Otomatisasi Ulang dari Jadwal & Prota"
+            >
+              <Clock className="w-3.5 h-3.5 text-slate-600" />
+              Segarkan Otomatisasi
+            </button>
+            <button
+              onClick={handleExportDocSubjectEffectiveTable}
+              className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors"
+              title="Simpan Word (.docx)"
+            >
+              <FileText className="w-3.5 h-3.5 text-blue-600" />
+              Simpan Word (.docx)
+            </button>
+            <button
+              onClick={handleExportCSVSubjectEffectiveTable}
+              className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors"
+              title="Ekspor CSV / Excel"
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-600" />
+              Excel
+            </button>
+          </div>
+        </div>
+
+        {/* Detailed Weekly Table */}
+        <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-2xs">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="bg-emerald-800 text-white font-extrabold uppercase text-[11px] tracking-wider text-center">
+                <th className="p-2.5 border border-emerald-700 w-36">mata pelajaran</th>
+                <th className="p-2.5 border border-emerald-700 w-20">minggu ke</th>
+                <th className="p-2.5 border border-emerald-700 text-left w-48">
+                  tanggal aktif {semesterMonths[0]?.name} - {semesterMonths[5]?.name} {startYear}
+                </th>
+                <th className="p-2.5 border border-emerald-700 w-28">jp per minggu</th>
+                <th className="p-2.5 border border-emerald-700 w-24">alokasi jam</th>
+                <th className="p-2.5 border border-emerald-700 w-32">
+                  jumlah jam {semesterMonths[0]?.name} - {semesterMonths[5]?.name}
+                </th>
+                <th className="p-2.5 border border-emerald-700 w-36">kode tp</th>
+                <th className="p-2.5 border border-emerald-700 text-left">deskripsi tp</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 text-slate-800">
+              {computedSubjectWeeklyData.map((m, mIdx) => (
+                <React.Fragment key={m.monthTitle}>
+                  {/* Subheader Month Row */}
+                  <tr className="bg-slate-100 font-bold text-[11px] text-slate-700">
+                    <td className="p-2 border border-slate-200 text-center">-</td>
+                    <td className="p-2 border border-slate-200 text-center font-mono">minggu ke</td>
+                    <td className="p-2 border border-slate-200 font-semibold text-slate-900">
+                      tanggal aktif {m.monthTitle.toLowerCase()}
+                    </td>
+                    <td className="p-2 border border-slate-200 text-center font-mono">jp per minggu</td>
+                    <td className="p-2 border border-slate-200 text-center font-mono">alokasi jam</td>
+                    <td className="p-2 border border-slate-200 text-center font-bold text-emerald-900">
+                      jumlah jam {m.monthTitle}
+                    </td>
+                    <td className="p-2 border border-slate-200 text-center font-mono">kode tp</td>
+                    <td className="p-2 border border-slate-200">deskripsi tp</td>
+                  </tr>
+
+                  {/* 5 Weeks Rows for the month */}
+                  {m.weeks.map((w, wIdx) => {
+                    const isFirstWeek = wIdx === 0;
+                    return (
+                      <tr
+                        key={w.weekNum}
+                        className="hover:bg-slate-50 transition-colors odd:bg-white even:bg-slate-50/50"
+                      >
+                        {isFirstWeek && (
+                          <td
+                            rowSpan={5}
+                            className="p-3 border border-slate-300 font-bold text-slate-900 align-top uppercase bg-white text-xs"
+                          >
+                            <div className="sticky top-2 space-y-1">
+                              <span className="text-emerald-700 font-extrabold block text-sm">
+                                {selectedSubjectTab}
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-normal block lowercase">
+                                semester {selectedSemesterTab}
+                              </span>
+                            </div>
+                          </td>
+                        )}
+
+                        {/* Minggu ke */}
+                        <td className="p-2 border border-slate-300 text-center font-mono font-bold text-slate-700">
+                          {w.weekNum}
+                        </td>
+
+                        {/* Tanggal Aktif */}
+                        <td className="p-1.5 border border-slate-300">
+                          <input
+                            type="text"
+                            value={w.activeDates}
+                            onChange={(e) =>
+                              handleUpdateWeeklyCell(mIdx, w.weekNum, "activeDates", e.target.value)
+                            }
+                            placeholder="Contoh: 15/7; 20/7; 22/7"
+                            className="w-full p-1 bg-transparent border-b border-dashed border-slate-300 focus:border-emerald-600 font-mono text-xs focus:bg-white"
+                          />
+                        </td>
+
+                        {/* JP per minggu */}
+                        <td className="p-1.5 border border-slate-300 text-center">
+                          <input
+                            type="text"
+                            value={w.jpPerWeek}
+                            onChange={(e) =>
+                              handleUpdateWeeklyCell(mIdx, w.weekNum, "jpPerWeek", e.target.value)
+                            }
+                            placeholder="3; 3"
+                            className="w-full p-1 bg-transparent border-b border-dashed border-slate-300 focus:border-emerald-600 font-mono text-center text-xs focus:bg-white"
+                          />
+                        </td>
+
+                        {/* Alokasi Jam */}
+                        <td className="p-1.5 border border-slate-300 text-center">
+                          <input
+                            type="number"
+                            value={w.allocatedHours}
+                            onChange={(e) =>
+                              handleUpdateWeeklyCell(mIdx, w.weekNum, "allocatedHours", Number(e.target.value) || 0)
+                            }
+                            className="w-16 p-1 text-center font-bold text-slate-900 bg-transparent border-b border-dashed border-slate-300 focus:border-emerald-600 text-xs focus:bg-white"
+                          />
+                        </td>
+
+                        {/* Jumlah Jam Bulan */}
+                        {isFirstWeek && (
+                          <td
+                            rowSpan={5}
+                            className="p-3 border border-slate-300 text-center font-extrabold text-emerald-950 bg-emerald-50/60 align-middle text-base font-mono"
+                          >
+                            <div className="space-y-1">
+                              <span>{m.monthlyTotalHours}</span>
+                              <span className="block text-[10px] text-emerald-700 font-semibold uppercase tracking-wider">
+                                JP {m.monthName}
+                              </span>
+                            </div>
+                          </td>
+                        )}
+
+                        {/* Kode TP & Select Dropdown */}
+                        <td className="p-1.5 border border-slate-300 font-mono font-bold text-indigo-900">
+                          {allSubjectProtaList.length > 0 && (
+                            <select
+                              value={
+                                allSubjectProtaList.find(
+                                  (p) => (p.codeTP || p.tpCode) === w.tpCode && p.tpDescription === w.tpDescription
+                                )?.id || ""
+                              }
+                              onChange={(e) => handleSelectTPForWeek(mIdx, w.weekNum, e.target.value)}
+                              className="w-full mb-1.5 p-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md text-[11px] font-sans font-semibold text-indigo-950 focus:ring-1 focus:ring-indigo-500 cursor-pointer transition-colors"
+                              title="Pilih Tujuan Pembelajaran (TP) dari Prota"
+                            >
+                              <option value="">-- Pilih TP Prota --</option>
+                              {allSubjectProtaList.map((tp) => (
+                                <option key={tp.id} value={tp.id}>
+                                  {(tp.codeTP || tp.tpCode)}: {tp.tpDescription.length > 35 ? `${tp.tpDescription.slice(0, 35)}...` : tp.tpDescription}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                          <input
+                            type="text"
+                            value={w.tpCode}
+                            onChange={(e) =>
+                              handleUpdateWeeklyCell(mIdx, w.weekNum, "tpCode", e.target.value)
+                            }
+                            placeholder="Kode TP"
+                            className="w-full p-1 bg-transparent border-b border-dashed border-slate-300 focus:border-emerald-600 font-mono font-bold text-indigo-900 text-xs focus:bg-white"
+                          />
+                        </td>
+
+                        {/* Deskripsi TP */}
+                        <td className="p-1.5 border border-slate-300">
+                          <textarea
+                            value={w.tpDescription}
+                            onChange={(e) =>
+                              handleUpdateWeeklyCell(mIdx, w.weekNum, "tpDescription", e.target.value)
+                            }
+                            rows={2}
+                            placeholder="Deskripsi Alur Tujuan Pembelajaran (TP)..."
+                            className="w-full p-1.5 bg-white border border-slate-200 rounded-lg text-[11px] leading-tight focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </React.Fragment>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="bg-emerald-100/90 font-extrabold text-emerald-950 text-sm border-t-2 border-emerald-600">
+                <td colSpan={5} className="p-3 border border-slate-400 uppercase tracking-wider">
+                  JUMLAH JAM PELAJARAN {selectedSubjectTab.toUpperCase()} SEMESTER {selectedSemesterTab}
+                </td>
+                <td className="p-3 border border-slate-400 text-center font-mono text-lg text-emerald-900 bg-emerald-200">
+                  {grandTotalSemesterHours}
+                </td>
+                <td colSpan={2} className="p-3 border border-slate-400 text-xs text-emerald-900 font-semibold">
+                  Total Alokasi JP Efektif Semester {selectedSemesterTab} ({selectedSubjectTab})
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-gradient-to-br from-emerald-800 to-teal-900 text-white p-5 rounded-2xl shadow-sm space-y-2">
           <div className="flex items-center justify-between">
