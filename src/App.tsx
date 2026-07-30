@@ -20,6 +20,7 @@ import {
   NavModule,
   UserAccount,
   ExamPackage,
+  CanvaTemplateItem,
 } from "./types";
 import { DEFAULT_SUBJECTS } from "./constants/subjects";
 import {
@@ -40,6 +41,7 @@ import {
   INITIAL_AI_SETTINGS,
   INITIAL_GAS_CONFIG,
   INITIAL_USERS,
+  INITIAL_CANVA_TEMPLATES,
 } from "./data/initialData";
 import { loadFromStorage, saveToStorage } from "./lib/storage";
 
@@ -68,6 +70,7 @@ import { TeachingModuleGeneratorView } from "./components/modules/TeachingModule
 import { LearningAnalysisView } from "./components/modules/LearningAnalysisView";
 import { DashboardSummaryView } from "./components/modules/DashboardSummaryView";
 import { ExamGeneratorView } from "./components/modules/ExamGeneratorView";
+import { CanvaStudioView } from "./components/modules/CanvaStudioView";
 
 export default function App() {
   const [activeModule, setActiveModule] = useState<NavModule>("dashboard");
@@ -144,6 +147,14 @@ export default function App() {
   const [savedExams, setSavedExams] = useState<ExamPackage[]>(() =>
     loadFromStorage("savedExams", [])
   );
+  const [canvaTemplates, setCanvaTemplates] = useState<CanvaTemplateItem[]>(() =>
+    loadFromStorage("canvaTemplates", INITIAL_CANVA_TEMPLATES)
+  );
+
+  const handleSaveCanvaTemplates = (updated: CanvaTemplateItem[]) => {
+    setCanvaTemplates(updated);
+    saveToStorage("canvaTemplates", updated);
+  };
 
   const handleSaveExam = (exam: ExamPackage) => {
     setSavedExams((prev) => {
@@ -538,6 +549,16 @@ export default function App() {
                 onDeleteExam={handleDeleteExam}
                 onOpenPrint={handleOpenPrint}
                 aiSettings={aiSettings}
+              />
+            )}
+
+            {activeModule === "canva_studio" && (
+              <CanvaStudioView
+                cptpList={cptpItems}
+                subjects={subjects}
+                schoolIdentity={schoolIdentity}
+                canvaTemplates={canvaTemplates}
+                onSaveCanvaTemplates={handleSaveCanvaTemplates}
               />
             )}
           </main>

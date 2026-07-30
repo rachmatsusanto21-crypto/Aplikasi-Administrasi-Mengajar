@@ -507,6 +507,59 @@ export const initialUsers: UserAccount[] = [
   },
 ];
 
+export const initialCanvaTemplates = [
+  {
+    id: "cnv-1",
+    title: "Template Modul Ajar Kurikulum Merdeka (Deep Learning)",
+    category: "Modul Ajar" as const,
+    subject: "Semua Mapel",
+    description: "Layout Modul Ajar profesional dengan visual komponen lengkap: Informasi Umum, Komponen Inti, PjBL, dan Rubrik Penilaian.",
+    canvaUrl: "https://www.canva.com/templates/?query=modul+ajar+kurikulum+merdeka",
+    tags: ["Modul Ajar", "Deep Learning", "Kurikulum Merdeka", "SD/SMP/SMA"],
+    isSchoolDefault: true,
+  },
+  {
+    id: "cnv-2",
+    title: "Template LKPD Interaktif & Lembar Kerja Siswa Ceria",
+    category: "LKPD" as const,
+    subject: "Bahasa Indonesia & IPA",
+    description: "Lembar Kerja Peserta Didik dengan ilustrasi menarik, tabel pengamatan kelompok, teka-teki, dan kolom refleksi siswa.",
+    canvaUrl: "https://www.canva.com/worksheets/templates/",
+    tags: ["LKPD", "Worksheet", "LKS", "Interaktif"],
+    isSchoolDefault: true,
+  },
+  {
+    id: "cnv-3",
+    title: "Slide Presentasi Media Ajar Animatif & Quiz",
+    category: "Presentasi" as const,
+    subject: "IPAS / Sains",
+    description: "Presentasi interaktif dengan peta konsep, animasi pembuka, video singkat, dan kuis pemantik minat belajar murid.",
+    canvaUrl: "https://www.canva.com/presentations/templates/",
+    tags: ["Presentasi", "Slide Ajar", "IPAS", "Quiz"],
+    isSchoolDefault: true,
+  },
+  {
+    id: "cnv-4",
+    title: "Banner Sekolah & Infografis Program Profil Pelajar Pancasila",
+    category: "Banner / Dekorasi" as const,
+    subject: "Kokurikuler P5",
+    description: "Template banner kegiatan P5, dekorasi kelas, sudut baca, dan poster aturan kelas ramah anak.",
+    canvaUrl: "https://www.canva.com/posters/templates/",
+    tags: ["Banner", "P5", "Dekorasi Kelas", "Infografis"],
+    isSchoolDefault: true,
+  },
+  {
+    id: "cnv-5",
+    title: "Sertifikat Penghargaan & Piagam Prestasi Siswa",
+    category: "Sertifikat" as const,
+    subject: "Umum / Ekstrakurikuler",
+    description: "Piagam penghargaan Bintang Kelas, Juara Lomba, Bintang Kebaikan, dan Kelulusan Fase.",
+    canvaUrl: "https://www.canva.com/certificates/templates/",
+    tags: ["Sertifikat", "Piagam", "Penghargaan", "Prestasi"],
+    isSchoolDefault: true,
+  },
+];
+
 // Aliases for uppercase imports
 export const INITIAL_SCHOOL_IDENTITY = initialSchoolIdentity;
 export const INITIAL_STUDENTS = initialStudents;
@@ -525,3 +578,4 @@ export const INITIAL_TEACHING_MODULES = initialModulAjar;
 export const INITIAL_AI_SETTINGS = initialAISettings;
 export const INITIAL_GAS_CONFIG = initialGASConfig;
 export const INITIAL_USERS = initialUsers;
+export const INITIAL_CANVA_TEMPLATES = initialCanvaTemplates;

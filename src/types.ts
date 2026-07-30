@@ -310,7 +310,20 @@ export type NavModule =
   | "calendar"
   | "prota_promes"
   | "teaching_module"
-  | "exam_generator";
+  | "exam_generator"
+  | "canva_studio";
+
+export interface CanvaTemplateItem {
+  id: string;
+  title: string;
+  category: "Modul Ajar" | "LKPD" | "Presentasi" | "Banner / Dekorasi" | "Sertifikat";
+  subject?: string;
+  description: string;
+  canvaUrl: string;
+  previewImageUrl?: string;
+  tags: string[];
+  isSchoolDefault?: boolean;
+}
 
 export type ActiveModule = NavModule;
 

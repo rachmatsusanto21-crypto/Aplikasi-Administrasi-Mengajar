@@ -1907,11 +1907,15 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                     className="w-full p-2 border border-emerald-300 rounded-lg bg-emerald-50/50 font-bold text-slate-900"
                   >
                     <option value="">-- Pilih Kode TP dari Database Kurikulum --</option>
-                    {availableTPs.map((item) => (
-                      <option key={item.id} value={item.codeTP}>
-                        [{item.codeTP}] - {item.descriptionTP.slice(0, 60)}...
-                      </option>
-                    ))}
+                    {availableTPs.map((item: any) => {
+                      const code = item.codeTP || item.tpCode || "";
+                      const desc = item.descriptionTP || item.tpDescription || item.description || "";
+                      return (
+                        <option key={item.id} value={code}>
+                          [{code}] - {desc.slice(0, 60)}...
+                        </option>
+                      );
+                    })}
                   </select>
                 ) : (
                   <div className="p-2 bg-amber-50 text-amber-800 rounded-lg border border-amber-200 text-[11px]">

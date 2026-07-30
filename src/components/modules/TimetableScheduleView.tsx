@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { TimetableSlot } from "../../types";
-import { CalendarDays, Plus, Trash2, Edit2, Printer, Download, Save, Clock } from "lucide-react";
+import { CalendarDays, Plus, Trash2, Edit2, Printer, Download, Save, Clock, Palette, ExternalLink } from "lucide-react";
 import { exportToCSV } from "../../lib/storage";
 import { exportTimetableToExcel } from "../../lib/exportExcel";
 
@@ -279,9 +279,23 @@ export const TimetableScheduleView: React.FC<TimetableScheduleViewProps> = ({
                             <span className="text-[10px] text-slate-500 block truncate">
                               {slot.roomOrTeacher || "Guru Kelas"}
                             </span>
-                            <span className="text-[9px] font-mono text-emerald-700 block">
-                              {slot.timeRange}
-                            </span>
+                            <div className="flex items-center justify-between pt-1">
+                              <span className="text-[9px] font-mono text-emerald-700 block">
+                                {slot.timeRange}
+                              </span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const query = encodeURIComponent(`Media Pembelajaran ${slot.subject} SD`);
+                                  window.open(`https://www.canva.com/search?q=${query}`, "_blank");
+                                }}
+                                className="px-1.5 py-0.5 bg-teal-50 hover:bg-teal-100 text-teal-800 text-[9px] font-extrabold rounded flex items-center gap-0.5 border border-teal-200"
+                                title={`Buka Template Media ${slot.subject} di Canva`}
+                              >
+                                <Palette className="w-2.5 h-2.5 text-teal-600" />
+                                <span>Canva</span>
+                              </button>
+                            </div>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();

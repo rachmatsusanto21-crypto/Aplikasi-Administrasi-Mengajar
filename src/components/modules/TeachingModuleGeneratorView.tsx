@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { TeachingModule, AISettings, SchoolIdentity, Student, ActivityTableRow, RubrikFormatifItem, RubrikSumatifItem, KisiKisiItem, SoalItem, RefleksiItem } from "../../types";
-import { Sparkles, Trash2, Download, Printer, Layers, FileText, CheckCircle2, UserCheck, HelpCircle } from "lucide-react";
+import { Sparkles, Trash2, Download, Printer, Layers, FileText, CheckCircle2, UserCheck, HelpCircle, Palette } from "lucide-react";
 import { exportDataToJSON } from "../../lib/storage";
 import { generateAIContent } from "../../lib/aiHelper";
 import { exportHtmlToDoc } from "../../lib/exportDoc";
@@ -1141,6 +1141,19 @@ Format Output HARUS berupa JSON murni tanpa markdown lain:
                   >
                     <Download className="w-4 h-4" />
                     Ekspor JSON
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (activeModule) {
+                        const q = encodeURIComponent(`LKPD Presentasi ${activeModule.subject} ${activeModule.title}`);
+                        window.open(`https://www.canva.com/search?q=${q}`, "_blank");
+                      }
+                    }}
+                    className="px-3.5 py-1.5 bg-gradient-to-r from-teal-600 to-indigo-600 hover:from-teal-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-all"
+                    title="Buat Presentasi Media & LKPD di Canva AI"
+                  >
+                    <Palette className="w-4 h-4 text-teal-200" />
+                    <span>Buat LKPD / Media di Canva</span>
                   </button>
                   <button
                     onClick={() => {

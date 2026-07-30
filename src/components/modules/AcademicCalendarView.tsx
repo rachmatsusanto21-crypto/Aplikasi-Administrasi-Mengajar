@@ -435,8 +435,8 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
           if (weekJPSum > 0) {
             if (subjectProtaList.length > 0) {
               const matchedTP = subjectProtaList[tpPointer % subjectProtaList.length];
-              tpCode = matchedTP.codeTP || matchedTP.tpCode || `TP-${selectedSubjectTab.slice(0, 3).toUpperCase()}-5.${tpPointer + 1}`;
-              tpDescription = matchedTP.tpDescription || "";
+              tpCode = matchedTP.codeTP || matchedTP.tpCode || `TP-${(selectedSubjectTab || "").slice(0, 3).toUpperCase()}-5.${tpPointer + 1}`;
+              tpDescription = matchedTP.tpDescription || matchedTP.descriptionTP || "";
               tpPointer++;
             }
           }
@@ -1324,11 +1324,15 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
                               title="Pilih Tujuan Pembelajaran (TP) dari Prota"
                             >
                               <option value="">-- Pilih TP Prota --</option>
-                              {allSubjectProtaList.map((tp) => (
-                                <option key={tp.id} value={tp.id}>
-                                  {(tp.codeTP || tp.tpCode)}: {tp.tpDescription.length > 35 ? `${tp.tpDescription.slice(0, 35)}...` : tp.tpDescription}
-                                </option>
-                              ))}
+                              {allSubjectProtaList.map((tp: any) => {
+                                const code = tp.codeTP || tp.tpCode || "";
+                                const desc = tp.tpDescription || tp.descriptionTP || tp.description || "";
+                                return (
+                                  <option key={tp.id} value={tp.id}>
+                                    {code}: {desc.length > 35 ? `${desc.slice(0, 35)}...` : desc}
+                                  </option>
+                                );
+                              })}
                             </select>
                           )}
                           <input
