@@ -245,12 +245,12 @@ function getFullStudentGradeList(studentsProps?: Student[]) {
     no: number;
     nisn: string;
     nama: string;
-    f1: number;
-    f2: number;
-    f3: number;
-    rataF: number;
-    s1: number;
-    na: number;
+    f1: string;
+    f2: string;
+    f3: string;
+    rataF: string;
+    s1: string;
+    na: string;
     status: string;
   }> = [];
 
@@ -261,25 +261,17 @@ function getFullStudentGradeList(studentsProps?: Student[]) {
     const nama = student ? student.name : defaultNames[i % defaultNames.length];
     const nisn = student ? (student.nisn || `008${1000 + i}`) : `008${1234 + i}`;
 
-    const f1 = 78 + ((i * 7) % 20);
-    const f2 = 80 + ((i * 3) % 18);
-    const f3 = 75 + ((i * 5) % 22);
-    const rataF = Math.round((f1 + f2 + f3) / 3);
-    const s1 = 76 + ((i * 11) % 22);
-    const na = Math.round(rataF * 0.4 + s1 * 0.6);
-    const status = na >= 75 ? "Tuntas (KKTP)" : "Perlu Bimbingan";
-
     result.push({
       no: i + 1,
       nisn,
       nama,
-      f1,
-      f2,
-      f3,
-      rataF,
-      s1,
-      na,
-      status,
+      f1: "",
+      f2: "",
+      f3: "",
+      rataF: "",
+      s1: "",
+      na: "",
+      status: "",
     });
   }
 
@@ -997,9 +989,13 @@ Format Output HARUS berupa JSON murni tanpa markdown lain:
                     <td className="border border-slate-400 p-1.5 text-center font-bold">{sg.s1}</td>
                     <td className="border border-slate-400 p-1.5 text-center font-bold bg-emerald-50 text-emerald-900">{sg.na}</td>
                     <td className="border border-slate-400 p-1.5 text-center text-[11px] font-semibold">
-                      <span className={sg.na >= 75 ? "text-emerald-700" : "text-amber-700"}>
-                        {sg.status}
-                      </span>
+                      {sg.status ? (
+                        <span className={Number(sg.na) >= 75 ? "text-emerald-700" : "text-amber-700"}>
+                          {sg.status}
+                        </span>
+                      ) : (
+                        ""
+                      )}
                     </td>
                   </tr>
                 ))}
