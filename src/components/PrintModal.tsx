@@ -25,6 +25,8 @@ interface PrintModalProps {
   subtitle?: string;
   schoolIdentity: SchoolIdentity;
   children: React.ReactNode;
+  defaultOrientation?: "portrait" | "landscape";
+  defaultPaperSize?: "A4" | "F4" | "Letter" | "Legal" | "Auto";
 }
 
 export const PrintModal: React.FC<PrintModalProps> = ({
@@ -34,6 +36,8 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   subtitle,
   schoolIdentity,
   children,
+  defaultOrientation = "portrait",
+  defaultPaperSize = "A4",
 }) => {
   const contentRef = useRef<HTMLDivElement>(null);
   const printablePaperRef = useRef<HTMLDivElement>(null);
@@ -44,8 +48,8 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   >("ALL");
 
   // Paper Size & Orientation
-  const [paperSize, setPaperSize] = useState<"A4" | "F4" | "Letter" | "Legal" | "Auto">("A4");
-  const [orientation, setOrientation] = useState<"portrait" | "landscape">("portrait");
+  const [paperSize, setPaperSize] = useState<"A4" | "F4" | "Letter" | "Legal" | "Auto">(defaultPaperSize);
+  const [orientation, setOrientation] = useState<"portrait" | "landscape">(defaultOrientation);
 
   // Margin Configuration (in mm)
   const [marginPreset, setMarginPreset] = useState<"normal" | "narrow" | "moderate" | "custom">("normal");
@@ -53,6 +57,48 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   const [marginBottom, setMarginBottom] = useState<number>(20);
   const [marginLeft, setMarginLeft] = useState<number>(20);
   const [marginRight, setMarginRight] = useState<number>(20);
+
+  // Sync state when modal opens or defaults change
+  useEffect(() => {
+    if (isOpen) {
+      setOrientation(defaultOrientation);
+      setPaperSize(defaultPaperSize);
+    }
+  }, [isOpen, defaultOrientation, defaultPaperSize]);
+
+  // Inject dynamic @page style for browser print dialog
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let styleEl = document.getElementById("dynamic-print-page-style") as HTMLStyleElement;
+    if (!styleEl) {
+      styleEl = document.createElement("style");
+      styleEl.id = "dynamic-print-page-style";
+      document.head.appendChild(styleEl);
+    }
+
+    let sizeSpec = "A4";
+    if (paperSize === "F4") sizeSpec = "215mm 330mm";
+    else if (paperSize === "Letter") sizeSpec = "letter";
+    else if (paperSize === "Legal") sizeSpec = "legal";
+    else if (paperSize === "A4") sizeSpec = "A4";
+    else if (paperSize === "Auto") sizeSpec = "auto";
+
+    styleEl.innerHTML = `
+      @media print {
+        @page {
+          size: ${sizeSpec} ${paperSize !== "Auto" ? orientation : ""};
+          margin: ${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm;
+        }
+      }
+    `;
+
+    return () => {
+      if (styleEl && styleEl.parentNode) {
+        styleEl.parentNode.removeChild(styleEl);
+      }
+    };
+  }, [isOpen, paperSize, orientation, marginTop, marginBottom, marginLeft, marginRight]);
 
   // Interactive Live Edit Mode & Loading
   const [isEditable, setIsEditable] = useState<boolean>(false);
@@ -170,9 +216,52 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   // Dimension helpers for paper preview box
   const getPaperDimensionsClass = () => {
     if (orientation === "landscape") {
-      return "max-w-5xl w-full";
+      return "max-w-6xl w-full";
     }
     return "max-w-4xl w-full";
+  };
+
+  const getPaperPreviewStyle = () => {
+    let baseWidthMm = 210; // A4 default
+    let baseHeightMm = 297;
+
+    if (paperSize === "F4") {
+      baseWidthMm = 215;
+      baseHeightMm = 330;
+    } else if (paperSize === "Letter") {
+      baseWidthMm = 215.9;
+      baseHeightMm = 279.4;
+    } else if (paperSize === "Legal") {
+      baseWidthMm = 215.9;
+      baseHeightMm = 355.6;
+    }
+
+    if (orientation === "landscape") {
+      const temp = baseWidthMm;
+      baseWidthMm = baseHeightMm;
+      baseHeightMm = temp;
+    }
+
+    if (paperSize === "Auto") {
+      return {
+        width: "100%",
+        minHeight: "auto",
+        paddingTop: `${marginTop}mm`,
+        paddingBottom: `${marginBottom}mm`,
+        paddingLeft: `${marginLeft}mm`,
+        paddingRight: `${marginRight}mm`,
+      };
+    }
+
+    return {
+      width: `${baseWidthMm}mm`,
+      maxWidth: "100%",
+      minHeight: `${baseHeightMm}mm`,
+      paddingTop: `${marginTop}mm`,
+      paddingBottom: `${marginBottom}mm`,
+      paddingLeft: `${marginLeft}mm`,
+      paddingRight: `${marginRight}mm`,
+    };
   };
 
   return (
@@ -382,13 +471,8 @@ export const PrintModal: React.FC<PrintModalProps> = ({
         <div className="p-4 sm:p-8 overflow-y-auto flex-1 bg-slate-200 dark:bg-slate-950 flex justify-center">
           <div
             ref={printablePaperRef}
-            style={{
-              paddingTop: `${marginTop}mm`,
-              paddingBottom: `${marginBottom}mm`,
-              paddingLeft: `${marginLeft}mm`,
-              paddingRight: `${marginRight}mm`,
-            }}
-            className={`bg-white text-slate-900 shadow-xl rounded-sm w-full printable-area font-sans transition-all min-h-[297mm] ${
+            style={getPaperPreviewStyle()}
+            className={`bg-white text-slate-900 shadow-xl rounded-sm printable-area font-sans transition-all mx-auto ${
               isEditable
                 ? "ring-4 ring-amber-400 ring-offset-2 outline-none cursor-text"
                 : ""

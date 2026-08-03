@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { AcademicCalendarEvent, SchoolIdentity, TimetableSlot, IncidentalJournalEntry, ProtaItem } from "../../types";
-import { Calendar, Plus, Trash2, Edit2, Printer, Download, Calculator, FileText, Settings, Clock, BookOpen } from "lucide-react";
-import { exportToCSV } from "../../lib/storage";
+import { Calendar, Plus, Trash2, Edit2, Printer, Download, Calculator, FileText, Settings, Clock, BookOpen, Save, CheckCircle2 } from "lucide-react";
+import { exportToCSV, loadFromStorage, saveToStorage, STORAGE_KEYS } from "../../lib/storage";
 import { exportHtmlToDoc } from "../../lib/exportDoc";
 
 interface AcademicCalendarViewProps {
@@ -262,7 +262,8 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
   const [selectedSemesterTab, setSelectedSemesterTab] = useState<number>(1);
   const [customWeeklyData, setCustomWeeklyData] = useState<
     Record<string, { activeDates: string; jpPerWeek: string; allocatedHours: number; tpCode: string; tpDescription: string }>
-  >({});
+  >(() => loadFromStorage(STORAGE_KEYS.SUBJECT_WEEKLY_ACTIVE_DAYS, {}));
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
   // Parse start year from academic startDate
   const startYear = useMemo(() => {
@@ -586,8 +587,39 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
     }));
   };
 
+  // Explicit save function for "Tabel Hari Aktif per Semester per Mata Pelajaran"
+  const handleSaveWeeklyData = () => {
+    const updatedMap = { ...customWeeklyData };
+
+    // Snapshot current computed weekly data so all auto-calculated or edited rows for this subject & semester are saved
+    computedSubjectWeeklyData.forEach((m, mIdx) => {
+      m.weeks.forEach((w) => {
+        const key = `${selectedSubjectTab}_s${selectedSemesterTab}_m${mIdx}_w${w.weekNum}`;
+        if (!updatedMap[key]) {
+          updatedMap[key] = {
+            activeDates: w.activeDates,
+            jpPerWeek: w.jpPerWeek,
+            allocatedHours: w.allocatedHours,
+            tpCode: w.tpCode,
+            tpDescription: w.tpDescription,
+          };
+        }
+      });
+    });
+
+    setCustomWeeklyData(updatedMap);
+    saveToStorage(STORAGE_KEYS.SUBJECT_WEEKLY_ACTIVE_DAYS, updatedMap);
+    setSaveStatus(`✅ Tabel Hari Aktif ${selectedSubjectTab} Semester ${selectedSemesterTab} berhasil disimpan! Data tidak akan kembali ke default saat dibuka kembali.`);
+    setTimeout(() => setSaveStatus(null), 4000);
+  };
+
   const handleResetWeeklyData = () => {
-    setCustomWeeklyData({});
+    if (window.confirm("Apakah Anda yakin ingin menyegarkan & mengembalikan tabel hari aktif ke otomatisasi awal?")) {
+      setCustomWeeklyData({});
+      saveToStorage(STORAGE_KEYS.SUBJECT_WEEKLY_ACTIVE_DAYS, {});
+      setSaveStatus("Tabel Hari Aktif telah dikembalikan ke otomatisasi awal.");
+      setTimeout(() => setSaveStatus(null), 3000);
+    }
   };
 
   // Export Subject Effective Table to Word (.docx)
@@ -1203,6 +1235,14 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
 
             {/* Action Buttons */}
             <button
+              onClick={handleSaveWeeklyData}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all transform active:scale-95"
+              title="Simpan data tanggal aktif, JP, dan TP ke penyimpanan lokal agar tersimpan permanen"
+            >
+              <Save className="w-4 h-4 text-white" />
+              <span>Simpan Tabel Hari Aktif</span>
+            </button>
+            <button
               onClick={handleAutoSumAllWeeklyJP}
               className="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition-colors"
               title="Hitung & Jumlahkan Otomatis Seluruh Kolom Alokasi Jam dari JP Per Minggu"
@@ -1236,6 +1276,22 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Save Status Notification Banner */}
+        {saveStatus && (
+          <div className="bg-emerald-100/90 border border-emerald-300 text-emerald-950 px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between shadow-xs animate-fadeIn my-2">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+              <span>{saveStatus}</span>
+            </div>
+            <button
+              onClick={() => setSaveStatus(null)}
+              className="text-emerald-800 hover:text-emerald-950 font-extrabold text-sm px-1.5 py-0.5 rounded-md hover:bg-emerald-200/60"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* Detailed Weekly Table */}
         <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-2xs">

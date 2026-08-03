@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { ProtaItem, PromesItem, CPTPItem, TimetableSlot, CalendarEvent, IncidentalJournalEntry, SchoolIdentity } from "../../types";
-import { CalendarRange, Plus, Trash2, Edit2, Download, Printer, FileText, Check, ChevronRight, Calculator, Save, Calendar, BarChart3, TrendingUp, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Layers } from "lucide-react";
+import { CalendarRange, Plus, Trash2, Edit2, Download, Printer, FileText, Check, ChevronRight, Calculator, Save, Calendar, BarChart3, TrendingUp, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Layers, Sparkles } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { exportToCSV } from "../../lib/storage";
+import { exportToCSV, getIndonesianNationalHolidayName } from "../../lib/storage";
 import { exportHtmlToDoc } from "../../lib/exportDoc";
 import { exportProtaToExcel, exportPromesToExcel } from "../../lib/exportExcel";
 
@@ -17,7 +17,13 @@ interface ProtaPromesViewProps {
   schoolIdentity?: SchoolIdentity;
   onSaveProta: (updated: ProtaItem[]) => void;
   onSavePromes: (updated: PromesItem[]) => void;
-  onOpenPrint: (title: string, subtitle: string, content: React.ReactNode) => void;
+  onOpenPrint: (
+    title: string,
+    subtitle: string,
+    content: React.ReactNode,
+    defaultOrientation?: "portrait" | "landscape",
+    defaultPaperSize?: "A4" | "F4" | "Letter" | "Legal" | "Auto"
+  ) => void;
 }
 
 export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
@@ -854,6 +860,194 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
     return sum;
   }, [filteredProta, promesWeeklyAllocations]);
 
+  // Calculation Engine for Prota Execution Dates based on Academic Calendar & Timetable
+  const calculateProtaDates = useCallback(
+    (protaItemsToCalc: ProtaItem[]) => {
+      const startYMD = schoolIdentity?.academicYearStartDate || "2026-07-13";
+      const endYMD = schoolIdentity?.academicYearEndDate || "2027-06-25";
+
+      const startYear = parseInt(startYMD.split("-")[0]) || 2026;
+      const endYear = parseInt(endYMD.split("-")[0]) || 2027;
+
+      const monthNameToIndexSem1: Record<string, number> = {
+        Juli: 6,
+        Agustus: 7,
+        September: 8,
+        Oktober: 9,
+        November: 10,
+        Desember: 11,
+      };
+      const monthNameToIndexSem2: Record<string, number> = {
+        Januari: 0,
+        Februari: 1,
+        Maret: 2,
+        April: 3,
+        Mei: 4,
+        Juni: 5,
+      };
+
+      const normalizeSub = (str: string) => (str || "").toLowerCase().trim().replace(/\s+/g, " ");
+      const targetSubNorm = normalizeSub(selectedSubject);
+
+      // Build day slots for target subject from Timetable
+      const daySlots: Record<string, number> = {};
+      const uniqueSlotsMap = new Map<string, TimetableSlot>();
+      (timetable || []).forEach((slot) => {
+        if (slot.day && slot.period && slot.subject && slot.subject.trim() !== "") {
+          const key = `${slot.day.trim()}_${slot.period}`;
+          uniqueSlotsMap.set(key, slot);
+        }
+      });
+
+      uniqueSlotsMap.forEach((slot) => {
+        if (normalizeSub(slot.subject) === targetSubNorm) {
+          const dayKey = slot.day.trim();
+          daySlots[dayKey] = (daySlots[dayKey] || 0) + 1;
+        }
+      });
+
+      let normalWeeklyJP = Object.values(daySlots).reduce((a, b) => a + b, 0);
+
+      // Fallback day slots if timetable not configured
+      if (normalWeeklyJP === 0) {
+        daySlots["Senin"] = 3;
+        daySlots["Rabu"] = 3;
+      }
+
+      const monthsList = selectedSemester === 1 ? Object.keys(monthNameToIndexSem1) : Object.keys(monthNameToIndexSem2);
+
+      // Build array of active teaching days in sequential order
+      const activeTeachingDays: {
+        dateStr: string;
+        dateObj: Date;
+        monthName: string;
+        weekNum: number;
+        dayName: string;
+        jp: number;
+      }[] = [];
+
+      monthsList.forEach((m) => {
+        const monthIdx = selectedSemester === 1 ? monthNameToIndexSem1[m] : monthNameToIndexSem2[m];
+        const yr = selectedSemester === 1 ? startYear : endYear;
+
+        weeksPerMonth.forEach((w) => {
+          const startDayNum = (w - 1) * 7 + 1;
+          const daysInMonth = new Date(yr, monthIdx + 1, 0).getDate();
+          const endDayNum = w === 5 ? daysInMonth : Math.min(daysInMonth, w * 7);
+
+          for (let dayNum = startDayNum; dayNum <= endDayNum; dayNum++) {
+            const testDate = new Date(yr, monthIdx, dayNum, 12, 0, 0);
+            const dayOfWeek = testDate.getDay(); // 0 = Sun
+            if (dayOfWeek === 0) continue; // skip Sunday
+
+            const y = testDate.getFullYear();
+            const mm = String(testDate.getMonth() + 1).padStart(2, "0");
+            const dd = String(testDate.getDate()).padStart(2, "0");
+            const dateStr = `${y}-${mm}-${dd}`;
+
+            const dayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+            const dayName = dayNames[dayOfWeek];
+            const jpOnThisDay = daySlots[dayName] || 0;
+
+            if (jpOnThisDay <= 0) continue;
+
+            const natHolidayName = getIndonesianNationalHolidayName(dateStr);
+            const matchEvt = (calendarEvents || []).find(
+              (e) => e.startDate && dateStr >= e.startDate && dateStr <= (e.endDate || e.startDate)
+            );
+            const matchIncidental = (incidentalJournals || []).some((i) => i.date === dateStr);
+            const isOutOfTerm = dateStr < startYMD || dateStr > endYMD;
+
+            const isHolidayDay = isOutOfTerm || Boolean(natHolidayName) || Boolean(matchEvt) || matchIncidental;
+
+            if (!isHolidayDay) {
+              activeTeachingDays.push({
+                dateStr,
+                dateObj: testDate,
+                monthName: m,
+                weekNum: w,
+                dayName,
+                jp: jpOnThisDay,
+              });
+            }
+          }
+        });
+      });
+
+      const formatDateID = (d: Date) => {
+        return d.toLocaleDateString("id-ID", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        });
+      };
+
+      let currentDayIdx = 0;
+
+      return protaItemsToCalc.map((item) => {
+        const itemJP = item.allocatedJP || item.timeAllocationJP || 6;
+        let accumulatedJP = 0;
+        let startDateObj: Date | null = null;
+        let endDateObj: Date | null = null;
+        let startWeekStr = "";
+        let endWeekStr = "";
+
+        while (accumulatedJP < itemJP && currentDayIdx < activeTeachingDays.length) {
+          const dayInfo = activeTeachingDays[currentDayIdx];
+          if (!startDateObj) {
+            startDateObj = dayInfo.dateObj;
+            startWeekStr = `${dayInfo.monthName} M${dayInfo.weekNum}`;
+          }
+          endDateObj = dayInfo.dateObj;
+          endWeekStr = `${dayInfo.monthName} M${dayInfo.weekNum}`;
+
+          accumulatedJP += dayInfo.jp;
+          currentDayIdx++;
+        }
+
+        let computedDate = item.executionDate || "";
+        let computedWeek = item.executionWeek || "";
+
+        if (startDateObj && endDateObj) {
+          const startFormatted = formatDateID(startDateObj);
+          const endFormatted = formatDateID(endDateObj);
+
+          if (startFormatted === endFormatted) {
+            computedDate = startFormatted;
+          } else {
+            computedDate = `${startFormatted} s/d ${endFormatted}`;
+          }
+
+          if (startWeekStr === endWeekStr) {
+            computedWeek = startWeekStr;
+          } else {
+            computedWeek = `${startWeekStr} - ${endWeekStr}`;
+          }
+        }
+
+        return {
+          ...item,
+          executionDate: item.executionDate || computedDate || "Kalender Efektif",
+          executionWeek: item.executionWeek || computedWeek || "M1 - M4",
+        };
+      });
+    },
+    [selectedSubject, selectedSemester, timetable, calendarEvents, incidentalJournals, schoolIdentity, weeksPerMonth]
+  );
+
+  // Automatically calculated execution dates map
+  const computedProtaWithDates = useMemo(() => {
+    return calculateProtaDates(filteredProta);
+  }, [calculateProtaDates, filteredProta]);
+
+  const handleAutoCalculateProtaDates = () => {
+    const updated = calculateProtaDates(protaList);
+    onSaveProta(updated);
+    alert(
+      "✅ Perhitungan Tanggal Pelaksanaan Prota Berhasil!\n\nSeluruh item Prota telah disesuaikan tanggal dan pekannya secara presisi berdasarkan Kalender Pendidikan & Jam Pelajaran Efektif."
+    );
+  };
+
   const handleAutoFillPromes = () => {
     const autoFilled = computeAutoFill(filteredProta, promesMonths, weeksPerMonth, weekAnalysisMap);
     setPromesWeeklyAllocations(autoFilled);
@@ -1000,26 +1194,33 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
               <thead>
                 <tr className="bg-slate-100 font-bold text-slate-800">
                   <th className="border border-slate-400 p-2 w-8 text-center">No</th>
-                  <th className="border border-slate-400 p-2 text-center w-24">Kode TP</th>
+                  <th className="border border-slate-400 p-2 text-center w-20">Kode TP</th>
                   <th className="border border-slate-400 p-2 text-left">Tujuan Pembelajaran (TP)</th>
-                  <th className="border border-slate-400 p-2 text-left w-28">Elemen</th>
+                  <th className="border border-slate-400 p-2 text-left w-24">Elemen</th>
+                  <th className="border border-slate-400 p-2 text-left w-44">Pelaksanaan (Kalender)</th>
                   <th className="border border-slate-400 p-2 text-center w-20">Alokasi JP</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredProta.map((p, idx) => (
+                {computedProtaWithDates.map((p, idx) => (
                   <tr key={p.id} className="odd:bg-white even:bg-slate-50">
                     <td className="border border-slate-400 p-2 text-center font-mono">{idx + 1}</td>
                     <td className="border border-slate-400 p-2 text-center font-mono font-bold">{p.tpCode || p.codeTP}</td>
                     <td className="border border-slate-400 p-2 font-medium">{p.tpDescription}</td>
                     <td className="border border-slate-400 p-2 text-slate-600">{p.element || "Umum"}</td>
+                    <td className="border border-slate-400 p-2 text-slate-800 font-semibold text-[11px]">
+                      <div>{p.executionDate || "-"}</div>
+                      <div className="text-[10px] text-amber-700">{p.executionWeek || ""}</div>
+                    </td>
                     <td className="border border-slate-400 p-2 text-center font-bold text-emerald-800 bg-emerald-50/50">{p.allocatedJP || p.timeAllocationJP} JP</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        )
+        ),
+        "portrait",
+        "A4"
       );
     } else {
       // Promes Table Matrix with Months and Weeks (W1-W5)
@@ -1044,7 +1245,7 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
               </span>
             </div>
 
-            <table className="w-full border-collapse border border-slate-400 text-[10px]">
+            <table className="w-full border-collapse border border-slate-400 text-[9px] table-auto">
               <thead>
                 <tr className="bg-slate-100 font-bold text-slate-900 text-center">
                   <th rowSpan={2} className="border border-slate-400 p-1.5 text-left w-52">Tujuan Pembelajaran (TP)</th>
@@ -1055,7 +1256,7 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                     </th>
                   ))}
                 </tr>
-                <tr className="bg-slate-50 font-bold text-slate-700 text-center text-[9px]">
+                <tr className="bg-slate-50 font-bold text-slate-700 text-center text-[8px]">
                   {promesMonths.map((m) =>
                     weeksPerMonth.map((w) => {
                       const weekInfo = weekAnalysisMap[`${m}_w${w}`];
@@ -1064,7 +1265,7 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                       return (
                         <th
                           key={`${m}_w${w}`}
-                          className={`border border-slate-400 p-0.5 w-6 ${
+                          className={`border border-slate-400 p-0.5 w-5 ${
                             isOrange
                               ? "bg-amber-300 text-amber-950 font-black"
                               : "bg-slate-50 text-slate-800"
@@ -1084,7 +1285,7 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
 
                   return (
                     <tr key={p.id} className="odd:bg-white even:bg-slate-50/50">
-                      <td className="border border-slate-400 p-1.5 font-medium text-slate-900">
+                      <td className="border border-slate-400 p-1 font-medium text-slate-900">
                         <span className="font-bold text-emerald-900 font-mono mr-1">[{p.tpCode || p.codeTP}]</span>
                         {p.tpDescription}
                       </td>
@@ -1123,7 +1324,9 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
               </tbody>
             </table>
           </div>
-        )
+        ),
+        "landscape",
+        "A4"
       );
     }
   };
@@ -1530,11 +1733,21 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
       {/* PROTA TAB */}
       {activeTab === "prota" && (
         <div className="space-y-4">
-          <div className="bg-emerald-50/60 p-4 rounded-xl border border-emerald-200 flex items-center justify-between text-xs font-bold text-emerald-950">
-            <span>
-              Total Alokasi Waktu {selectedSubject} Semester {selectedSemester}:
-            </span>
-            <span className="text-base font-extrabold text-emerald-800">{totalJP} JP (Jam Pelajaran)</span>
+          <div className="bg-emerald-50/60 p-4 rounded-xl border border-emerald-200 flex flex-wrap items-center justify-between gap-3 text-xs font-bold text-emerald-950">
+            <div className="flex items-center gap-2">
+              <span>Total Alokasi Waktu {selectedSubject} Semester {selectedSemester}:</span>
+              <span className="text-base font-extrabold text-emerald-800">{totalJP} JP (Jam Pelajaran)</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleAutoCalculateProtaDates}
+              className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all active:scale-95"
+              title="Hitung tanggal & pekan pelaksanaan otomatis berdasarkan Kalender Pendidikan & Jadwal Pelajaran"
+            >
+              <Sparkles className="w-4 h-4 text-amber-100" />
+              ⚡ Hitung Tanggal Otomatis (Kalender)
+            </button>
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
@@ -1546,24 +1759,33 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                     <th className="px-4 py-3">Elemen</th>
                     <th className="px-4 py-3 w-28">Kode TP</th>
                     <th className="px-4 py-3">Tujuan Pembelajaran (TP)</th>
+                    <th className="px-4 py-3 w-48">Pelaksanaan (Kalender)</th>
                     <th className="px-4 py-3 text-center w-28">Alokasi Waktu</th>
                     <th className="px-4 py-3 text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredProta.length === 0 ? (
+                  {computedProtaWithDates.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="text-center py-8 text-slate-400">
+                      <td colSpan={7} className="text-center py-8 text-slate-400">
                         Belum ada data Prota untuk mata pelajaran ini. Klik <b>Tambah TP Prota</b> di atas!
                       </td>
                     </tr>
                   ) : (
-                    filteredProta.map((p, idx) => (
+                    computedProtaWithDates.map((p, idx) => (
                       <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
                         <td className="px-4 py-3 text-center text-slate-400">{idx + 1}</td>
                         <td className="px-4 py-3 font-semibold text-slate-800">{p.element || "Umum"}</td>
                         <td className="px-4 py-3 font-mono font-bold text-emerald-700">{p.tpCode || p.codeTP}</td>
                         <td className="px-4 py-3 font-medium text-slate-900">{p.tpDescription}</td>
+                        <td className="px-4 py-3">
+                          <div className="font-semibold text-slate-900 text-[11px]">
+                            {p.executionDate || "-"}
+                          </div>
+                          <div className="text-[10px] text-amber-700 font-bold mt-0.5">
+                            {p.executionWeek || ""}
+                          </div>
+                        </td>
                         <td className="px-4 py-3 text-center font-bold text-emerald-900 bg-emerald-50/40">
                           {p.allocatedJP || p.timeAllocationJP} JP
                         </td>
@@ -1970,15 +2192,39 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
                 />
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1">Alokasi Waktu (JP)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    required
+                    value={protaForm.allocatedJP || 6}
+                    onChange={(e) => setProtaForm((prev) => ({ ...prev, allocatedJP: parseInt(e.target.value, 10) }))}
+                    className="w-full p-2 border rounded-lg font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold mb-1">Pekan Pelaksanaan</label>
+                  <input
+                    type="text"
+                    placeholder="misal: Juli M1 - M3"
+                    value={protaForm.executionWeek || ""}
+                    onChange={(e) => setProtaForm((prev) => ({ ...prev, executionWeek: e.target.value }))}
+                    className="w-full p-2 border rounded-lg font-medium"
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block font-semibold mb-1">Alokasi Waktu (Jam Pelajaran / JP)</label>
+                <label className="block font-semibold mb-1">Tanggal Pelaksanaan (Rentang)</label>
                 <input
-                  type="number"
-                  min={1}
-                  required
-                  value={protaForm.allocatedJP || 6}
-                  onChange={(e) => setProtaForm((prev) => ({ ...prev, allocatedJP: parseInt(e.target.value, 10) }))}
-                  className="w-full p-2 border rounded-lg font-bold"
+                  type="text"
+                  placeholder="misal: 13 Jul 2026 s/d 27 Jul 2026"
+                  value={protaForm.executionDate || ""}
+                  onChange={(e) => setProtaForm((prev) => ({ ...prev, executionDate: e.target.value }))}
+                  className="w-full p-2 border rounded-lg font-medium"
                 />
               </div>
 

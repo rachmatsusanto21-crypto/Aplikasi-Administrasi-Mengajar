@@ -181,6 +181,8 @@ export interface ProtaItem {
   timeAllocationJP: number;
   allocatedJP?: number;
   semester: SemesterType | number;
+  executionDate?: string;
+  executionWeek?: string;
 }
 
 export interface GASConfig {

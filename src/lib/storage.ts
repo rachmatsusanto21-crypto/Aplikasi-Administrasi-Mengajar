@@ -53,6 +53,7 @@ const STORAGE_KEYS = {
   PROMES: "adm_guru_promes",
   MODUL_AJAR: "adm_guru_modul_ajar",
   AI_SETTINGS: "adm_guru_ai_settings",
+  SUBJECT_WEEKLY_ACTIVE_DAYS: "adm_guru_subject_weekly_active_days",
 };
 
 export function loadStoredData<T>(key: string, defaultValue: T): T {
@@ -119,6 +120,29 @@ export function exportToCSV(headers: string[], rows: (string | number)[][], file
   a.download = `${filename}_${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+export function getIndonesianNationalHolidayName(dateYMD: string): string | null {
+  const indonesianNationalHolidays: Record<string, string> = {
+    "2026-01-01": "Tahun Baru 2026 Masehi",
+    "2026-01-16": "Isra Mikraj Nabi Muhammad SAW",
+    "2026-02-17": "Tahun Baru Imlek 2577 Kongzili",
+    "2026-03-19": "Hari Suci Nyepi (Tahun Baru Saka 1948)",
+    "2026-03-20": "Hari Raya Idul Fitri 1447 Hijriah (Hari 1)",
+    "2026-03-21": "Hari Raya Idul Fitri 1447 Hijriah (Hari 2)",
+    "2026-04-03": "Wafat Yesus Kristus",
+    "2026-04-05": "Hari Paskah",
+    "2026-05-01": "Hari Buruh Internasional",
+    "2026-05-14": "Kenaikan Yesus Kristus",
+    "2026-05-27": "Hari Raya Idul Adha 1447 Hijriah",
+    "2026-05-31": "Hari Raya Waisak 2570 BE",
+    "2026-06-01": "Hari Lahir Pancasila",
+    "2026-06-16": "Tahun Baru Islam 1448 Hijriah",
+    "2026-08-17": "Hari Kemerdekaan Republik Indonesia ke-81",
+    "2026-08-25": "Maulid Nabi Muhammad SAW",
+    "2026-12-25": "Hari Raya Natal",
+  };
+  return indonesianNationalHolidays[dateYMD] || null;
 }
 
 export { STORAGE_KEYS };

@@ -86,7 +86,9 @@ export default function App() {
     title: string;
     subtitle: string;
     content: React.ReactNode | null;
-  }>({ isOpen: false, title: "", subtitle: "", content: null });
+    defaultOrientation?: "portrait" | "landscape";
+    defaultPaperSize?: "A4" | "F4" | "Letter" | "Legal" | "Auto";
+  }>({ isOpen: false, title: "", subtitle: "", content: null, defaultOrientation: "portrait", defaultPaperSize: "A4" });
 
   // App State with Persistence
   const [users, setUsers] = useState<UserAccount[]>(() =>
@@ -313,12 +315,20 @@ export default function App() {
     saveToStorage("gasConfig", gasConfig);
   }, [gasConfig]);
 
-  const handleOpenPrint = (title: string, subtitle: string, content: React.ReactNode) => {
+  const handleOpenPrint = (
+    title: string,
+    subtitle: string,
+    content: React.ReactNode,
+    defaultOrientation?: "portrait" | "landscape",
+    defaultPaperSize?: "A4" | "F4" | "Letter" | "Legal" | "Auto"
+  ) => {
     setPrintState({
       isOpen: true,
       title,
       subtitle,
       content,
+      defaultOrientation: defaultOrientation || "portrait",
+      defaultPaperSize: defaultPaperSize || "A4",
     });
   };
 
@@ -655,6 +665,8 @@ export default function App() {
         subtitle={printState.subtitle}
         schoolIdentity={schoolIdentity}
         onClose={handleClosePrint}
+        defaultOrientation={printState.defaultOrientation}
+        defaultPaperSize={printState.defaultPaperSize}
       >
         {printState.content}
       </PrintModal>

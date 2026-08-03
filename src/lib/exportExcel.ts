@@ -245,6 +245,7 @@ export function exportProtaToExcel(protaList: ProtaItem[], schoolIdentity?: Part
     Elemen: p.element || "-",
     "Kode TP": p.codeTP || p.tpCode || "-",
     "Tujuan Pembelajaran (TP)": p.tpDescription,
+    "Tanggal / Pekan Pelaksanaan": p.executionDate ? `${p.executionDate} (${p.executionWeek || ''})` : "-",
     "Alokasi Waktu (JP)": p.allocatedJP || p.timeAllocationJP || 0,
   }));
 
