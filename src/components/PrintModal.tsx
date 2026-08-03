@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   Printer,
   X,
@@ -59,6 +59,26 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   const [isEdited, setIsEdited] = useState<boolean>(false);
   const [isExportingPdf, setIsExportingPdf] = useState<boolean>(false);
 
+  // Handle ESC key & scroll locking
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          onClose();
+        }
+      };
+
+      window.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.body.style.overflow = originalOverflow;
+        window.removeEventListener("keydown", handleKeyDown);
+      };
+    }
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   // Handle preset margin changes
@@ -95,6 +115,9 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   const handleDownloadPdf = async () => {
     if (!printablePaperRef.current) return;
     setIsExportingPdf(true);
+    const wasEditable = isEditable;
+    if (wasEditable) setIsEditable(false);
+
     try {
       const cleanTitle = (title || "Dokumen_Administrasi_Guru").replace(/[^a-zA-Z0-9_]/g, "_");
       const filename = `${cleanTitle}.pdf`;
@@ -113,8 +136,10 @@ export const PrintModal: React.FC<PrintModalProps> = ({
         html2canvas: {
           scale: 2,
           useCORS: true,
+          allowTaint: true,
           logging: false,
-          windowWidth: printablePaperRef.current.scrollWidth || 1200,
+          scrollX: 0,
+          scrollY: 0,
         },
         jsPDF: { unit: "mm", format: jsPdfFormat, orientation: orientation },
         pagebreak: { mode: ["avoid-all", "css", "legacy"] },
@@ -125,6 +150,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
       console.error("Gagal mengunduh PDF:", err);
       handlePrint();
     } finally {
+      if (wasEditable) setIsEditable(true);
       setIsExportingPdf(false);
     }
   };
@@ -150,8 +176,15 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-2 sm:p-4 animate-fadeIn print-overlay overflow-y-auto">
-      <div className={`bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl shadow-2xl ${getPaperDimensionsClass()} flex flex-col max-h-[96vh] overflow-hidden border border-slate-200 dark:border-slate-800 print-dialog`}>
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-2 sm:p-4 animate-fadeIn print-overlay overflow-hidden"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div className={`bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl shadow-2xl ${getPaperDimensionsClass()} flex flex-col h-[95vh] max-h-[95vh] overflow-hidden border border-slate-200 dark:border-slate-800 print-dialog`}>
         {/* Modal Header & Actions Bar (Hidden on window.print) */}
         <div className="bg-slate-900 text-white p-3.5 sm:p-4 flex flex-wrap items-center justify-between gap-3 no-print border-b border-slate-800 shrink-0">
           <div className="flex items-center space-x-2.5">
@@ -207,18 +240,20 @@ export const PrintModal: React.FC<PrintModalProps> = ({
             {/* Print Dialog Button */}
             <button
               onClick={handlePrint}
-              className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition-colors border border-slate-700 shadow-xs"
+              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition-colors shadow-xs"
               title="Buka dialog cetak browser (Ctrl+P / Command+P)"
             >
-              <Printer className="w-3.5 h-3.5 text-emerald-400" />
+              <Printer className="w-3.5 h-3.5" />
               <span>Cetak / Dialog</span>
             </button>
 
             <button
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors"
+              className="px-3 py-1.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 hover:text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-colors border border-rose-500/30"
+              title="Tutup Pratinjau (ESC)"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
+              <span className="hidden sm:inline">Tutup</span>
             </button>
           </div>
         </div>
@@ -335,7 +370,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
 
         {/* Live Edit Mode Banner Notification */}
         {isEditable && (
-          <div className="no-print bg-amber-500/20 dark:bg-amber-950/50 border-b border-amber-500/40 p-2 text-center text-xs text-amber-900 dark:text-amber-200 font-bold flex items-center justify-center gap-2">
+          <div className="no-print bg-amber-500/20 dark:bg-amber-950/50 border-b border-amber-500/40 p-2 text-center text-xs text-amber-900 dark:text-amber-200 font-bold flex items-center justify-center gap-2 shrink-0">
             <Edit3 className="w-4 h-4 text-amber-600 dark:text-amber-400 animate-bounce" />
             <span>
               Mode Edit Aktif: Anda dapat mengklik dan mengubah teks/tabel secara langsung di area pratinjau di bawah ini sebelum dicetak!
@@ -343,7 +378,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
           </div>
         )}
 
-        {/* Printable Paper Canvas */}
+        {/* Printable Paper Canvas Viewport */}
         <div className="p-4 sm:p-8 overflow-y-auto flex-1 bg-slate-200 dark:bg-slate-950 flex justify-center">
           <div
             ref={printablePaperRef}
@@ -416,6 +451,48 @@ export const PrintModal: React.FC<PrintModalProps> = ({
                 </div>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Sticky Footer Action Bar */}
+        <div className="no-print bg-slate-900 text-white p-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3 shrink-0">
+          <div className="text-xs text-slate-400 flex items-center gap-1.5">
+            <span className="font-semibold text-slate-300">Petunjuk:</span> Tekan <kbd className="px-1.5 py-0.5 bg-slate-800 text-slate-200 rounded border border-slate-700 font-mono text-[10px]">ESC</kbd> atau klik di luar kertas untuk menutup pratinjau.
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={onClose}
+              className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl flex items-center gap-1.5 transition-colors border border-slate-700"
+            >
+              <X className="w-4 h-4 text-rose-400" />
+              <span>Tutup Pratinjau</span>
+            </button>
+            <button
+              onClick={handleExportDoc}
+              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-colors shadow-xs"
+            >
+              <FileText className="w-3 h-3.5" />
+              <span>Simpan Word (.docx)</span>
+            </button>
+            <button
+              onClick={handleDownloadPdf}
+              disabled={isExportingPdf}
+              className="px-4 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition-all shadow-md disabled:opacity-50"
+            >
+              {isExportingPdf ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Download className="w-3.5 h-3.5" />
+              )}
+              <span>{isExportingPdf ? "Membuat PDF..." : "Unduh File PDF (.pdf)"}</span>
+            </button>
+            <button
+              onClick={handlePrint}
+              className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition-colors shadow-md"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Cetak / Dialog</span>
+            </button>
           </div>
         </div>
       </div>
