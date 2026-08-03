@@ -186,7 +186,9 @@ body {
     overflow: visible !important;
   }
 
-  .printable-area {
+  .printable-area,
+  .area-cetak-pdf,
+  #area-cetak {
     position: relative !important;
     width: 100% !important;
     max-width: none !important;
@@ -203,7 +205,9 @@ body {
     visibility: visible !important;
   }
 
-  .printable-area * {
+  .printable-area *,
+  .area-cetak-pdf *,
+  #area-cetak * {
     visibility: visible !important;
     color: #000000 !important;
   }

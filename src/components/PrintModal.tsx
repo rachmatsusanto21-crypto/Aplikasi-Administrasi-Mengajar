@@ -472,7 +472,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
           <div
             ref={printablePaperRef}
             style={getPaperPreviewStyle()}
-            className={`bg-white text-slate-900 shadow-xl rounded-sm printable-area font-sans transition-all mx-auto ${
+            className={`bg-white text-slate-900 shadow-xl rounded-sm printable-area area-cetak-pdf font-sans transition-all mx-auto ${
               isEditable
                 ? "ring-4 ring-amber-400 ring-offset-2 outline-none cursor-text"
                 : ""
