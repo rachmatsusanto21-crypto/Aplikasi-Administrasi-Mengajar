@@ -186,6 +186,21 @@ body {
     overflow: visible !important;
   }
 
+  .print-dialog > div,
+  .print-dialog div {
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Page break rules for multi-page documents (e.g. Prota, Promes, Teaching Modules) */
+  .print-page-breaks-active .page-break,
+  .print-page-breaks-active .break-after-page,
+  .print-page-breaks-active [data-page-break="true"] {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+
   .printable-area,
   .area-cetak-pdf,
   #area-cetak {

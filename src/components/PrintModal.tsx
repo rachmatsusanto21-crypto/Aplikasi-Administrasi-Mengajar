@@ -12,6 +12,7 @@ import {
   Download,
   Loader2,
   ExternalLink,
+  Scissors,
 } from "lucide-react";
 import html2pdf from "html2pdf.js";
 import { SchoolIdentity } from "../types";
@@ -27,6 +28,8 @@ interface PrintModalProps {
   children: React.ReactNode;
   defaultOrientation?: "portrait" | "landscape";
   defaultPaperSize?: "A4" | "F4" | "Letter" | "Legal" | "Auto";
+  enablePageBreaks?: boolean;
+  onTogglePageBreaks?: () => void;
 }
 
 export const PrintModal: React.FC<PrintModalProps> = ({
@@ -38,6 +41,8 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   children,
   defaultOrientation = "portrait",
   defaultPaperSize = "A4",
+  enablePageBreaks = true,
+  onTogglePageBreaks,
 }) => {
   const contentRef = useRef<HTMLDivElement>(null);
   const printablePaperRef = useRef<HTMLDivElement>(null);
@@ -51,6 +56,9 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   const [paperSize, setPaperSize] = useState<"A4" | "F4" | "Letter" | "Legal" | "Auto">(defaultPaperSize);
   const [orientation, setOrientation] = useState<"portrait" | "landscape">(defaultOrientation);
 
+  // Page Break Utilities Toggle
+  const [pageBreaksActive, setPageBreaksActive] = useState<boolean>(enablePageBreaks);
+
   // Margin Configuration (in mm)
   const [marginPreset, setMarginPreset] = useState<"normal" | "narrow" | "moderate" | "custom">("normal");
   const [marginTop, setMarginTop] = useState<number>(20);
@@ -63,8 +71,9 @@ export const PrintModal: React.FC<PrintModalProps> = ({
     if (isOpen) {
       setOrientation(defaultOrientation);
       setPaperSize(defaultPaperSize);
+      setPageBreaksActive(enablePageBreaks);
     }
-  }, [isOpen, defaultOrientation, defaultPaperSize]);
+  }, [isOpen, defaultOrientation, defaultPaperSize, enablePageBreaks]);
 
   // Inject dynamic @page style for browser print dialog
   useEffect(() => {
@@ -394,6 +403,32 @@ export const PrintModal: React.FC<PrintModalProps> = ({
             </select>
           </div>
 
+          {/* Page Break Control & Indicator */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const nextState = !pageBreaksActive;
+                setPageBreaksActive(nextState);
+                if (onTogglePageBreaks) onTogglePageBreaks();
+              }}
+              className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs ${
+                pageBreaksActive
+                  ? "bg-indigo-50 dark:bg-indigo-950/60 border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300"
+                  : "bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-500 dark:text-slate-400"
+              }`}
+              title="Aktifkan/nonaktifkan aturan pemotongan halaman (page-break-after) untuk dokumen panjang seperti Prota/Promes"
+            >
+              <Scissors className="w-3.5 h-3.5 text-indigo-500" />
+              <span>
+                Pemisah Halaman (Page Break):{" "}
+                <span className={pageBreaksActive ? "text-indigo-600 dark:text-indigo-400 font-extrabold" : "text-slate-500 font-normal"}>
+                  {pageBreaksActive ? "Aktif" : "Menerus"}
+                </span>
+              </span>
+            </button>
+          </div>
+
           {/* Margin Editor Controls */}
           <div className="flex items-center gap-2 flex-wrap">
             <label className="text-slate-600 dark:text-slate-400 font-bold whitespace-nowrap flex items-center gap-1">
@@ -473,6 +508,8 @@ export const PrintModal: React.FC<PrintModalProps> = ({
             ref={printablePaperRef}
             style={getPaperPreviewStyle()}
             className={`bg-white text-slate-900 shadow-xl rounded-sm printable-area area-cetak-pdf font-sans transition-all mx-auto ${
+              pageBreaksActive ? "print-page-breaks-active" : ""
+            } ${
               isEditable
                 ? "ring-4 ring-amber-400 ring-offset-2 outline-none cursor-text"
                 : ""

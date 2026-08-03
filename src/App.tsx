@@ -44,6 +44,7 @@ import {
   INITIAL_CANVA_TEMPLATES,
 } from "./data/initialData";
 import { loadFromStorage, saveToStorage } from "./lib/storage";
+import { usePrintHandler } from "./hooks/usePrintHandler";
 
 // Components
 import { Header } from "./components/Header";
@@ -81,14 +82,14 @@ export default function App() {
   const [isGasModalOpen, setIsGasModalOpen] = useState(false);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
   const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
-  const [printState, setPrintState] = useState<{
-    isOpen: boolean;
-    title: string;
-    subtitle: string;
-    content: React.ReactNode | null;
-    defaultOrientation?: "portrait" | "landscape";
-    defaultPaperSize?: "A4" | "F4" | "Letter" | "Legal" | "Auto";
-  }>({ isOpen: false, title: "", subtitle: "", content: null, defaultOrientation: "portrait", defaultPaperSize: "A4" });
+
+  // Custom Print Handler Hook with DOM stabilization delay
+  const {
+    printState,
+    handleOpenPrint,
+    handleClosePrint,
+    togglePageBreaks,
+  } = usePrintHandler(250);
 
   // App State with Persistence
   const [users, setUsers] = useState<UserAccount[]>(() =>
@@ -314,27 +315,6 @@ export default function App() {
   useEffect(() => {
     saveToStorage("gasConfig", gasConfig);
   }, [gasConfig]);
-
-  const handleOpenPrint = (
-    title: string,
-    subtitle: string,
-    content: React.ReactNode,
-    defaultOrientation?: "portrait" | "landscape",
-    defaultPaperSize?: "A4" | "F4" | "Letter" | "Legal" | "Auto"
-  ) => {
-    setPrintState({
-      isOpen: true,
-      title,
-      subtitle,
-      content,
-      defaultOrientation: defaultOrientation || "portrait",
-      defaultPaperSize: defaultPaperSize || "A4",
-    });
-  };
-
-  const handleClosePrint = () => {
-    setPrintState((prev) => ({ ...prev, isOpen: false }));
-  };
 
   const handleRestoreData = (newData: Record<string, any>) => {
     if (newData.schoolIdentity) setSchoolIdentity(newData.schoolIdentity);
@@ -667,6 +647,8 @@ export default function App() {
         onClose={handleClosePrint}
         defaultOrientation={printState.defaultOrientation}
         defaultPaperSize={printState.defaultPaperSize}
+        enablePageBreaks={printState.enablePageBreaks}
+        onTogglePageBreaks={togglePageBreaks}
       >
         {printState.content}
       </PrintModal>
