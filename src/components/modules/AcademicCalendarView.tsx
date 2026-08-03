@@ -494,10 +494,20 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
 
     if (!currentWeek) return;
 
+    let autoAllocatedHours = currentWeek.allocatedHours;
+    if (field === "jpPerWeek" && typeof val === "string") {
+      const parsedNumbers = val.match(/\d+/g);
+      if (parsedNumbers && parsedNumbers.length > 0) {
+        autoAllocatedHours = parsedNumbers.reduce((a, b) => a + (parseInt(b, 10) || 0), 0);
+      } else if (val.trim() === "") {
+        autoAllocatedHours = 0;
+      }
+    }
+
     const updated = {
       activeDates: currentWeek.activeDates,
       jpPerWeek: currentWeek.jpPerWeek,
-      allocatedHours: currentWeek.allocatedHours,
+      allocatedHours: field === "allocatedHours" ? Number(val) || 0 : autoAllocatedHours,
       tpCode: currentWeek.tpCode,
       tpDescription: currentWeek.tpDescription,
       [field]: val,
@@ -507,6 +517,35 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
       ...prev,
       [key]: updated,
     }));
+  };
+
+  // Function to recalculate & sum all weekly allocated JP automatically
+  const handleAutoSumAllWeeklyJP = () => {
+    const updatedMap = { ...customWeeklyData };
+    computedSubjectWeeklyData.forEach((m, mIdx) => {
+      m.weeks.forEach((w) => {
+        const key = `${selectedSubjectTab}_s${selectedSemesterTab}_m${mIdx}_w${w.weekNum}`;
+        const currentJPStr = w.jpPerWeek || "";
+        const parsedNumbers = currentJPStr.match(/\d+/g);
+        let sum = 0;
+        if (parsedNumbers && parsedNumbers.length > 0) {
+          sum = parsedNumbers.reduce((a, b) => a + (parseInt(b, 10) || 0), 0);
+        } else if (w.activeDates && w.activeDates.trim() !== "") {
+          const datesCount = w.activeDates.split(";").filter((d) => d.trim() !== "").length;
+          sum = datesCount * 2;
+        } else {
+          sum = w.allocatedHours;
+        }
+        updatedMap[key] = {
+          activeDates: w.activeDates,
+          jpPerWeek: w.jpPerWeek,
+          allocatedHours: sum,
+          tpCode: w.tpCode,
+          tpDescription: w.tpDescription,
+        };
+      });
+    });
+    setCustomWeeklyData(updatedMap);
   };
 
   // Handler when selecting a TP from Prota dropdown
@@ -1163,6 +1202,14 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
             </div>
 
             {/* Action Buttons */}
+            <button
+              onClick={handleAutoSumAllWeeklyJP}
+              className="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition-colors"
+              title="Hitung & Jumlahkan Otomatis Seluruh Kolom Alokasi Jam dari JP Per Minggu"
+            >
+              <Calculator className="w-3.5 h-3.5 text-white" />
+              ⚡ Auto Hitung Sum Jam
+            </button>
             <button
               onClick={handleResetWeeklyData}
               className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 flex items-center gap-1.5"

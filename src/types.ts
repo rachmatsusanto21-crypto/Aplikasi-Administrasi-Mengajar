@@ -47,6 +47,9 @@ export interface Student {
   nisn: string;
   name: string;
   gender: "L" | "P";
+  parentName?: string;
+  parentEmail?: string;
+  parentPhone?: string;
   customFields?: Record<string, string>;
 }
 

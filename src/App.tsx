@@ -436,6 +436,9 @@ export default function App() {
               <DisciplineBKView
                 students={students}
                 incidents={incidents}
+                grades={grades}
+                subjects={subjects}
+                schoolIdentity={schoolIdentity}
                 onSaveIncidents={setIncidents}
                 onOpenPrint={handleOpenPrint}
               />
@@ -462,6 +465,8 @@ export default function App() {
                 grades={grades}
                 dailyGrades={dailyGrades}
                 subjects={subjects}
+                incidents={incidents}
+                schoolIdentity={schoolIdentity}
                 onOpenPrint={handleOpenPrint}
               />
             )}

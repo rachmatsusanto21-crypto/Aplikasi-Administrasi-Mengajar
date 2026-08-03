@@ -88,6 +88,9 @@ export const StudentRosterView: React.FC<StudentRosterViewProps> = ({
       nisn: editForm.nisn || "",
       name: editForm.name,
       gender: (editForm.gender as "L" | "P") || "L",
+      parentName: editForm.parentName || "",
+      parentEmail: editForm.parentEmail || "",
+      parentPhone: editForm.parentPhone || "",
       customFields: editForm.customFields || {},
     };
     onSaveStudents([...students, newStudent]);
@@ -108,6 +111,8 @@ export const StudentRosterView: React.FC<StudentRosterViewProps> = ({
           nisn: parts[1] || "",
           name: parts[2] || parts[0],
           gender: (parts[3] as "L" | "P") || "L",
+          parentEmail: parts[4] || "",
+          parentPhone: parts[5] || "",
         });
       } else if (line.trim()) {
         newItems.push({
@@ -137,20 +142,27 @@ export const StudentRosterView: React.FC<StudentRosterViewProps> = ({
       if (lines.length === 0) return;
 
       const newStudents: Student[] = [];
-      // Check if header exists
       const startIdx = lines[0].toLowerCase().includes("nama") || lines[0].toLowerCase().includes("nis") ? 1 : 0;
 
       for (let i = startIdx; i < lines.length; i++) {
         const row = lines[i].split(/[,;\t]/).map((c) => c.trim().replace(/^["']|["']$/g, ""));
         if (row.length === 0 || !row[0]) continue;
 
-        // If row starts with number or NIS
         let nis = "";
         let nisn = "";
         let name = "";
         let gender: "L" | "P" = "L";
+        let parentEmail = "";
+        let parentPhone = "";
 
-        if (row.length >= 4) {
+        if (row.length >= 6) {
+          nis = row[0];
+          nisn = row[1];
+          name = row[2];
+          gender = row[3].toUpperCase().startsWith("P") ? "P" : "L";
+          parentEmail = row[4];
+          parentPhone = row[5];
+        } else if (row.length >= 4) {
           nis = row[0];
           nisn = row[1];
           name = row[2];
@@ -171,6 +183,8 @@ export const StudentRosterView: React.FC<StudentRosterViewProps> = ({
             nisn,
             name,
             gender,
+            parentEmail,
+            parentPhone,
           });
         }
       }
@@ -198,13 +212,15 @@ export const StudentRosterView: React.FC<StudentRosterViewProps> = ({
   };
 
   const handleExportCSV = () => {
-    const headers = ["No", "NIS", "NISN", "Nama Lengkap Murid", "Jenis Kelamin", ...customColumns];
+    const headers = ["No", "NIS", "NISN", "Nama Lengkap Murid", "Jenis Kelamin", "Email Orang Tua", "No HP Orang Tua", ...customColumns];
     const rows = students.map((s, idx) => [
       idx + 1,
       s.nis,
       s.nisn,
       s.name,
       s.gender === "L" ? "Laki-laki" : "Perempuan",
+      s.parentEmail || s.customFields?.["Email Orang Tua"] || "-",
+      s.parentPhone || s.customFields?.["No HP Orang Tua"] || "-",
       ...customColumns.map((col) => s.customFields?.[col] || "-"),
     ]);
     exportToCSV(headers, rows, "Daftar_Murid_Kelas");
@@ -220,6 +236,8 @@ export const StudentRosterView: React.FC<StudentRosterViewProps> = ({
             <th style="border:1px solid #333; padding:5px; text-align:center;">NISN</th>
             <th style="border:1px solid #333; padding:5px; text-align:left;">Nama Lengkap Murid</th>
             <th style="border:1px solid #333; padding:5px; text-align:center;">JK</th>
+            <th style="border:1px solid #333; padding:5px; text-align:left;">Email Orang Tua</th>
+            <th style="border:1px solid #333; padding:5px; text-align:left;">No HP / WA OrtU</th>
             ${customColumns.map((col) => `<th style="border:1px solid #333; padding:5px; text-align:left;">${col}</th>`).join("")}
           </tr>
         </thead>
@@ -233,6 +251,8 @@ export const StudentRosterView: React.FC<StudentRosterViewProps> = ({
               <td style="border:1px solid #333; padding:5px; text-align:center;">${s.nisn || "-"}</td>
               <td style="border:1px solid #333; padding:5px;">${s.name}</td>
               <td style="border:1px solid #333; padding:5px; text-align:center;">${s.gender}</td>
+              <td style="border:1px solid #333; padding:5px;">${s.parentEmail || s.customFields?.["Email Orang Tua"] || "-"}</td>
+              <td style="border:1px solid #333; padding:5px;">${s.parentPhone || s.customFields?.["No HP Orang Tua"] || "-"}</td>
               ${customColumns.map((col) => `<td style="border:1px solid #333; padding:5px;">${s.customFields?.[col] || "-"}</td>`).join("")}
             </tr>
           `
@@ -262,6 +282,8 @@ export const StudentRosterView: React.FC<StudentRosterViewProps> = ({
               <th className="border border-slate-300 p-2 text-center">NISN</th>
               <th className="border border-slate-300 p-2 text-left">Nama Lengkap Murid</th>
               <th className="border border-slate-300 p-2 text-center w-24">JK (L/P)</th>
+              <th className="border border-slate-300 p-2 text-left">Email Orang Tua</th>
+              <th className="border border-slate-300 p-2 text-left">No HP / WA OrtU</th>
               {customColumns.map((col) => (
                 <th key={col} className="border border-slate-300 p-2 text-left">{col}</th>
               ))}
@@ -275,6 +297,8 @@ export const StudentRosterView: React.FC<StudentRosterViewProps> = ({
                 <td className="border border-slate-300 p-2 text-center font-mono">{s.nisn}</td>
                 <td className="border border-slate-300 p-2 font-medium">{s.name}</td>
                 <td className="border border-slate-300 p-2 text-center font-bold">{s.gender}</td>
+                <td className="border border-slate-300 p-2">{s.parentEmail || s.customFields?.["Email Orang Tua"] || "-"}</td>
+                <td className="border border-slate-300 p-2">{s.parentPhone || s.customFields?.["No HP Orang Tua"] || "-"}</td>
                 {customColumns.map((col) => (
                   <td key={col} className="border border-slate-300 p-2">{s.customFields?.[col] || "-"}</td>
                 ))}
@@ -415,6 +439,8 @@ export const StudentRosterView: React.FC<StudentRosterViewProps> = ({
                 <th className="px-4 py-3">NISN</th>
                 <th className="px-4 py-3">Nama Lengkap Murid</th>
                 <th className="px-4 py-3 text-center">JK</th>
+                <th className="px-4 py-3 bg-indigo-50/50 text-indigo-900 border-l border-indigo-200/50">Email Orang Tua</th>
+                <th className="px-4 py-3 bg-emerald-50/50 text-emerald-900 border-l border-emerald-200/50">No HP / WA Orang Tua</th>
                 {customColumns.map((colName) => (
                   <th key={colName} className="px-4 py-3 bg-amber-50/50 text-amber-900 border-l border-amber-200/50">
                     <div className="flex items-center justify-between gap-1">
@@ -507,6 +533,34 @@ export const StudentRosterView: React.FC<StudentRosterViewProps> = ({
                         >
                           {s.gender === "L" ? "Laki-laki (L)" : "Perempuan (P)"}
                         </span>
+                      )}
+                    </td>
+                    {/* Email Orang Tua */}
+                    <td className="px-4 py-3 bg-indigo-50/20 border-l border-indigo-100 font-mono text-slate-700">
+                      {editingId === s.id ? (
+                        <input
+                          type="email"
+                          value={editForm.parentEmail ?? s.parentEmail ?? s.customFields?.["Email Orang Tua"] ?? ""}
+                          onChange={(e) => setEditForm((prev) => ({ ...prev, parentEmail: e.target.value }))}
+                          className="px-2 py-1 text-xs border rounded w-full bg-white"
+                          placeholder="email@gmail.com"
+                        />
+                      ) : (
+                        <span className="text-slate-700">{s.parentEmail || s.customFields?.["Email Orang Tua"] || "-"}</span>
+                      )}
+                    </td>
+                    {/* No HP / WA Orang Tua */}
+                    <td className="px-4 py-3 bg-emerald-50/20 border-l border-emerald-100 font-mono text-slate-700">
+                      {editingId === s.id ? (
+                        <input
+                          type="text"
+                          value={editForm.parentPhone ?? s.parentPhone ?? s.customFields?.["No HP Orang Tua"] ?? ""}
+                          onChange={(e) => setEditForm((prev) => ({ ...prev, parentPhone: e.target.value }))}
+                          className="px-2 py-1 text-xs border rounded w-full bg-white"
+                          placeholder="081234567890"
+                        />
+                      ) : (
+                        <span className="text-slate-700">{s.parentPhone || s.customFields?.["No HP Orang Tua"] || "-"}</span>
                       )}
                     </td>
                     {customColumns.map((colName) => (
@@ -667,6 +721,29 @@ export const StudentRosterView: React.FC<StudentRosterViewProps> = ({
                   <option value="L">Laki-laki (L)</option>
                   <option value="P">Perempuan (P)</option>
                 </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1">Email Orang Tua</label>
+                  <input
+                    type="email"
+                    value={editForm.parentEmail || ""}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, parentEmail: e.target.value }))}
+                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="ortu@gmail.com"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">No HP / WA Orang Tua</label>
+                  <input
+                    type="text"
+                    value={editForm.parentPhone || ""}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, parentPhone: e.target.value }))}
+                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="081234567890"
+                  />
+                </div>
               </div>
 
               {customColumns.map((colName) => (

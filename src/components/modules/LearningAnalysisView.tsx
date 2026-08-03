@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Student, CPTPItem, GradeRecord, DailyGradeEntry } from "../../types";
+import { Student, CPTPItem, GradeRecord, DailyGradeEntry, IncidentRecord, SchoolIdentity } from "../../types";
 import {
   BarChart,
   Bar,
@@ -31,9 +31,11 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Layers,
+  Mail,
 } from "lucide-react";
 import { exportToCSV } from "../../lib/storage";
 import { exportHtmlToDoc } from "../../lib/exportDoc";
+import { StudentParentReportModal } from "./StudentParentReportModal";
 
 interface LearningAnalysisViewProps {
   students: Student[];
@@ -41,6 +43,8 @@ interface LearningAnalysisViewProps {
   grades: GradeRecord[];
   dailyGrades?: DailyGradeEntry[];
   subjects: string[];
+  incidents?: IncidentRecord[];
+  schoolIdentity?: SchoolIdentity;
   onOpenPrint: (title: string, subtitle: string, content: React.ReactNode) => void;
 }
 
@@ -49,12 +53,36 @@ export const LearningAnalysisView: React.FC<LearningAnalysisViewProps> = ({
   cptpItems,
   grades,
   subjects,
+  incidents = [],
+  schoolIdentity = {
+    schoolName: "SD Negeri 1",
+    npsn: "12345678",
+    address: "Jl. Pendidikan",
+    village: "-",
+    district: "-",
+    regency: "-",
+    province: "-",
+    website: "-",
+    email: "-",
+    phone: "-",
+    logoUrl: "",
+    academicYear: "2025/2026",
+    semester: "Ganjil",
+    phase: "Fase B",
+    gradeClass: "Kelas IV",
+    headmasterName: "-",
+    headmasterNip: "-",
+    teacherName: "Guru Kelas",
+    teacherNip: "-",
+  },
   onOpenPrint,
 }) => {
   const [kkmValue, setKkmValue] = useState<number>(75);
   const [activeTab, setActiveTab] = useState<"barchart" | "heatmap" | "difficult_tps" | "remedial_detail">("remedial_detail");
   const [selectedSubject, setSelectedSubject] = useState<string>(subjects[0] || "Bahasa Indonesia");
   const [heatmapSearch, setHeatmapSearch] = useState("");
+
+  const [isParentReportModalOpen, setIsParentReportModalOpen] = useState(false);
 
   // Filter state for Student Remedial Detail
   const [remedialFilter, setRemedialFilter] = useState<"all" | "remedial" | "tuntas">("remedial");
@@ -686,10 +714,18 @@ export const LearningAnalysisView: React.FC<LearningAnalysisViewProps> = ({
           </button>
           <button
             onClick={handlePrint}
-            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs"
+            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs"
           >
             <Printer className="w-3.5 h-3.5" />
             Cetak Laporan
+          </button>
+          <button
+            onClick={() => setIsParentReportModalOpen(true)}
+            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-all"
+            title="Kirim Laporan Perkembangan Belajar & Peringkat Siswa ke Email Orang Tua"
+          >
+            <Mail className="w-3.5 h-3.5" />
+            Email Laporan Orang Tua
           </button>
         </div>
       </div>
@@ -1415,6 +1451,18 @@ export const LearningAnalysisView: React.FC<LearningAnalysisViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Parent Report & Email Delivery Modal */}
+      <StudentParentReportModal
+        isOpen={isParentReportModalOpen}
+        onClose={() => setIsParentReportModalOpen(false)}
+        students={students}
+        grades={grades}
+        incidents={incidents}
+        subjects={subjects}
+        schoolIdentity={schoolIdentity}
+        onOpenPrint={onOpenPrint}
+      />
     </div>
   );
 };

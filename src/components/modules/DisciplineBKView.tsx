@@ -1,12 +1,16 @@
 import React, { useState } from "react";
-import { Student, IncidentRecord } from "../../types";
-import { ShieldAlert, Plus, Search, Trash2, Edit2, Printer, Download, CheckCircle, AlertTriangle, Heart, BarChart2, UserCheck, X, FileText } from "lucide-react";
+import { Student, IncidentRecord, GradeRecord, SchoolIdentity } from "../../types";
+import { ShieldAlert, Plus, Search, Trash2, Edit2, Printer, Download, CheckCircle, AlertTriangle, Heart, BarChart2, UserCheck, X, FileText, CheckSquare, Square, Users, Mail } from "lucide-react";
 import { exportToCSV } from "../../lib/storage";
 import { exportHtmlToDoc } from "../../lib/exportDoc";
+import { StudentParentReportModal } from "./StudentParentReportModal";
 
 interface DisciplineBKViewProps {
   students: Student[];
   incidents: IncidentRecord[];
+  grades?: GradeRecord[];
+  subjects?: string[];
+  schoolIdentity?: SchoolIdentity;
   onSaveIncidents: (updated: IncidentRecord[]) => void;
   onOpenPrint: (title: string, subtitle: string, content: React.ReactNode) => void;
 }
@@ -14,6 +18,29 @@ interface DisciplineBKViewProps {
 export const DisciplineBKView: React.FC<DisciplineBKViewProps> = ({
   students,
   incidents,
+  grades = [],
+  subjects = ["Bahasa Indonesia", "Matematika", "IPAS", "Pancasila", "Seni Budaya", "PJOK"],
+  schoolIdentity = {
+    schoolName: "SD Negeri 1",
+    npsn: "12345678",
+    address: "Jl. Pendidikan",
+    village: "-",
+    district: "-",
+    regency: "-",
+    province: "-",
+    website: "-",
+    email: "-",
+    phone: "-",
+    logoUrl: "",
+    academicYear: "2025/2026",
+    semester: "Ganjil",
+    phase: "Fase B",
+    gradeClass: "Kelas IV",
+    headmasterName: "-",
+    headmasterNip: "-",
+    teacherName: "Guru Kelas",
+    teacherNip: "-",
+  },
   onSaveIncidents,
   onOpenPrint,
 }) => {
@@ -22,9 +49,14 @@ export const DisciplineBKView: React.FC<DisciplineBKViewProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // New Modals State for Rekap Klasikal & Per Siswa
+  // Multi-student selection state for BK/Incident creation
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [studentSearchFilter, setStudentSearchFilter] = useState<string>("");
+
+  // New Modals State for Rekap Klasikal, Per Siswa & Parent Email Report
   const [isKlasikalModalOpen, setIsKlasikalModalOpen] = useState(false);
   const [isPerSiswaModalOpen, setIsPerSiswaModalOpen] = useState(false);
+  const [isParentReportModalOpen, setIsParentReportModalOpen] = useState(false);
   const [selectedStudentForReport, setSelectedStudentForReport] = useState<string>(students[0]?.id || "");
 
   const [form, setForm] = useState<Partial<IncidentRecord>>({
@@ -61,38 +93,60 @@ export const DisciplineBKView: React.FC<DisciplineBKViewProps> = ({
       status: "Selesai",
       studentId: students[0]?.id || "",
     });
+    setSelectedStudentIds(students.length > 0 ? [students[0].id] : []);
+    setStudentSearchFilter("");
     setIsModalOpen(true);
   };
 
   const handleOpenEdit = (inc: IncidentRecord) => {
     setEditingId(inc.id);
     setForm(inc);
+    setSelectedStudentIds([inc.studentId]);
     setIsModalOpen(true);
+  };
+
+  const toggleSelectStudent = (id: string) => {
+    if (selectedStudentIds.includes(id)) {
+      setSelectedStudentIds(selectedStudentIds.filter((sId) => sId !== id));
+    } else {
+      setSelectedStudentIds([...selectedStudentIds, id]);
+    }
+  };
+
+  const handleSelectAllStudents = () => {
+    if (selectedStudentIds.length === students.length) {
+      setSelectedStudentIds([]);
+    } else {
+      setSelectedStudentIds(students.map((s) => s.id));
+    }
   };
 
   const handleSaveForm = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.studentId || !form.description) return;
+    if (selectedStudentIds.length === 0 || !form.description) return;
 
     if (editingId) {
       const updated = incidents.map((i) =>
-        i.id === editingId ? ({ ...i, ...form } as IncidentRecord) : i
+        i.id === editingId
+          ? ({ ...i, ...form, studentId: selectedStudentIds[0] || form.studentId } as IncidentRecord)
+          : i
       );
       onSaveIncidents(updated);
     } else {
-      const newInc: IncidentRecord = {
-        id: "inc_" + Date.now(),
+      // Create separate individual records for each selected student
+      const newIncidents: IncidentRecord[] = selectedStudentIds.map((sId, index) => ({
+        id: `inc_${Date.now()}_${index}_${Math.random().toString(36).substring(2, 6)}`,
         date: form.date || new Date().toISOString().slice(0, 10),
-        studentId: form.studentId,
-        type: form.type as any,
-        category: form.category as any,
+        studentId: sId,
+        type: (form.type as any) || "Pelanggaran",
+        category: (form.category as any) || "Ringan",
         description: form.description || "",
         actionTaken: form.actionTaken || "",
         counselorName: form.counselorName || "Guru Kelas",
-        status: form.status as any,
+        status: (form.status as any) || "Selesai",
         parentSignatureNote: form.parentSignatureNote || "",
-      };
-      onSaveIncidents([...incidents, newInc]);
+      }));
+      onSaveIncidents([...incidents, ...newIncidents]);
     }
     setIsModalOpen(false);
   };
@@ -351,6 +405,15 @@ export const DisciplineBKView: React.FC<DisciplineBKViewProps> = ({
           </button>
 
           <button
+            onClick={() => setIsParentReportModalOpen(true)}
+            className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm transition-all"
+            title="Kirim Laporan Perkembangan Belajar, Peringkat & Discipline ke Email Orang Tua"
+          >
+            <Mail className="w-4 h-4" />
+            Email Laporan Orang Tua
+          </button>
+
+          <button
             onClick={handleExportCSV}
             className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 flex items-center gap-1.5"
             title="Ekspor ke Excel / CSV"
@@ -484,23 +547,45 @@ export const DisciplineBKView: React.FC<DisciplineBKViewProps> = ({
               {editingId ? "Edit Catatan BK" : "Tambah Catatan BK / Pelanggaran Baru"}
             </h3>
 
-            <form onSubmit={handleSaveForm} className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold mb-1">Tanggal</label>
-                  <input
-                    type="date"
-                    required
-                    value={form.date || ""}
-                    onChange={(e) => setForm((prev) => ({ ...prev, date: e.target.value }))}
-                    className="w-full p-2 border rounded-lg"
-                  />
+            <form onSubmit={handleSaveForm} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-semibold mb-1">Tanggal Incident / Sesi</label>
+                <input
+                  type="date"
+                  required
+                  value={form.date || ""}
+                  onChange={(e) => setForm((prev) => ({ ...prev, date: e.target.value }))}
+                  className="w-full p-2 border rounded-lg bg-white font-medium"
+                />
+              </div>
+
+              {/* Multi-Student Picker Section */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block font-bold text-slate-800">
+                    {editingId ? "Siswa Terkait:" : "Pilih Nama Siswa (Dapat Pilih Banyak):"}
+                  </label>
+                  {!editingId && (
+                    <div className="flex items-center gap-2 text-[11px]">
+                      <button
+                        type="button"
+                        onClick={handleSelectAllStudents}
+                        className="text-emerald-700 font-bold hover:underline flex items-center gap-1"
+                      >
+                        {selectedStudentIds.length === students.length ? "Batal Semua" : "Pilih Semua Siswa"}
+                      </button>
+                      <span className="text-slate-300">|</span>
+                      <span className="font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
+                        {selectedStudentIds.length} Siswa Dipilih
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <label className="block font-semibold mb-1">Pilih Murid</label>
+
+                {editingId ? (
                   <select
-                    value={form.studentId || ""}
-                    onChange={(e) => setForm((prev) => ({ ...prev, studentId: e.target.value }))}
+                    value={selectedStudentIds[0] || ""}
+                    onChange={(e) => setSelectedStudentIds([e.target.value])}
                     className="w-full p-2 border rounded-lg bg-white font-semibold"
                   >
                     {students.map((s) => (
@@ -509,7 +594,57 @@ export const DisciplineBKView: React.FC<DisciplineBKViewProps> = ({
                       </option>
                     ))}
                   </select>
-                </div>
+                ) : (
+                  <div className="border border-slate-200 rounded-xl p-2.5 bg-slate-50 space-y-2">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Cari nama atau NIS siswa..."
+                        value={studentSearchFilter}
+                        onChange={(e) => setStudentSearchFilter(e.target.value)}
+                        className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-40 overflow-y-auto p-1">
+                      {students
+                        .filter((s) =>
+                          s.name.toLowerCase().includes(studentSearchFilter.toLowerCase()) ||
+                          s.nis.includes(studentSearchFilter)
+                        )
+                        .map((s) => {
+                          const isSelected = selectedStudentIds.includes(s.id);
+                          return (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onClick={() => toggleSelectStudent(s.id)}
+                              className={`flex items-center gap-2 p-1.5 rounded-lg border text-left transition-all text-[11px] ${
+                                isSelected
+                                  ? "bg-emerald-500 text-white border-emerald-600 font-bold shadow-xs"
+                                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                              }`}
+                            >
+                              {isSelected ? (
+                                <CheckSquare className="w-4 h-4 shrink-0 text-white" />
+                              ) : (
+                                <Square className="w-4 h-4 shrink-0 text-slate-300" />
+                              )}
+                              <span className="truncate">{s.name}</span>
+                            </button>
+                          );
+                        })}
+                    </div>
+
+                    <div className="text-[10px] text-slate-500 italic bg-amber-50 p-2 rounded-lg border border-amber-200 flex items-center gap-1.5 text-amber-900">
+                      <Users className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span>
+                        Satu catatan ini akan <b>secara otomatis disimpan tersendiri/masing-masing</b> untuk setiap siswa yang Anda centang di atas.
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -782,6 +917,18 @@ export const DisciplineBKView: React.FC<DisciplineBKViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Parent Report & Email Delivery Modal */}
+      <StudentParentReportModal
+        isOpen={isParentReportModalOpen}
+        onClose={() => setIsParentReportModalOpen(false)}
+        students={students}
+        grades={grades}
+        incidents={incidents}
+        subjects={subjects}
+        schoolIdentity={schoolIdentity}
+        onOpenPrint={onOpenPrint}
+      />
     </div>
   );
 };
