@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { AcademicCalendarEvent, SchoolIdentity, TimetableSlot, IncidentalJournalEntry, ProtaItem } from "../../types";
-import { Calendar, Plus, Trash2, Edit2, Printer, Download, Calculator, FileText, Settings, Clock, BookOpen, Save, CheckCircle2 } from "lucide-react";
+import { Calendar, Plus, Trash2, Edit2, Printer, Download, Calculator, FileText, Settings, Clock, BookOpen, Save, CheckCircle2, CheckSquare, Square, RotateCcw, Layers, X, Filter, Check, Edit, AlertCircle } from "lucide-react";
 import { exportToCSV, loadFromStorage, saveToStorage, STORAGE_KEYS } from "../../lib/storage";
 import { exportHtmlToDoc } from "../../lib/exportDoc";
 
@@ -293,6 +293,195 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
     Record<string, { activeDates: string; jpPerWeek: string; allocatedHours: number; tpCode: string; tpDescription: string }>
   >(() => loadFromStorage(STORAGE_KEYS.SUBJECT_WEEKLY_ACTIVE_DAYS, {}));
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
+
+  // States & Persistence for Table 1: Summary Calculation Table (Select, Edit, Hapus)
+  const [hiddenCalcSubjects, setHiddenCalcSubjects] = useState<string[]>(() =>
+    loadFromStorage("adm_guru_hidden_calc_subjects", [])
+  );
+  const [subjectCalcOverrides, setSubjectCalcOverrides] = useState<Record<string, Partial<any>>>(() =>
+    loadFromStorage("adm_guru_subject_calc_overrides", {})
+  );
+  const [customCalcSubjects, setCustomCalcSubjects] = useState<any[]>(() =>
+    loadFromStorage("adm_guru_custom_calc_subjects", [])
+  );
+  const [selectedCalcSubjects, setSelectedCalcSubjects] = useState<string[]>([]);
+  const [editingCalcSubject, setEditingCalcSubject] = useState<any | null>(null);
+  const [isAddCustomCalcModalOpen, setIsAddCustomCalcModalOpen] = useState<boolean>(false);
+
+  // Derived Summary Calculations with Overrides, Custom Subjects, and Hidden Subjects Filter
+  const displayedSubjectCalculations = useMemo(() => {
+    const base = subjectCalculations.filter((sc) => !hiddenCalcSubjects.includes(sc.subject));
+    const merged = base.map((sc) => {
+      if (subjectCalcOverrides[sc.subject]) {
+        return { ...sc, ...subjectCalcOverrides[sc.subject] };
+      }
+      return sc;
+    });
+    const customFiltered = customCalcSubjects.filter((c) => !hiddenCalcSubjects.includes(c.subject));
+    return [...merged, ...customFiltered];
+  }, [subjectCalculations, hiddenCalcSubjects, subjectCalcOverrides, customCalcSubjects]);
+
+  // Handlers for Table 1 (Summary Table)
+  const handleToggleSelectCalcSubject = (subName: string) => {
+    setSelectedCalcSubjects((prev) =>
+      prev.includes(subName) ? prev.filter((s) => s !== subName) : [...prev, subName]
+    );
+  };
+
+  const handleSelectAllCalcSubjects = () => {
+    if (selectedCalcSubjects.length === displayedSubjectCalculations.length) {
+      setSelectedCalcSubjects([]);
+    } else {
+      setSelectedCalcSubjects(displayedSubjectCalculations.map((sc) => sc.subject));
+    }
+  };
+
+  const handleDeleteCalcSubject = (subName: string) => {
+    const nextHidden = [...hiddenCalcSubjects, subName];
+    setHiddenCalcSubjects(nextHidden);
+    saveToStorage("adm_guru_hidden_calc_subjects", nextHidden);
+    setCustomCalcSubjects((prev) => {
+      const filtered = prev.filter((item) => item.subject !== subName);
+      saveToStorage("adm_guru_custom_calc_subjects", filtered);
+      return filtered;
+    });
+    setSelectedCalcSubjects((prev) => prev.filter((s) => s !== subName));
+    setSaveStatus(`Mata pelajaran "${subName}" berhasil dihapus dari tabel hitungan.`);
+  };
+
+  const handleBulkDeleteCalcSubjects = () => {
+    if (selectedCalcSubjects.length === 0) return;
+    const nextHidden = Array.from(new Set([...hiddenCalcSubjects, ...selectedCalcSubjects]));
+    setHiddenCalcSubjects(nextHidden);
+    saveToStorage("adm_guru_hidden_calc_subjects", nextHidden);
+    setCustomCalcSubjects((prev) => {
+      const filtered = prev.filter((item) => !selectedCalcSubjects.includes(item.subject));
+      saveToStorage("adm_guru_custom_calc_subjects", filtered);
+      return filtered;
+    });
+    setSaveStatus(`${selectedCalcSubjects.length} mata pelajaran berhasil dihapus.`);
+    setSelectedCalcSubjects([]);
+  };
+
+  const handleResetCalcTable = () => {
+    setHiddenCalcSubjects([]);
+    setSubjectCalcOverrides({});
+    setCustomCalcSubjects([]);
+    setSelectedCalcSubjects([]);
+    saveToStorage("adm_guru_hidden_calc_subjects", []);
+    saveToStorage("adm_guru_subject_calc_overrides", {});
+    saveToStorage("adm_guru_custom_calc_subjects", []);
+    setSaveStatus("Tabel hitungan hari & JP telah disegarkan ke hitungan asli.");
+  };
+
+  const handleSaveSubjectCalcOverride = (updatedItem: any) => {
+    if (!updatedItem || !updatedItem.subject) return;
+    const isCustomItem = customCalcSubjects.some((c) => c.subject === updatedItem.subject) || updatedItem.isCustom;
+
+    if (isCustomItem) {
+      setCustomCalcSubjects((prev) => {
+        const idx = prev.findIndex((c) => c.subject === updatedItem.subject);
+        let next: any[];
+        if (idx >= 0) {
+          next = [...prev];
+          next[idx] = updatedItem;
+        } else {
+          next = [...prev, { ...updatedItem, isCustom: true }];
+        }
+        saveToStorage("adm_guru_custom_calc_subjects", next);
+        return next;
+      });
+    } else {
+      const nextOverrides = {
+        ...subjectCalcOverrides,
+        [updatedItem.subject]: updatedItem,
+      };
+      setSubjectCalcOverrides(nextOverrides);
+      saveToStorage("adm_guru_subject_calc_overrides", nextOverrides);
+    }
+    setEditingCalcSubject(null);
+    setIsAddCustomCalcModalOpen(false);
+    setSaveStatus(`Data hitungan untuk ${updatedItem.subject} berhasil disimpan.`);
+  };
+
+  // States & Persistence for Table 2: Detailed Weekly Active Days & Hours Table (Select, Edit, Hapus)
+  const [selectedWeekKeys, setSelectedWeekKeys] = useState<string[]>([]);
+  const [editingWeeklyRow, setEditingWeeklyRow] = useState<{ mIdx: number; weekNum: number; weekData: any } | null>(null);
+  const [isBulkEditWeeklyModalOpen, setIsBulkEditWeeklyModalOpen] = useState<boolean>(false);
+  const [bulkWeeklyEditForm, setBulkWeeklyEditForm] = useState<{
+    jpPerWeek: string;
+    allocatedHours: number;
+    tpCode: string;
+    tpDescription: string;
+  }>({ jpPerWeek: "", allocatedHours: 0, tpCode: "", tpDescription: "" });
+
+  const handleToggleSelectWeek = (key: string) => {
+    setSelectedWeekKeys((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  };
+
+  const handleClearWeekData = (mIdx: number, weekNum: number) => {
+    const key = `${selectedSubjectTab}_s${selectedSemesterTab}_m${mIdx}_w${weekNum}`;
+    const cleared = {
+      activeDates: "",
+      jpPerWeek: "",
+      allocatedHours: 0,
+      tpCode: "",
+      tpDescription: "",
+    };
+    const nextCustom = {
+      ...customWeeklyData,
+      [key]: cleared,
+    };
+    setCustomWeeklyData(nextCustom);
+    saveToStorage(STORAGE_KEYS.SUBJECT_WEEKLY_ACTIVE_DAYS, nextCustom);
+    setSaveStatus(`Data minggu ke-${weekNum} berhasil dikosongkan/dihapus.`);
+  };
+
+  const handleBulkClearWeeks = () => {
+    if (selectedWeekKeys.length === 0) return;
+    const nextCustom = { ...customWeeklyData };
+    selectedWeekKeys.forEach((key) => {
+      nextCustom[key] = {
+        activeDates: "",
+        jpPerWeek: "",
+        allocatedHours: 0,
+        tpCode: "",
+        tpDescription: "",
+      };
+    });
+    setCustomWeeklyData(nextCustom);
+    saveToStorage(STORAGE_KEYS.SUBJECT_WEEKLY_ACTIVE_DAYS, nextCustom);
+    setSaveStatus(`${selectedWeekKeys.length} minggu berhasil dikosongkan/dihapus.`);
+    setSelectedWeekKeys([]);
+  };
+
+  const handleApplyBulkWeeklyEdit = () => {
+    if (selectedWeekKeys.length === 0) return;
+    const nextCustom = { ...customWeeklyData };
+    selectedWeekKeys.forEach((key) => {
+      const existing = nextCustom[key] || {
+        activeDates: "",
+        jpPerWeek: "",
+        allocatedHours: 0,
+        tpCode: "",
+        tpDescription: "",
+      };
+      nextCustom[key] = {
+        ...existing,
+        ...(bulkWeeklyEditForm.jpPerWeek !== "" ? { jpPerWeek: bulkWeeklyEditForm.jpPerWeek } : {}),
+        ...(bulkWeeklyEditForm.allocatedHours > 0 ? { allocatedHours: bulkWeeklyEditForm.allocatedHours } : {}),
+        ...(bulkWeeklyEditForm.tpCode !== "" ? { tpCode: bulkWeeklyEditForm.tpCode } : {}),
+        ...(bulkWeeklyEditForm.tpDescription !== "" ? { tpDescription: bulkWeeklyEditForm.tpDescription } : {}),
+      };
+    });
+    setCustomWeeklyData(nextCustom);
+    saveToStorage(STORAGE_KEYS.SUBJECT_WEEKLY_ACTIVE_DAYS, nextCustom);
+    setSaveStatus(`${selectedWeekKeys.length} minggu berhasil diperbarui massal.`);
+    setIsBulkEditWeeklyModalOpen(false);
+    setSelectedWeekKeys([]);
+  };
 
   // Parse start year from academic startDate
   const startYear = useMemo(() => {
@@ -1141,7 +1330,7 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
         </div>
       </div>
 
-      {/* NEW FEATURE TABLE: Hitungan Hari & Jam Efektif per Mata Pelajaran */}
+      {/* NEW FEATURE TABLE: Hitungan Hari & Jam Efektif per Mata Pelajaran (Dengan Select, Edit, & Hapus) */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden space-y-2">
         <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
@@ -1150,23 +1339,89 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
               Tabel Hitungan Hari & Jam Pelajaran (JP) Efektif per Mata Pelajaran
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Dihitung otomatis mengacu pada Jadwal Pelajaran (Timetable) & dikurangi hari libur/event insidental
+              Dihitung otomatis mengacu pada Jadwal & Libur. Anda dapat menyeleksi, mengedit nilai, atau menghapus/menyembunyikan baris mapel.
             </p>
           </div>
-          <div className="bg-emerald-50 border border-emerald-200 text-emerald-950 p-2.5 rounded-xl text-xs space-y-0.5 max-w-xl">
-            <p className="font-bold text-[11px] text-emerald-900 flex items-center gap-1">
-              <span>💡 Formulasi Pengurangan JP Presisi per Hari:</span>
-            </p>
-            <p className="text-[11px] text-slate-700 leading-tight">
-              Libur/event pada hari tertentu mengurangi JP sesuai alokasi hari tersebut di Jadwal. <i>Contoh: Jika total alokasi 90 JP dan ada event pada hari Senin (Bahasa Indonesia 3 JP), maka Net JP Efektif = 90 - 3 = 87 JP.</i>
-            </p>
+          
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setEditingCalcSubject({
+                  subject: "",
+                  weeklyScheduleSummary: "2 JP / minggu",
+                  sem1EffectiveMeetings: 19,
+                  sem1EffectiveJP: 38,
+                  sem2EffectiveMeetings: 18,
+                  sem2EffectiveJP: 36,
+                  holidayMeetingsLost: 0,
+                  lostJP: 0,
+                  effectiveJP: 74,
+                  isCustom: true,
+                });
+                setIsAddCustomCalcModalOpen(true);
+              }}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ Mapel Custom</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleResetCalcTable}
+              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl border border-slate-300 flex items-center gap-1 transition-colors"
+              title="Kembalikan semua hitungan ke kondisi awal dan tampilkan kembali mapel yang dihapus"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+              <span>Segarkan Tabel</span>
+            </button>
           </div>
         </div>
+
+        {/* Bulk Action Toolbar for Table 1 */}
+        {selectedCalcSubjects.length > 0 && (
+          <div className="mx-4 my-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between gap-2 text-xs font-bold text-emerald-950 animate-fadeIn">
+            <div className="flex items-center gap-2">
+              <CheckSquare className="w-4 h-4 text-emerald-700" />
+              <span>{selectedCalcSubjects.length} Mata Pelajaran Terpilih</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleBulkDeleteCalcSubjects}
+                className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg flex items-center gap-1 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Hapus Terpilih</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedCalcSubjects([])}
+                className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg transition-colors"
+              >
+                Batal Pilih
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-700">
             <thead className="bg-slate-50 font-bold border-b border-slate-200 text-slate-800 uppercase tracking-wider text-[11px]">
               <tr>
+                <th className="px-3 py-3 text-center w-10">
+                  <input
+                    type="checkbox"
+                    checked={
+                      displayedSubjectCalculations.length > 0 &&
+                      selectedCalcSubjects.length === displayedSubjectCalculations.length
+                    }
+                    onChange={handleSelectAllCalcSubjects}
+                    className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    title="Pilih Semua Mapel"
+                  />
+                </th>
                 <th className="px-3 py-3 text-center w-8">No</th>
                 <th className="px-3 py-3">Mata Pelajaran</th>
                 <th className="px-3 py-3">Jadwal Mingguan</th>
@@ -1176,40 +1431,89 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
                 <th className="px-3 py-3 text-center text-indigo-900 bg-indigo-100/60">JP Sem 2</th>
                 <th className="px-3 py-3 text-center text-red-600 bg-red-50/40">Pengurangan Libur</th>
                 <th className="px-3 py-3 text-center text-emerald-950 bg-emerald-100 font-extrabold">Total Net JP Setahun</th>
+                <th className="px-3 py-3 text-center w-24 bg-slate-100">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {subjectCalculations.map((sc, idx) => (
-                <tr key={sc.subject} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="px-3 py-3 text-center text-slate-400 font-mono">{idx + 1}</td>
-                  <td className="px-3 py-3 font-bold text-slate-900">{sc.subject}</td>
-                  <td className="px-3 py-3 font-medium text-slate-600">{sc.weeklyScheduleSummary}</td>
-                  <td className="px-3 py-3 text-center font-mono font-semibold text-teal-800 bg-teal-50/30">
-                    {sc.sem1EffectiveMeetings} Hari
-                  </td>
-                  <td className="px-3 py-3 text-center font-mono font-bold text-teal-900 bg-teal-100/30">
-                    {sc.sem1EffectiveJP} JP
-                  </td>
-                  <td className="px-3 py-3 text-center font-mono font-semibold text-indigo-800 bg-indigo-50/30">
-                    {sc.sem2EffectiveMeetings} Hari
-                  </td>
-                  <td className="px-3 py-3 text-center font-mono font-bold text-indigo-900 bg-indigo-100/30">
-                    {sc.sem2EffectiveJP} JP
-                  </td>
-                  <td className="px-3 py-3 text-center font-mono font-bold text-red-600 bg-red-50/20">
-                    -{sc.holidayMeetingsLost} Hari ({sc.lostJP} JP)
-                  </td>
-                  <td className="px-3 py-3 text-center font-extrabold text-emerald-900 bg-emerald-100/60 font-mono text-xs">
-                    {sc.effectiveJP} JP
+              {displayedSubjectCalculations.map((sc, idx) => {
+                const isSelected = selectedCalcSubjects.includes(sc.subject);
+                const isOverridden = !!subjectCalcOverrides[sc.subject] || sc.isCustom;
+                return (
+                  <tr key={sc.subject} className={`hover:bg-slate-50/80 transition-colors ${isSelected ? "bg-emerald-50/40" : ""}`}>
+                    <td className="px-3 py-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => handleToggleSelectCalcSubject(sc.subject)}
+                        className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                      />
+                    </td>
+                    <td className="px-3 py-3 text-center text-slate-400 font-mono">{idx + 1}</td>
+                    <td className="px-3 py-3 font-bold text-slate-900">
+                      <div className="flex items-center gap-1.5">
+                        <span>{sc.subject}</span>
+                        {isOverridden && (
+                          <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-mono font-normal">
+                            Diedit
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 font-medium text-slate-600">{sc.weeklyScheduleSummary}</td>
+                    <td className="px-3 py-3 text-center font-mono font-semibold text-teal-800 bg-teal-50/30">
+                      {sc.sem1EffectiveMeetings} Hari
+                    </td>
+                    <td className="px-3 py-3 text-center font-mono font-bold text-teal-900 bg-teal-100/30">
+                      {sc.sem1EffectiveJP} JP
+                    </td>
+                    <td className="px-3 py-3 text-center font-mono font-semibold text-indigo-800 bg-indigo-50/30">
+                      {sc.sem2EffectiveMeetings} Hari
+                    </td>
+                    <td className="px-3 py-3 text-center font-mono font-bold text-indigo-900 bg-indigo-100/30">
+                      {sc.sem2EffectiveJP} JP
+                    </td>
+                    <td className="px-3 py-3 text-center font-mono font-bold text-red-600 bg-red-50/20">
+                      -{sc.holidayMeetingsLost} Hari ({sc.lostJP} JP)
+                    </td>
+                    <td className="px-3 py-3 text-center font-extrabold text-emerald-900 bg-emerald-100/60 font-mono text-xs">
+                      {sc.effectiveJP} JP
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setEditingCalcSubject({ ...sc })}
+                          className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Edit Hitungan Mapel Ini"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteCalcSubject(sc.subject)}
+                          className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Hapus Mapel dari Tabel Hitungan"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {displayedSubjectCalculations.length === 0 && (
+                <tr>
+                  <td colSpan={11} className="p-6 text-center text-slate-400 italic">
+                    Semua mata pelajaran telah disembunyikan. Klik "Segarkan Tabel" untuk menampilkan kembali.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* NEW FEATURE: Tabel Hari & Jam Aktif per Semester per Mata Pelajaran (Rincian Mingguan & TP) */}
+      {/* NEW FEATURE: Tabel Hari & Jam Aktif per Semester per Mata Pelajaran (Dengan Select, Edit, & Hapus) */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden space-y-3 p-5">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <div>
@@ -1218,7 +1522,7 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
               Tabel Hari Aktif per Semester per Mata Pelajaran
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              Rincian mingguan per bulan, alokasi jam efektif, tanggal aktif, dan otomatisasi pemetaan Kode/Deskripsi TP (Alur Prota/Promes)
+              Rincian mingguan per bulan. Dilengkapi opsi seleksi baris (Select), Edit rincian minggu, dan Hapus/Kosongkan baris data.
             </p>
           </div>
 
@@ -1322,11 +1626,70 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
           </div>
         )}
 
+        {/* Bulk Action Toolbar for Table 2 */}
+        {selectedWeekKeys.length > 0 && (
+          <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-indigo-950 animate-fadeIn my-2">
+            <div className="flex items-center gap-2">
+              <CheckSquare className="w-4 h-4 text-indigo-700" />
+              <span>{selectedWeekKeys.length} Minggu Terpilih</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsBulkEditWeeklyModalOpen(true)}
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center gap-1 transition-colors"
+              >
+                <Edit className="w-3.5 h-3.5" />
+                <span>Edit Massal Terpilih</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkClearWeeks}
+                className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg flex items-center gap-1 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Kosongkan / Hapus Terpilih</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedWeekKeys([])}
+                className="px-2.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg transition-colors"
+              >
+                Batal Pilih
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Detailed Weekly Table */}
         <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-2xs">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-emerald-800 text-white font-extrabold uppercase text-[11px] tracking-wider text-center">
+                <th className="p-2.5 border border-emerald-700 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    checked={
+                      selectedWeekKeys.length > 0 &&
+                      selectedWeekKeys.length === computedSubjectWeeklyData.length * 5
+                    }
+                    onChange={() => {
+                      if (selectedWeekKeys.length === computedSubjectWeeklyData.length * 5) {
+                        setSelectedWeekKeys([]);
+                      } else {
+                        const allKeys: string[] = [];
+                        computedSubjectWeeklyData.forEach((m, mIdx) => {
+                          m.weeks.forEach((w) => {
+                            allKeys.push(`${selectedSubjectTab}_s${selectedSemesterTab}_m${mIdx}_w${w.weekNum}`);
+                          });
+                        });
+                        setSelectedWeekKeys(allKeys);
+                      }
+                    }}
+                    className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    title="Pilih Semua Minggu dalam Semester Ini"
+                  />
+                </th>
                 <th className="p-2.5 border border-emerald-700 w-36">mata pelajaran</th>
                 <th className="p-2.5 border border-emerald-700 w-20">minggu ke</th>
                 <th className="p-2.5 border border-emerald-700 text-left w-48">
@@ -1339,6 +1702,7 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
                 </th>
                 <th className="p-2.5 border border-emerald-700 w-36">kode tp</th>
                 <th className="p-2.5 border border-emerald-700 text-left">deskripsi tp</th>
+                <th className="p-2.5 border border-emerald-700 w-20 text-center">aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 text-slate-800">
@@ -1346,6 +1710,7 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
                 <React.Fragment key={m.monthTitle}>
                   {/* Subheader Month Row */}
                   <tr className="bg-slate-100 font-bold text-[11px] text-slate-700">
+                    <td className="p-2 border border-slate-200 text-center">-</td>
                     <td className="p-2 border border-slate-200 text-center">-</td>
                     <td className="p-2 border border-slate-200 text-center font-mono">minggu ke</td>
                     <td className="p-2 border border-slate-200 font-semibold text-slate-900">
@@ -1358,16 +1723,32 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
                     </td>
                     <td className="p-2 border border-slate-200 text-center font-mono">kode tp</td>
                     <td className="p-2 border border-slate-200">deskripsi tp</td>
+                    <td className="p-2 border border-slate-200 text-center font-mono">aksi</td>
                   </tr>
 
                   {/* 5 Weeks Rows for the month */}
                   {m.weeks.map((w, wIdx) => {
                     const isFirstWeek = wIdx === 0;
+                    const weekKey = `${selectedSubjectTab}_s${selectedSemesterTab}_m${mIdx}_w${w.weekNum}`;
+                    const isWeekSelected = selectedWeekKeys.includes(weekKey);
+
                     return (
                       <tr
                         key={w.weekNum}
-                        className="hover:bg-slate-50 transition-colors odd:bg-white even:bg-slate-50/50"
+                        className={`hover:bg-slate-50 transition-colors ${
+                          isWeekSelected ? "bg-indigo-50/50" : "odd:bg-white even:bg-slate-50/50"
+                        }`}
                       >
+                        {/* Checkbox Select */}
+                        <td className="p-2 border border-slate-300 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isWeekSelected}
+                            onChange={() => handleToggleSelectWeek(weekKey)}
+                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                          />
+                        </td>
+
                         {isFirstWeek && (
                           <td
                             rowSpan={5}
@@ -1490,6 +1871,28 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
                             className="w-full p-1.5 bg-white border border-slate-200 rounded-lg text-[11px] leading-tight focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
                           />
                         </td>
+
+                        {/* Action Column */}
+                        <td className="p-1.5 border border-slate-300 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setEditingWeeklyRow({ mIdx, weekNum: w.weekNum, weekData: w })}
+                              className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                              title="Edit Detail Minggu Ini"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleClearWeekData(mIdx, w.weekNum)}
+                              className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                              title="Kosongkan Data Minggu Ini"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}
@@ -1498,13 +1901,13 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
             </tbody>
             <tfoot>
               <tr className="bg-emerald-100/90 font-extrabold text-emerald-950 text-sm border-t-2 border-emerald-600">
-                <td colSpan={5} className="p-3 border border-slate-400 uppercase tracking-wider">
+                <td colSpan={6} className="p-3 border border-slate-400 uppercase tracking-wider">
                   JUMLAH JAM PELAJARAN {selectedSubjectTab.toUpperCase()} SEMESTER {selectedSemesterTab}
                 </td>
                 <td className="p-3 border border-slate-400 text-center font-mono text-lg text-emerald-900 bg-emerald-200">
                   {grandTotalSemesterHours}
                 </td>
-                <td colSpan={2} className="p-3 border border-slate-400 text-xs text-emerald-900 font-semibold">
+                <td colSpan={3} className="p-3 border border-slate-400 text-xs text-emerald-900 font-semibold">
                   Total Alokasi JP Efektif Semester {selectedSemesterTab} ({selectedSubjectTab})
                 </td>
               </tr>
@@ -1512,6 +1915,497 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Modal 1: Edit / Tambah Hitungan JP Mapel (Table 1 Summary) */}
+      {(editingCalcSubject || isAddCustomCalcModalOpen) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
+                <Clock className="w-5 h-5 text-emerald-600" />
+                {isAddCustomCalcModalOpen ? "Tambah Mapel Custom" : `Edit Hitungan Mapel: ${editingCalcSubject?.subject}`}
+              </h3>
+              <button
+                onClick={() => {
+                  setEditingCalcSubject(null);
+                  setIsAddCustomCalcModalOpen(false);
+                }}
+                className="text-slate-400 hover:text-slate-600 text-sm p-1 rounded-md"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold mb-1">Nama Mata Pelajaran</label>
+                <input
+                  type="text"
+                  value={editingCalcSubject?.subject || ""}
+                  onChange={(e) =>
+                    setEditingCalcSubject((prev: any) => ({ ...prev, subject: e.target.value }))
+                  }
+                  className="w-full p-2 border rounded-lg font-bold"
+                  placeholder="Contoh: Bahasa Daerah / IPAS"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1">Ringkasan Jadwal Mingguan</label>
+                <input
+                  type="text"
+                  value={editingCalcSubject?.weeklyScheduleSummary || ""}
+                  onChange={(e) =>
+                    setEditingCalcSubject((prev: any) => ({ ...prev, weeklyScheduleSummary: e.target.value }))
+                  }
+                  className="w-full p-2 border rounded-lg"
+                  placeholder="Contoh: Senin (3 JP), Rabu (2 JP) → Total 5 JP/minggu"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 p-3 bg-teal-50/50 rounded-xl border border-teal-100">
+                <div>
+                  <label className="block font-semibold text-teal-900 mb-1">Pertemuan Sem 1 (Hari)</label>
+                  <input
+                    type="number"
+                    value={editingCalcSubject?.sem1EffectiveMeetings ?? 19}
+                    onChange={(e) =>
+                      setEditingCalcSubject((prev: any) => ({
+                        ...prev,
+                        sem1EffectiveMeetings: Number(e.target.value) || 0,
+                      }))
+                    }
+                    className="w-full p-2 border rounded-lg font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-teal-900 mb-1">JP Efektif Sem 1 (JP)</label>
+                  <input
+                    type="number"
+                    value={editingCalcSubject?.sem1EffectiveJP ?? 57}
+                    onChange={(e) =>
+                      setEditingCalcSubject((prev: any) => ({
+                        ...prev,
+                        sem1EffectiveJP: Number(e.target.value) || 0,
+                      }))
+                    }
+                    className="w-full p-2 border rounded-lg font-mono font-bold text-teal-900"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 p-3 bg-indigo-50/50 rounded-xl border border-indigo-100">
+                <div>
+                  <label className="block font-semibold text-indigo-900 mb-1">Pertemuan Sem 2 (Hari)</label>
+                  <input
+                    type="number"
+                    value={editingCalcSubject?.sem2EffectiveMeetings ?? 18}
+                    onChange={(e) =>
+                      setEditingCalcSubject((prev: any) => ({
+                        ...prev,
+                        sem2EffectiveMeetings: Number(e.target.value) || 0,
+                      }))
+                    }
+                    className="w-full p-2 border rounded-lg font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-indigo-900 mb-1">JP Efektif Sem 2 (JP)</label>
+                  <input
+                    type="number"
+                    value={editingCalcSubject?.sem2EffectiveJP ?? 54}
+                    onChange={(e) =>
+                      setEditingCalcSubject((prev: any) => ({
+                        ...prev,
+                        sem2EffectiveJP: Number(e.target.value) || 0,
+                      }))
+                    }
+                    className="w-full p-2 border rounded-lg font-mono font-bold text-indigo-900"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 p-3 bg-red-50/50 rounded-xl border border-red-100">
+                <div>
+                  <label className="block font-semibold text-red-900 mb-1">Pengurangan Libur (Hari)</label>
+                  <input
+                    type="number"
+                    value={editingCalcSubject?.holidayMeetingsLost ?? 0}
+                    onChange={(e) =>
+                      setEditingCalcSubject((prev: any) => ({
+                        ...prev,
+                        holidayMeetingsLost: Number(e.target.value) || 0,
+                      }))
+                    }
+                    className="w-full p-2 border rounded-lg font-mono text-red-700"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-red-900 mb-1">Pengurangan JP Libur (JP)</label>
+                  <input
+                    type="number"
+                    value={editingCalcSubject?.lostJP ?? 0}
+                    onChange={(e) =>
+                      setEditingCalcSubject((prev: any) => ({
+                        ...prev,
+                        lostJP: Number(e.target.value) || 0,
+                      }))
+                    }
+                    className="w-full p-2 border rounded-lg font-mono text-red-700 font-bold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1">Total Net JP Setahun</label>
+                <input
+                  type="number"
+                  value={
+                    editingCalcSubject?.effectiveJP ??
+                    ((editingCalcSubject?.sem1EffectiveJP || 0) + (editingCalcSubject?.sem2EffectiveJP || 0) - (editingCalcSubject?.lostJP || 0))
+                  }
+                  onChange={(e) =>
+                    setEditingCalcSubject((prev: any) => ({
+                      ...prev,
+                      effectiveJP: Number(e.target.value) || 0,
+                    }))
+                  }
+                  className="w-full p-2 border rounded-lg font-mono font-extrabold text-emerald-900 text-sm bg-emerald-50"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingCalcSubject(null);
+                    setIsAddCustomCalcModalOpen(false);
+                  }}
+                  className="px-4 py-2 bg-slate-100 text-slate-700 font-semibold rounded-lg"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveSubjectCalcOverride(editingCalcSubject)}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-sm"
+                >
+                  Simpan Hitungan
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 2: Edit Single Week Row Detail (Table 2) */}
+      {editingWeeklyRow && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
+                <Edit className="w-5 h-5 text-indigo-600" />
+                Edit Rincian Minggu ke-{editingWeeklyRow.weekNum} ({selectedSubjectTab})
+              </h3>
+              <button
+                onClick={() => setEditingWeeklyRow(null)}
+                className="text-slate-400 hover:text-slate-600 text-sm p-1 rounded-md"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold mb-1">Tanggal Aktif</label>
+                <input
+                  type="text"
+                  value={editingWeeklyRow.weekData.activeDates || ""}
+                  onChange={(e) =>
+                    setEditingWeeklyRow((prev: any) => ({
+                      ...prev,
+                      weekData: { ...prev.weekData, activeDates: e.target.value },
+                    }))
+                  }
+                  className="w-full p-2 border rounded-lg font-mono"
+                  placeholder="Contoh: 15/7; 20/7; 22/7"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1">JP Per Minggu</label>
+                  <input
+                    type="text"
+                    value={editingWeeklyRow.weekData.jpPerWeek || ""}
+                    onChange={(e) =>
+                      setEditingWeeklyRow((prev: any) => ({
+                        ...prev,
+                        weekData: { ...prev.weekData, jpPerWeek: e.target.value },
+                      }))
+                    }
+                    className="w-full p-2 border rounded-lg font-mono text-center"
+                    placeholder="3; 3"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">Alokasi Jam (JP)</label>
+                  <input
+                    type="number"
+                    value={editingWeeklyRow.weekData.allocatedHours || 0}
+                    onChange={(e) =>
+                      setEditingWeeklyRow((prev: any) => ({
+                        ...prev,
+                        weekData: { ...prev.weekData, allocatedHours: Number(e.target.value) || 0 },
+                      }))
+                    }
+                    className="w-full p-2 border rounded-lg font-mono font-bold text-center"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1">Pilih TP dari Prota (Opsional)</label>
+                <select
+                  onChange={(e) => {
+                    const tp = allSubjectProtaList.find((p: any) => p.id === e.target.value);
+                    if (tp) {
+                      setEditingWeeklyRow((prev: any) => ({
+                        ...prev,
+                        weekData: {
+                          ...prev.weekData,
+                          tpCode: tp.codeTP || tp.tpCode || "",
+                          tpDescription: tp.tpDescription || tp.descriptionTP || tp.description || "",
+                        },
+                      }));
+                    }
+                  }}
+                  className="w-full p-2 bg-indigo-50 border border-indigo-200 rounded-lg font-semibold text-indigo-950"
+                >
+                  <option value="">-- Pilih TP Prota --</option>
+                  {allSubjectProtaList.map((tp: any) => {
+                    const code = tp.codeTP || tp.tpCode || "";
+                    const desc = tp.tpDescription || tp.descriptionTP || tp.description || "";
+                    return (
+                      <option key={tp.id} value={tp.id}>
+                        {code}: {desc.length > 40 ? `${desc.slice(0, 40)}...` : desc}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1">Kode TP</label>
+                <input
+                  type="text"
+                  value={editingWeeklyRow.weekData.tpCode || ""}
+                  onChange={(e) =>
+                    setEditingWeeklyRow((prev: any) => ({
+                      ...prev,
+                      weekData: { ...prev.weekData, tpCode: e.target.value },
+                    }))
+                  }
+                  className="w-full p-2 border rounded-lg font-mono font-bold text-indigo-900"
+                  placeholder="Contoh: TP 1.1"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1">Deskripsi TP</label>
+                <textarea
+                  rows={3}
+                  value={editingWeeklyRow.weekData.tpDescription || ""}
+                  onChange={(e) =>
+                    setEditingWeeklyRow((prev: any) => ({
+                      ...prev,
+                      weekData: { ...prev.weekData, tpDescription: e.target.value },
+                    }))
+                  }
+                  className="w-full p-2 border rounded-lg"
+                  placeholder="Deskripsi Alur Tujuan Pembelajaran (TP)..."
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingWeeklyRow(null)}
+                  className="px-4 py-2 bg-slate-100 text-slate-700 font-semibold rounded-lg"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleUpdateWeeklyCell(
+                      editingWeeklyRow.mIdx,
+                      editingWeeklyRow.weekNum,
+                      "activeDates",
+                      editingWeeklyRow.weekData.activeDates
+                    );
+                    handleUpdateWeeklyCell(
+                      editingWeeklyRow.mIdx,
+                      editingWeeklyRow.weekNum,
+                      "jpPerWeek",
+                      editingWeeklyRow.weekData.jpPerWeek
+                    );
+                    handleUpdateWeeklyCell(
+                      editingWeeklyRow.mIdx,
+                      editingWeeklyRow.weekNum,
+                      "allocatedHours",
+                      editingWeeklyRow.weekData.allocatedHours
+                    );
+                    handleUpdateWeeklyCell(
+                      editingWeeklyRow.mIdx,
+                      editingWeeklyRow.weekNum,
+                      "tpCode",
+                      editingWeeklyRow.weekData.tpCode
+                    );
+                    handleUpdateWeeklyCell(
+                      editingWeeklyRow.mIdx,
+                      editingWeeklyRow.weekNum,
+                      "tpDescription",
+                      editingWeeklyRow.weekData.tpDescription
+                    );
+                    setEditingWeeklyRow(null);
+                    setSaveStatus(`Data minggu ke-${editingWeeklyRow.weekNum} berhasil diperbarui.`);
+                  }}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm"
+                >
+                  Simpan Rincian Minggu
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 3: Bulk Edit Selected Weeks (Table 2) */}
+      {isBulkEditWeeklyModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
+                <CheckSquare className="w-5 h-5 text-indigo-600" />
+                Edit Massal {selectedWeekKeys.length} Minggu Terpilih
+              </h3>
+              <button
+                onClick={() => setIsBulkEditWeeklyModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 text-sm p-1 rounded-md"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <p className="text-slate-500 italic">
+                Isi kolom yang ingin diterapkan secara bersamaan ke seluruh minggu yang Anda centang.
+              </p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1">JP Per Minggu Massal</label>
+                  <input
+                    type="text"
+                    value={bulkWeeklyEditForm.jpPerWeek || ""}
+                    onChange={(e) =>
+                      setBulkWeeklyEditForm((prev) => ({ ...prev, jpPerWeek: e.target.value }))
+                    }
+                    className="w-full p-2 border rounded-lg font-mono text-center"
+                    placeholder="Contoh: 3; 3"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">Alokasi Jam Massal</label>
+                  <input
+                    type="number"
+                    value={bulkWeeklyEditForm.allocatedHours || 0}
+                    onChange={(e) =>
+                      setBulkWeeklyEditForm((prev) => ({
+                        ...prev,
+                        allocatedHours: Number(e.target.value) || 0,
+                      }))
+                    }
+                    className="w-full p-2 border rounded-lg font-mono font-bold text-center"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1">Pilih TP dari Prota (Terapkan Massal)</label>
+                <select
+                  onChange={(e) => {
+                    const tp = allSubjectProtaList.find((p: any) => p.id === e.target.value);
+                    if (tp) {
+                      setBulkWeeklyEditForm((prev) => ({
+                        ...prev,
+                        tpCode: tp.codeTP || tp.tpCode || "",
+                        tpDescription: tp.tpDescription || tp.descriptionTP || tp.description || "",
+                      }));
+                    }
+                  }}
+                  className="w-full p-2 bg-indigo-50 border border-indigo-200 rounded-lg font-semibold text-indigo-950"
+                >
+                  <option value="">-- Pilih TP Prota --</option>
+                  {allSubjectProtaList.map((tp: any) => {
+                    const code = tp.codeTP || tp.tpCode || "";
+                    const desc = tp.tpDescription || tp.descriptionTP || tp.description || "";
+                    return (
+                      <option key={tp.id} value={tp.id}>
+                        {code}: {desc.length > 40 ? `${desc.slice(0, 40)}...` : desc}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1">Kode TP Massal</label>
+                <input
+                  type="text"
+                  value={bulkWeeklyEditForm.tpCode || ""}
+                  onChange={(e) =>
+                    setBulkWeeklyEditForm((prev) => ({ ...prev, tpCode: e.target.value }))
+                  }
+                  className="w-full p-2 border rounded-lg font-mono font-bold text-indigo-900"
+                  placeholder="Kode TP"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1">Deskripsi TP Massal</label>
+                <textarea
+                  rows={3}
+                  value={bulkWeeklyEditForm.tpDescription || ""}
+                  onChange={(e) =>
+                    setBulkWeeklyEditForm((prev) => ({ ...prev, tpDescription: e.target.value }))
+                  }
+                  className="w-full p-2 border rounded-lg"
+                  placeholder="Deskripsi TP..."
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setIsBulkEditWeeklyModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 text-slate-700 font-semibold rounded-lg"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApplyBulkWeeklyEdit}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm"
+                >
+                  Terapkan Edit Massal
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-gradient-to-br from-emerald-800 to-teal-900 text-white p-5 rounded-2xl shadow-sm space-y-2">
           <div className="flex items-center justify-between">
