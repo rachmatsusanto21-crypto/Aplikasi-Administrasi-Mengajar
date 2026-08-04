@@ -137,20 +137,19 @@ body {
 
 /* Global Print Styles for Clean Multi-Page Document Printing */
 @media print {
-  /* Hide main application background layout to prevent 3x duplication and extra blank pages */
-  body > * {
-    display: none !important;
-  }
-
-  body > #root {
+  /* Ensure html, body, and root containers remain visible in document tree */
+  html, body, #root, #root > div {
     display: block !important;
+    position: static !important;
     width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
     margin: 0 !important;
     padding: 0 !important;
-  }
-
-  #root > *:not(.print-overlay) {
-    display: none !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    color: #000000 !important;
   }
 
   /* Reset modal overlay for standard print document flow */

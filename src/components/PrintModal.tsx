@@ -114,7 +114,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   const [isEdited, setIsEdited] = useState<boolean>(false);
   const [isExportingPdf, setIsExportingPdf] = useState<boolean>(false);
 
-  // Handle ESC key & scroll locking
+  // Handle ESC key, scroll locking, and print event lifecycle
   useEffect(() => {
     if (isOpen) {
       const originalOverflow = document.body.style.overflow;
@@ -126,10 +126,31 @@ export const PrintModal: React.FC<PrintModalProps> = ({
         }
       };
 
+      const handleBeforePrint = () => {
+        document.body.classList.add("is-printing");
+      };
+
+      const handleAfterPrint = () => {
+        document.body.classList.remove("is-printing");
+        // Force window focus and unfreeze pointer/scroll state after print dialog closes/cancels
+        window.focus();
+        if (isOpen) {
+          document.body.style.overflow = "hidden";
+        } else {
+          document.body.style.overflow = "unset";
+        }
+      };
+
       window.addEventListener("keydown", handleKeyDown);
+      window.addEventListener("beforeprint", handleBeforePrint);
+      window.addEventListener("afterprint", handleAfterPrint);
+
       return () => {
-        document.body.style.overflow = originalOverflow;
+        document.body.style.overflow = originalOverflow || "unset";
         window.removeEventListener("keydown", handleKeyDown);
+        window.removeEventListener("beforeprint", handleBeforePrint);
+        window.removeEventListener("afterprint", handleAfterPrint);
+        document.body.classList.remove("is-printing");
       };
     }
   }, [isOpen, onClose]);
@@ -160,7 +181,23 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   const handlePrint = () => {
     try {
       if (typeof window !== "undefined") {
-        window.print();
+        const wasEditable = isEditable;
+        if (wasEditable) setIsEditable(false);
+
+        // Ensure DOM updates cleanly before triggering print dialog
+        setTimeout(() => {
+          try {
+            window.print();
+          } catch (e) {
+            console.warn("Error invoking browser print:", e);
+          } finally {
+            if (wasEditable) {
+              setTimeout(() => setIsEditable(true), 300);
+            }
+            // Always ensure page focus is restored so browser doesn't freeze interaction
+            window.focus();
+          }
+        }, 50);
       }
     } catch (err) {
       console.warn("Print dialog suppressed or unavailable in sandboxed environment:", err);
