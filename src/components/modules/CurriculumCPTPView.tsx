@@ -41,6 +41,8 @@ export const CurriculumCPTPView: React.FC<CurriculumCPTPViewProps> = ({
     "Pendidikan Agama",
     "Bahasa Jawa",
     "Koding & Kecerdasan Artifisial",
+    "Kokurikuler (P5)",
+    "Kokurikuler",
   ],
   onAddSubject,
   onSaveCPTP,

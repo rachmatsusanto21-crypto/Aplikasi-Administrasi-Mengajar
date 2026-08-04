@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from "react";
 import { DailyTeachingLog, CPTPItem, SchoolIdentity, AttendanceRecord, Student } from "../../types";
-import { BookOpen, Plus, Trash2, Edit2, Printer, Download, Search, Calendar, FileText, UserCheck, RefreshCw, Check } from "lucide-react";
+import { BookOpen, Plus, Trash2, Edit2, Printer, Download, Search, Calendar, FileText, UserCheck, RefreshCw, Check, Layers, CheckSquare, Square } from "lucide-react";
 import { exportToCSV } from "../../lib/storage";
 import { exportHtmlToDoc } from "../../lib/exportDoc";
 import { exportTeachingLogsToExcel } from "../../lib/exportExcel";
+import { KOKURIKULER_BASE_SUBJECTS } from "../../constants/subjects";
 
 interface DailyTeachingLogViewProps {
   logs: DailyTeachingLog[];
@@ -26,6 +27,7 @@ export const DailyTeachingLogView: React.FC<DailyTeachingLogViewProps> = ({
     "Pancasila",
     "Seni Budaya",
     "PJOK",
+    "Kokurikuler (P5)",
   ],
   schoolIdentity,
   attendanceRecords = [],
@@ -38,6 +40,14 @@ export const DailyTeachingLogView: React.FC<DailyTeachingLogViewProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedTpCode, setSelectedTpCode] = useState<string>("");
+
+  // Kokurikuler multi-subject selection state
+  const [isKokurikulerMode, setIsKokurikulerMode] = useState<boolean>(false);
+  const [selectedKokurikulerSubjects, setSelectedKokurikulerSubjects] = useState<string[]>([
+    "Bahasa Indonesia",
+    "IPAS",
+  ]);
+  const [customKokurikulerInput, setCustomKokurikulerInput] = useState<string>("");
 
   const defaultClassGrade = schoolIdentity
     ? `Kelas ${schoolIdentity.gradeClass} (Fase ${schoolIdentity.phase})`
@@ -93,34 +103,93 @@ export const DailyTeachingLogView: React.FC<DailyTeachingLogViewProps> = ({
     attendanceSummary: initialTodaySummary,
   });
 
-  // Filter available TP items based on chosen subject & class/fase
+  // Filter available TP items based on chosen subject(s) & class/fase
   const availableTPs = useMemo(() => {
     if (!cptpItems || cptpItems.length === 0) return [];
-    const currentSubj = (form.subject || "").toLowerCase().trim();
 
+    if (isKokurikulerMode && selectedKokurikulerSubjects.length > 0) {
+      const targets = selectedKokurikulerSubjects.map((s) => s.toLowerCase().trim());
+      return cptpItems.filter((item) => {
+        const itemSubj = (item.subject || "").toLowerCase().trim();
+        return (
+          targets.some((t) => itemSubj.includes(t) || t.includes(itemSubj)) ||
+          itemSubj.includes("kokurikuler") ||
+          itemSubj.includes("p5")
+        );
+      });
+    }
+
+    const currentSubj = (form.subject || "").toLowerCase().trim();
     return cptpItems.filter((item) => {
-      const matchSubject = (item.subject || "").toLowerCase().trim() === currentSubj;
-      return matchSubject;
+      const itemSubj = (item.subject || "").toLowerCase().trim();
+      return itemSubj === currentSubj || currentSubj.includes(itemSubj);
     });
-  }, [cptpItems, form.subject]);
+  }, [cptpItems, form.subject, isKokurikulerMode, selectedKokurikulerSubjects]);
 
   const currentAttendanceRecap = useMemo(() => {
     return computeAttendanceSummary(form.date || initialTodayDate);
   }, [attendanceRecords, students, form.date]);
 
   const filteredLogs = logs.filter((l) => {
-    const matchSubject = selectedSubject === "Semua" || l.subject === selectedSubject;
+    let matchSubject = false;
+    if (selectedSubject === "Semua") {
+      matchSubject = true;
+    } else if (
+      selectedSubject.toLowerCase().includes("kokurikuler") ||
+      selectedSubject.toLowerCase().includes("p5")
+    ) {
+      matchSubject =
+        l.subject.toLowerCase().includes("kokurikuler") ||
+        l.subject.toLowerCase().includes("p5");
+    } else {
+      matchSubject =
+        l.subject === selectedSubject ||
+        l.subject.toLowerCase().includes(selectedSubject.toLowerCase());
+    }
+
     const s = (search || "").toLowerCase();
     const matchSearch =
+      (l.subject || "").toLowerCase().includes(s) ||
       (l.material || "").toLowerCase().includes(s) ||
       (l.tpDescription || "").toLowerCase().includes(s) ||
       (l.notes || "").toLowerCase().includes(s);
     return matchSubject && matchSearch;
   });
 
+  const handleToggleKokurikulerSubject = (sub: string) => {
+    let nextList: string[];
+    if (selectedKokurikulerSubjects.includes(sub)) {
+      nextList = selectedKokurikulerSubjects.filter((s) => s !== sub);
+    } else {
+      nextList = [...selectedKokurikulerSubjects, sub];
+    }
+    setSelectedKokurikulerSubjects(nextList);
+    const combinedStr =
+      nextList.length > 0
+        ? `Kokurikuler (${nextList.join(", ")})`
+        : "Kokurikuler (P5)";
+    setForm((prev) => ({ ...prev, subject: combinedStr }));
+  };
+
+  const handleAddCustomKokurikulerSubject = () => {
+    const trimmed = customKokurikulerInput.trim();
+    if (!trimmed) return;
+    if (!selectedKokurikulerSubjects.includes(trimmed)) {
+      const nextList = [...selectedKokurikulerSubjects, trimmed];
+      setSelectedKokurikulerSubjects(nextList);
+      setForm((prev) => ({
+        ...prev,
+        subject: `Kokurikuler (${nextList.join(", ")})`,
+      }));
+    }
+    setCustomKokurikulerInput("");
+  };
+
   const handleOpenAdd = () => {
     setEditingId(null);
     setSelectedTpCode("");
+    setIsKokurikulerMode(false);
+    setSelectedKokurikulerSubjects(["Bahasa Indonesia", "IPAS"]);
     const today = new Date().toISOString().slice(0, 10);
     const todayRecap = computeAttendanceSummary(today);
 
@@ -140,6 +209,23 @@ export const DailyTeachingLogView: React.FC<DailyTeachingLogViewProps> = ({
   const handleOpenEdit = (log: DailyTeachingLog) => {
     setEditingId(log.id);
     setSelectedTpCode("");
+
+    const isKoku =
+      log.subject.toLowerCase().includes("kokurikuler") ||
+      log.subject.toLowerCase().includes("p5");
+    setIsKokurikulerMode(isKoku);
+
+    if (isKoku) {
+      // Try extracting subjects inside parentheses e.g. Kokurikuler (Bahasa Indonesia, IPAS)
+      const match = log.subject.match(/\(([^)]+)\)/);
+      if (match && match[1]) {
+        const extracted = match[1].split(",").map((s) => s.trim()).filter(Boolean);
+        if (extracted.length > 0) {
+          setSelectedKokurikulerSubjects(extracted);
+        }
+      }
+    }
+
     setForm(log);
     setIsModalOpen(true);
   };
@@ -169,15 +255,28 @@ export const DailyTeachingLogView: React.FC<DailyTeachingLogViewProps> = ({
     e.preventDefault();
     if (!form.material || !form.tpDescription) return;
 
+    let finalSubject = form.subject || subjects[0] || "Bahasa Indonesia";
+    if (isKokurikulerMode) {
+      if (selectedKokurikulerSubjects.length > 0) {
+        finalSubject = `Kokurikuler (${selectedKokurikulerSubjects.join(", ")})`;
+      } else {
+        finalSubject = "Kokurikuler (P5)";
+      }
+    }
+
     if (editingId) {
       onSaveLogs(
-        logs.map((l) => (l.id === editingId ? ({ ...l, ...form } as DailyTeachingLog) : l))
+        logs.map((l) =>
+          l.id === editingId
+            ? ({ ...l, ...form, subject: finalSubject } as DailyTeachingLog)
+            : l
+        )
       );
     } else {
       const newLog: DailyTeachingLog = {
         id: "dtl_" + Date.now(),
         date: form.date || new Date().toISOString().slice(0, 10),
-        subject: form.subject || subjects[0] || "Bahasa Indonesia",
+        subject: finalSubject,
         classGrade: form.classGrade || defaultClassGrade,
         material: form.material || "",
         tpDescription: form.tpDescription || "",
@@ -570,6 +669,58 @@ export const DailyTeachingLogView: React.FC<DailyTeachingLogViewProps> = ({
             </h3>
 
             <form onSubmit={handleSaveForm} className="space-y-3.5 text-xs">
+              {/* Type Category Selector: Single Subject vs Kokurikuler Multi-Subject */}
+              <div className="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                <div className="flex items-center justify-between">
+                  <label className="block font-bold text-slate-800 text-xs">
+                    Kategori & Jenis Pembelajaran
+                  </label>
+                  <span className="text-[10px] font-semibold text-slate-500">
+                    {isKokurikulerMode ? "Mode Multi-Mapel Kokurikuler / P5" : "Mode Single Mapel Intrakurikuler"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsKokurikulerMode(false);
+                      const defaultSub = subjects[0] || "Bahasa Indonesia";
+                      setForm((prev) => ({ ...prev, subject: defaultSub }));
+                    }}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold transition-all border flex items-center justify-center gap-1.5 ${
+                      !isKokurikulerMode
+                        ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                        : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
+                    }`}
+                  >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    Intrakurikuler (1 Mapel)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsKokurikulerMode(true);
+                      const initialList = selectedKokurikulerSubjects.length > 0 ? selectedKokurikulerSubjects : ["Bahasa Indonesia", "IPAS"];
+                      setSelectedKokurikulerSubjects(initialList);
+                      setForm((prev) => ({
+                        ...prev,
+                        subject: `Kokurikuler (${initialList.join(", ")})`,
+                      }));
+                    }}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold transition-all border flex items-center justify-center gap-1.5 ${
+                      isKokurikulerMode
+                        ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                        : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
+                    }`}
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    Kokurikuler (Multi-Mapel)
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold mb-1">Tanggal</label>
@@ -581,25 +732,151 @@ export const DailyTeachingLogView: React.FC<DailyTeachingLogViewProps> = ({
                     className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 font-mono"
                   />
                 </div>
-                <div>
-                  <label className="block font-semibold mb-1">Mata Pelajaran</label>
-                  <select
-                    value={form.subject || subjects[0] || "Bahasa Indonesia"}
-                    onChange={(e) => {
-                      const newSubj = e.target.value;
-                      setForm((prev) => ({ ...prev, subject: newSubj }));
-                      setSelectedTpCode("");
-                    }}
-                    className="w-full p-2 border rounded-lg bg-white font-semibold focus:ring-2 focus:ring-emerald-500"
-                  >
-                    {subjects.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+
+                {!isKokurikulerMode ? (
+                  <div>
+                    <label className="block font-semibold mb-1">Mata Pelajaran</label>
+                    <select
+                      value={form.subject || subjects[0] || "Bahasa Indonesia"}
+                      onChange={(e) => {
+                        const newSubj = e.target.value;
+                        setForm((prev) => ({ ...prev, subject: newSubj }));
+                        setSelectedTpCode("");
+                      }}
+                      className="w-full p-2 border rounded-lg bg-white font-semibold focus:ring-2 focus:ring-emerald-500"
+                    >
+                      {subjects.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block font-semibold mb-1">Identifikasi Jurnal</label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={
+                        selectedKokurikulerSubjects.length > 0
+                          ? `Kokurikuler (${selectedKokurikulerSubjects.join(", ")})`
+                          : "Kokurikuler (P5)"
+                      }
+                      className="w-full p-2 border rounded-lg bg-indigo-50/70 text-indigo-900 font-bold text-xs"
+                    />
+                  </div>
+                )}
               </div>
+
+              {/* Multi-subject selector box for Kokurikuler */}
+              {isKokurikulerMode && (
+                <div className="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="block font-bold text-indigo-950 text-xs flex items-center gap-1.5">
+                      <Layers className="w-4 h-4 text-indigo-600" />
+                      Pilih Mata Pelajaran Terintegrasi Kokurikuler
+                    </label>
+                    <span className="text-[10px] font-bold px-2 py-0.5 bg-indigo-200 text-indigo-900 rounded-md">
+                      {selectedKokurikulerSubjects.length} Mapel Terpilih
+                    </span>
+                  </div>
+
+                  <p className="text-[11px] text-indigo-800">
+                    Sistem mendukung pemilihan <b>lebih dari 1 mata pelajaran</b> untuk pembelajaran berbasis proyek, P5, atau integrasi lintas mapel.
+                  </p>
+
+                  <div className="flex flex-wrap gap-1.5 pb-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const mainSubs = ["Bahasa Indonesia", "Matematika", "IPAS", "Pendidikan Pancasila"];
+                        setSelectedKokurikulerSubjects(mainSubs);
+                        setForm((prev) => ({
+                          ...prev,
+                          subject: `Kokurikuler (${mainSubs.join(", ")})`,
+                        }));
+                      }}
+                      className="px-2 py-1 bg-white border border-indigo-300 text-indigo-800 hover:bg-indigo-100 rounded-lg text-[10px] font-bold"
+                    >
+                      + Mapel Utama (B.Indo, Math, IPAS, Pancasila)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedKokurikulerSubjects([...KOKURIKULER_BASE_SUBJECTS]);
+                        setForm((prev) => ({
+                          ...prev,
+                          subject: `Kokurikuler (${KOKURIKULER_BASE_SUBJECTS.join(", ")})`,
+                        }));
+                      }}
+                      className="px-2 py-1 bg-white border border-indigo-300 text-indigo-800 hover:bg-indigo-100 rounded-lg text-[10px] font-bold"
+                    >
+                      Pilih Semua
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedKokurikulerSubjects([]);
+                        setForm((prev) => ({ ...prev, subject: "Kokurikuler (P5)" }));
+                      }}
+                      className="px-2 py-1 bg-white border border-slate-300 text-slate-600 hover:bg-slate-100 rounded-lg text-[10px] font-medium"
+                    >
+                      Reset
+                    </button>
+                  </div>
+
+                  {/* Grid Checkboxes */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-40 overflow-y-auto p-2 bg-white rounded-xl border border-indigo-200">
+                    {KOKURIKULER_BASE_SUBJECTS.map((sub) => {
+                      const isSelected = selectedKokurikulerSubjects.includes(sub);
+                      return (
+                        <button
+                          key={sub}
+                          type="button"
+                          onClick={() => handleToggleKokurikulerSubject(sub)}
+                          className={`p-1.5 rounded-lg text-[11px] text-left font-medium flex items-center gap-1.5 transition-all border ${
+                            isSelected
+                              ? "bg-indigo-100 text-indigo-950 border-indigo-400 font-bold"
+                              : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                          }`}
+                        >
+                          {isSelected ? (
+                            <CheckSquare className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                          ) : (
+                            <Square className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          )}
+                          <span className="truncate">{sub}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Custom Subject Adder */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="text"
+                      value={customKokurikulerInput}
+                      onChange={(e) => setCustomKokurikulerInput(e.target.value)}
+                      placeholder="Tambah mapel/tema kokurikuler lain..."
+                      className="flex-1 p-1.5 text-xs border border-indigo-300 rounded-lg bg-white"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddCustomKokurikulerSubject();
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddCustomKokurikulerSubject}
+                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg shadow-2xs"
+                    >
+                      + Tambah
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>

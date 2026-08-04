@@ -126,6 +126,16 @@ export const initialCPTP: CPTPItem[] = [
     descriptionTP: "Menganalisis proses fotosintesis pada tumbuhan hijau dan dampaknya bagi kehidupan bumi.",
     targetClass: "Kelas IV",
   },
+  {
+    id: "c6",
+    subject: "Kokurikuler (P5)",
+    element: "Gaya Hidup Berkelanjutan",
+    codeCP: "CP-P5-4.1",
+    descriptionCP: "Peserta didik memahami pentingnya mengelola sampah dan menjaga kelestarian lingkungan sekolah secara bergotong royong.",
+    codeTP: "TP-P5-4.1.1",
+    descriptionTP: "Merancang dan membuat produk daur ulang sampah plastik menjadi barang bernilai guna bagi kelas.",
+    targetClass: "Kelas IV",
+  },
 ];
 
 export const initialIncidents: IncidentRecord[] = [

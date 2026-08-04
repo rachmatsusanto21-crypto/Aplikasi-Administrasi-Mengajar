@@ -32,6 +32,8 @@ export const GradesMatrixView: React.FC<GradesMatrixViewProps> = ({
     "PJOK",
     "Bahasa Jawa",
     "Koding & Kecerdasan Artifisial",
+    "Kokurikuler (P5)",
+    "Kokurikuler",
   ],
   onAddSubject,
   onSaveGrades,
@@ -59,7 +61,15 @@ export const GradesMatrixView: React.FC<GradesMatrixViewProps> = ({
   const [isDailyModalOpen, setIsDailyModalOpen] = useState(false);
 
   // Relevant TPs for selected subject
-  const subjectTPs = cptpItems.filter((item) => item.subject === selectedSubject);
+  const subjectTPs = cptpItems.filter((item) => {
+    if (item.subject === selectedSubject) return true;
+    const selNorm = selectedSubject.toLowerCase();
+    const itemNorm = (item.subject || "").toLowerCase();
+    if ((selNorm.includes("kokurikuler") || selNorm.includes("p5")) && (itemNorm.includes("kokurikuler") || itemNorm.includes("p5"))) {
+      return true;
+    }
+    return false;
+  });
   const tpList = subjectTPs.length > 0
     ? subjectTPs.map((t) => ({ code: t.codeTP, desc: t.descriptionTP }))
     : [

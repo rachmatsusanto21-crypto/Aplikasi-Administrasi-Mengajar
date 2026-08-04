@@ -20,13 +20,32 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
   schoolIdentity,
   events,
   timetable,
-  subjects,
+  subjects: propSubjects = [
+    "Bahasa Indonesia",
+    "Matematika",
+    "IPAS",
+    "Pancasila",
+    "Seni Budaya",
+    "PJOK",
+    "Kokurikuler (P5)",
+    "Kokurikuler",
+  ],
   incidentalJournals = [],
   protaList = [],
   onUpdateSchoolIdentity,
   onSaveEvents,
   onOpenPrint,
 }) => {
+  const subjects = propSubjects && propSubjects.length > 0 ? propSubjects : [
+    "Bahasa Indonesia",
+    "Matematika",
+    "IPAS",
+    "Pancasila",
+    "Seni Budaya",
+    "PJOK",
+    "Kokurikuler (P5)",
+    "Kokurikuler",
+  ];
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
@@ -156,7 +175,17 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
 
     uniqueSlotsMap.forEach((slot) => {
       const slotSubNorm = normalizeSub(slot.subject);
-      const matchedSub = subjects.find((s) => normalizeSub(s) === slotSubNorm);
+      const matchedSub = subjects.find((s) => {
+        const sNorm = normalizeSub(s);
+        if (sNorm === slotSubNorm) return true;
+        if (
+          (sNorm.includes("kokurikuler") || sNorm.includes("p5")) &&
+          (slotSubNorm.includes("kokurikuler") || slotSubNorm.includes("p5"))
+        ) {
+          return true;
+        }
+        return false;
+      });
       if (matchedSub && subjectDaySlots[matchedSub]) {
         const dayKey = slot.day.trim();
         if (subjectDaySlots[matchedSub][dayKey] !== undefined) {

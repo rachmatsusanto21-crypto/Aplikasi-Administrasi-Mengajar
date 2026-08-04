@@ -164,7 +164,19 @@ export const ProtaPromesView: React.FC<ProtaPromesViewProps> = ({
 
   // Available CPs/TPs for selected subject
   const availableTPs = useMemo(
-    () => cptpItems.filter((item) => item.subject === selectedSubject),
+    () =>
+      cptpItems.filter((item) => {
+        if (item.subject === selectedSubject) return true;
+        const selNorm = selectedSubject.toLowerCase();
+        const itemNorm = (item.subject || "").toLowerCase();
+        if (
+          (selNorm.includes("kokurikuler") || selNorm.includes("p5")) &&
+          (itemNorm.includes("kokurikuler") || itemNorm.includes("p5"))
+        ) {
+          return true;
+        }
+        return false;
+      }),
     [cptpItems, selectedSubject]
   );
 
