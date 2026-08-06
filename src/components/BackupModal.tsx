@@ -289,9 +289,12 @@ Di editor Google Apps Script:
         }
 
         if (res.ok && json.status === "success") {
+          if (onRestoreData) {
+            onRestoreData(parsed);
+          }
           setActionMessage({
             type: "success",
-            text: `✅ File ${file.name} berhasil diunggah dan disimpan ke Folder Backup Aplikasi!`,
+            text: `✅ File ${file.name} berhasil diunggah, disimpan ke Folder Backup, dan SELURUH DATA (Modul Ajar, Soal & Kisi-Kisi, dll) berhasil direstore ke aplikasi!`,
           });
           fetchServerBackups();
         } else {
@@ -461,11 +464,11 @@ Di editor Google Apps Script:
       if (res.ok) {
         const text = await res.text();
         const json = JSON.parse(text);
-        const restoredData = json.data || json;
 
         if (onRestoreData) {
-          onRestoreData(restoredData);
+          onRestoreData(json);
         } else {
+          const restoredData = json.data || json;
           Object.keys(restoredData).forEach((key) => {
             if ((STORAGE_KEYS as any)[key]) {
               saveToStorage((STORAGE_KEYS as any)[key], restoredData[key]);
@@ -488,11 +491,11 @@ Di editor Google Apps Script:
       const res = await fetch(`/api/backup/download/${encodeURIComponent(filename)}`);
       if (res.ok) {
         const json = await res.json();
-        const restoredData = json.data || json;
 
         if (onRestoreData) {
-          onRestoreData(restoredData);
+          onRestoreData(json);
         } else {
+          const restoredData = json.data || json;
           Object.keys(restoredData).forEach((key) => {
             if ((STORAGE_KEYS as any)[key]) {
               saveToStorage((STORAGE_KEYS as any)[key], restoredData[key]);

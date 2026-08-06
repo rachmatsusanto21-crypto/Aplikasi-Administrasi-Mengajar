@@ -338,6 +338,10 @@ export default function App() {
   }, [teachingModules]);
 
   useEffect(() => {
+    saveToStorage("savedExams", savedExams);
+  }, [savedExams]);
+
+  useEffect(() => {
     saveToStorage("aiSettings", aiSettings);
   }, [aiSettings]);
 
@@ -347,28 +351,208 @@ export default function App() {
 
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
-  const handleRestoreData = (newData: Record<string, any>, sourceTimestamp?: string) => {
-    if (newData.schoolIdentity) setSchoolIdentity(newData.schoolIdentity);
-    if (newData.students) setStudents(newData.students);
-    if (newData.attendanceRecords) setAttendanceRecords(newData.attendanceRecords);
-    if (newData.cptpItems) setCPTPItems(newData.cptpItems);
-    if (newData.incidents) setIncidents(newData.incidents);
-    if (newData.grades) setGrades(newData.grades);
-    if (newData.dailyGrades) setDailyGrades(newData.dailyGrades);
-    if (newData.subjects) setSubjects(newData.subjects);
-    if (newData.timetable) setTimetable(newData.timetable);
-    if (newData.guestBook) setGuestBook(newData.guestBook);
-    if (newData.incidentalJournals) setIncidentalJournals(newData.incidentalJournals);
-    if (newData.dailyLogs) setDailyLogs(newData.dailyLogs);
-    if (newData.calendarEvents) setCalendarEvents(newData.calendarEvents);
-    if (newData.protaList) setProtaList(newData.protaList);
-    if (newData.promesList) setPromesList(newData.promesList);
-    if (newData.teachingModules) setTeachingModules(newData.teachingModules);
-    if (newData.aiSettings) setAiSettings(newData.aiSettings);
-    if (newData.gasConfig) setGasConfig(newData.gasConfig);
-    if (newData.users) setUsers(newData.users);
-    if (newData.savedExams) setSavedExams(newData.savedExams);
-    if (newData.canvaTemplates) setCanvaTemplates(newData.canvaTemplates);
+  const allDataPayload = {
+    schoolIdentity,
+    students,
+    attendanceRecords,
+    cptpItems,
+    incidents,
+    grades,
+    dailyGrades,
+    subjects,
+    timetable,
+    guestBook,
+    incidentalJournals,
+    dailyLogs,
+    calendarEvents,
+    protaList,
+    promesList,
+    teachingModules,
+    savedExams,
+    aiSettings,
+    gasConfig,
+    users,
+    canvaTemplates,
+  };
+
+  const handleRestoreData = (rawData: Record<string, any>, sourceTimestamp?: string) => {
+    if (!rawData || typeof rawData !== "object") return;
+
+    // Helper to unwrap nested wrapper structures (e.g. { data: { data: { ... } } })
+    let payload = rawData;
+    if (payload.rawJson && typeof payload.rawJson === "object") {
+      payload = payload.rawJson;
+    }
+
+    if (payload.data && typeof payload.data === "object" && !Array.isArray(payload.data)) {
+      if (
+        payload.data.teachingModules ||
+        payload.data.savedExams ||
+        payload.data.students ||
+        payload.data.schoolIdentity ||
+        payload.data.cptpItems ||
+        payload.data.protaList ||
+        payload.data.data
+      ) {
+        payload = payload.data;
+        if (payload.data && typeof payload.data === "object" && !Array.isArray(payload.data)) {
+          if (
+            payload.data.teachingModules ||
+            payload.data.savedExams ||
+            payload.data.students ||
+            payload.data.schoolIdentity ||
+            payload.data.cptpItems ||
+            payload.data.protaList
+          ) {
+            payload = payload.data;
+          }
+        }
+      }
+    }
+
+    // 1. School Identity
+    const restoredIdentity = payload.schoolIdentity || payload.identity || payload.adm_guru_identity;
+    if (restoredIdentity && typeof restoredIdentity === "object") {
+      setSchoolIdentity(restoredIdentity);
+      saveToStorage("schoolIdentity", restoredIdentity);
+    }
+
+    // 2. Students
+    const restoredStudents = payload.students || payload.adm_guru_students;
+    if (Array.isArray(restoredStudents)) {
+      setStudents(restoredStudents);
+      saveToStorage("students", restoredStudents);
+    }
+
+    // 3. Attendance
+    const restoredAttendance = payload.attendanceRecords || payload.attendance || payload.adm_guru_attendance;
+    if (Array.isArray(restoredAttendance)) {
+      setAttendanceRecords(restoredAttendance);
+      saveToStorage("attendanceRecords", restoredAttendance);
+    }
+
+    // 4. CPTP
+    const restoredCPTP = payload.cptpItems || payload.cptp || payload.adm_guru_cptp;
+    if (Array.isArray(restoredCPTP)) {
+      setCPTPItems(restoredCPTP);
+      saveToStorage("cptpItems", restoredCPTP);
+    }
+
+    // 5. Incidents
+    const restoredIncidents = payload.incidents || payload.adm_guru_incidents;
+    if (Array.isArray(restoredIncidents)) {
+      setIncidents(restoredIncidents);
+      saveToStorage("incidents", restoredIncidents);
+    }
+
+    // 6. Grades
+    const restoredGrades = payload.grades || payload.adm_guru_grades;
+    if (Array.isArray(restoredGrades)) {
+      setGrades(restoredGrades);
+      saveToStorage("grades", restoredGrades);
+    }
+
+    // 7. Daily Grades
+    const restoredDailyGrades = payload.dailyGrades || payload.daily_grades || payload.rekapNilaiHarian;
+    if (Array.isArray(restoredDailyGrades)) {
+      setDailyGrades(restoredDailyGrades);
+      saveToStorage("dailyGrades", restoredDailyGrades);
+    }
+
+    // 8. Subjects
+    const restoredSubjects = payload.subjects || payload.customSubjects;
+    if (Array.isArray(restoredSubjects)) {
+      setSubjects(restoredSubjects);
+      saveToStorage("customSubjects", restoredSubjects.filter((s: string) => !DEFAULT_SUBJECTS.includes(s)));
+    }
+
+    // 9. Timetable
+    const restoredTimetable = payload.timetable || payload.adm_guru_timetable;
+    if (Array.isArray(restoredTimetable)) {
+      setTimetable(restoredTimetable);
+      saveToStorage("timetable", restoredTimetable);
+    }
+
+    // 10. Guest Book
+    const restoredGuestBook = payload.guestBook || payload.guestbook || payload.adm_guru_guestbook;
+    if (Array.isArray(restoredGuestBook)) {
+      setGuestBook(restoredGuestBook);
+      saveToStorage("guestBook", restoredGuestBook);
+    }
+
+    // 11. Incidental
+    const restoredIncidental = payload.incidentalJournals || payload.incidental || payload.adm_guru_incidental;
+    if (Array.isArray(restoredIncidental)) {
+      setIncidentalJournals(restoredIncidental);
+      saveToStorage("incidentalJournals", restoredIncidental);
+    }
+
+    // 12. Daily Logs
+    const restoredDailyLogs = payload.dailyLogs || payload.daily_logs || payload.teaching_journal || payload.adm_guru_teaching_journal;
+    if (Array.isArray(restoredDailyLogs)) {
+      setDailyLogs(restoredDailyLogs);
+      saveToStorage("dailyLogs", restoredDailyLogs);
+    }
+
+    // 13. Calendar
+    const restoredCalendar = payload.calendarEvents || payload.calendar || payload.adm_guru_calendar;
+    if (Array.isArray(restoredCalendar)) {
+      setCalendarEvents(restoredCalendar);
+      saveToStorage("calendarEvents", restoredCalendar);
+    }
+
+    // 14. Prota
+    const restoredProta = payload.protaList || payload.prota || payload.adm_guru_prota;
+    if (Array.isArray(restoredProta)) {
+      setProtaList(restoredProta);
+      saveToStorage("protaList", restoredProta);
+    }
+
+    // 15. Promes
+    const restoredPromes = payload.promesList || payload.promes || payload.adm_guru_promes;
+    if (Array.isArray(restoredPromes)) {
+      setPromesList(restoredPromes);
+      saveToStorage("promesList", restoredPromes);
+    }
+
+    // 16. Teaching Modules (MODUL AJAR) - CRITICAL
+    const restoredModules = payload.teachingModules || payload.teaching_modules || payload.modulAjar || payload.modul_ajar || payload.adm_guru_modul_ajar;
+    if (Array.isArray(restoredModules)) {
+      setTeachingModules(restoredModules);
+      saveToStorage("teachingModules", restoredModules);
+    }
+
+    // 17. Saved Exams (SOAL & KISI-KISI) - CRITICAL
+    const restoredExams = payload.savedExams || payload.saved_exams || payload.examPackages || payload.exams || payload.soal || payload.kisiKisi;
+    if (Array.isArray(restoredExams)) {
+      setSavedExams(restoredExams);
+      saveToStorage("savedExams", restoredExams);
+    }
+
+    // 18. AI Settings
+    const restoredAiSettings = payload.aiSettings || payload.adm_guru_ai_settings;
+    if (restoredAiSettings && typeof restoredAiSettings === "object") {
+      setAiSettings(restoredAiSettings);
+      saveToStorage("aiSettings", restoredAiSettings);
+    }
+
+    // 19. GAS Config
+    if (payload.gasConfig && typeof payload.gasConfig === "object") {
+      setGasConfig(payload.gasConfig);
+      saveToStorage("gasConfig", payload.gasConfig);
+    }
+
+    // 20. Users
+    if (Array.isArray(payload.users)) {
+      setUsers(payload.users);
+      saveToStorage("usersList", payload.users);
+    }
+
+    // 21. Canva Templates
+    if (Array.isArray(payload.canvaTemplates)) {
+      setCanvaTemplates(payload.canvaTemplates);
+      saveToStorage("canvaTemplates", payload.canvaTemplates);
+    }
 
     if (sourceTimestamp) {
       localStorage.setItem("app_last_saved_timestamp", sourceTimestamp);
@@ -422,37 +606,13 @@ export default function App() {
       const nowISO = new Date().toISOString();
       localStorage.setItem("app_last_saved_timestamp", nowISO);
 
-      const fullPayload = {
-        schoolIdentity,
-        students,
-        attendanceRecords,
-        cptpItems,
-        incidents,
-        grades,
-        dailyGrades,
-        subjects,
-        timetable,
-        guestBook,
-        incidentalJournals,
-        dailyLogs,
-        calendarEvents,
-        protaList,
-        promesList,
-        teachingModules,
-        aiSettings,
-        gasConfig,
-        users,
-        savedExams,
-        canvaTemplates,
-      };
-
       fetch("/api/backup/save-latest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           timestamp: nowISO,
           schoolName: schoolIdentity.schoolName,
-          data: fullPayload,
+          data: allDataPayload,
         }),
       }).catch((err) => console.error("Error auto-saving cloud snapshot:", err));
     }, 2000);
@@ -757,22 +917,7 @@ export default function App() {
         users={users}
         activeUserEmail={activeUserEmail}
         onSelectUserEmail={setActiveUserEmail}
-        allData={{
-          schoolIdentity,
-          students,
-          attendanceRecords,
-          cptpItems,
-          incidents,
-          grades,
-          timetable,
-          guestBook,
-          incidentalJournals,
-          dailyLogs,
-          calendarEvents,
-          protaList,
-          promesList,
-          teachingModules,
-        }}
+        allData={allDataPayload}
       />
 
       <BackupModal
@@ -781,22 +926,7 @@ export default function App() {
         schoolIdentity={schoolIdentity}
         gasConfig={gasConfig}
         onRestoreData={handleRestoreData}
-        allData={{
-          schoolIdentity,
-          students,
-          attendanceRecords,
-          cptpItems,
-          incidents,
-          grades,
-          timetable,
-          guestBook,
-          incidentalJournals,
-          dailyLogs,
-          calendarEvents,
-          protaList,
-          promesList,
-          teachingModules,
-        }}
+        allData={allDataPayload}
       />
 
       <UserManagementModal
