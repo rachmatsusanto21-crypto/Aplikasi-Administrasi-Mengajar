@@ -144,7 +144,7 @@ Di editor Google Apps Script:
         setCloudBackups(json.backups);
         setActionMessage({
           type: "success",
-          text: `✅ Ditemukan ${json.backups.length} file backup di folder Google Drive (${json.folderName || "Folder_Backup_Administrasi_Guru"}).`,
+          text: `✅ Ditemukan ${json.backups.length} file backup di 1 folder Google Drive (${json.folderName || "Folder_Backup_dan_Sync_Administrasi_Guru"}).`,
         });
       } else if (
         json &&
@@ -829,7 +829,7 @@ Di editor Google Apps Script:
                   <div>
                     <span className="font-bold text-indigo-950 dark:text-indigo-200 text-sm block flex items-center gap-2">
                       <Cloud className="w-4 h-4 text-indigo-600" />
-                      Google Drive Folder: <code className="bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 px-2 py-0.5 rounded">Folder_Backup_Administrasi_Guru</code>
+                      Google Drive Folder (1 Tempat Backup & Sync): <code className="bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 px-2 py-0.5 rounded">Folder_Backup_dan_Sync_Administrasi_Guru</code>
                     </span>
                     <span className="text-xs text-slate-600 dark:text-slate-400">
                       Tersambung langsung ke penyimpanan Google Drive akun Anda secara otomatis.

@@ -20,10 +20,15 @@ export const DEFAULT_GAS_CODE = `/**
 function initPermissions() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var folder = getBackupFolder();
+  var ssFile = DriveApp.getFileById(ss.getId());
+  try {
+    ssFile.moveTo(folder);
+  } catch(e) {}
   Logger.log("====================================");
   Logger.log("✅ OTORISASI GOOGLE DRIVE BERHASIL!");
   Logger.log("Nama Sheet: " + ss.getName());
-  Logger.log("Folder Backup Drive: " + folder.getName() + " (ID: " + folder.getId() + ")");
+  Logger.log("Folder Backup & Sync Drive: " + folder.getName() + " (ID: " + folder.getId() + ")");
+  Logger.log("Link Folder: " + folder.getUrl());
   Logger.log("====================================");
 }
 
@@ -32,10 +37,10 @@ function myFunction() {
 }
 
 /**
- * Mendapatkan atau membuat folder backup khusus di Google Drive pengguna
+ * Mendapatkan atau membuat 1 folder utama khusus di Google Drive untuk Backup & Sync
  */
 function getBackupFolder() {
-  var folderName = "Folder_Backup_Administrasi_Guru";
+  var folderName = "Folder_Backup_dan_Sync_Administrasi_Guru";
   var folders = DriveApp.getFoldersByName(folderName);
   if (folders.hasNext()) {
     return folders.next();
@@ -49,7 +54,7 @@ function doGet(e) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var action = e && e.parameter ? e.parameter.action : null;
 
-    // 1. List backup files in Google Drive folder
+    // 1. List backup files in 1 Google Drive Backup & Sync folder
     if (action === 'listBackups') {
       var folder = getBackupFolder();
       var files = folder.getFiles();
@@ -71,6 +76,7 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify({
         status: "success",
         folderName: folder.getName(),
+        folderUrl: folder.getUrl(),
         backups: list
       })).setMimeType(ContentService.MimeType.JSON);
     }
@@ -105,10 +111,13 @@ function doGet(e) {
     }
 
     // 4. Status Check / Ping
+    var checkFolder = getBackupFolder();
     return ContentService.createTextOutput(JSON.stringify({ 
       status: "success", 
-      message: "Web App Administrasi Guru & Drive Backup Aktif!",
-      version: "2.6-drive-backup",
+      message: "Web App Administrasi Guru & Drive Backup Aktif dalam 1 Folder!",
+      version: "3.0-drive-unified-folder",
+      folderName: checkFolder.getName(),
+      folderUrl: checkFolder.getUrl(),
       sheets: ss.getSheets().map(function(s) { return s.getName(); })
     })).setMimeType(ContentService.MimeType.JSON);
 
@@ -135,10 +144,16 @@ function doPost(e) {
 
     var action = (payload && payload.action) || (e && e.parameter && e.parameter.action);
     var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var folder = getBackupFolder();
+
+    // Move Active Spreadsheet into the 1 unified folder if not already inside
+    try {
+      var ssFile = DriveApp.getFileById(ss.getId());
+      ssFile.moveTo(folder);
+    } catch(eMove) {}
 
     // 1. Save Backup JSON to Google Drive Folder
     if (action === 'uploadBackup' || action === 'uploadCloud' || payload.targetType === 'gdrive' || payload.backupDate || payload.data) {
-      var folder = getBackupFolder();
       var schoolName = payload.schoolName || (payload.data && payload.data.schoolIdentity ? payload.data.schoolIdentity.schoolName : "Sekolah");
       var cleanSchoolName = String(schoolName).replace(/[^a-zA-Z0-9]/g, "_");
       var dateStr = new Date().toISOString().replace(/[:.]/g, "-").substring(0, 19);
@@ -151,14 +166,15 @@ function doPost(e) {
 
       return ContentService.createTextOutput(JSON.stringify({ 
         status: "success", 
-        message: "File backup '" + file.getName() + "' berhasil disimpan di Google Drive: " + folder.getName(),
+        message: "File backup '" + file.getName() + "' berhasil disimpan dalam 1 Folder Google Drive: " + folder.getName(),
         fileId: file.getId(),
         filename: file.getName(),
-        folderName: folder.getName()
+        folderName: folder.getName(),
+        folderUrl: folder.getUrl()
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    // 2. Sync all tables to Google Sheet tabs
+    // 2. Sync all tables to Google Sheet tabs inside the 1 unified folder
     if (action === 'syncAll' && payload.data) {
       var allData = payload.data;
 
@@ -186,16 +202,23 @@ function doPost(e) {
         }
       });
 
-      // Also create auto-snapshot in Google Drive folder
+      // Also create/update auto-snapshot in the same Google Drive folder
       try {
-        var autoFolder = getBackupFolder();
         var autoFileName = "AutoSync_Administrasi_Guru_" + new Date().toISOString().substring(0, 10) + ".json";
-        autoFolder.createFile(autoFileName, JSON.stringify(payload.data, null, 2), MimeType.PLAIN_TEXT);
+        var existingFiles = folder.getFilesByName(autoFileName);
+        if (existingFiles.hasNext()) {
+          var oldFile = existingFiles.next();
+          oldFile.setContent(JSON.stringify(payload.data, null, 2));
+        } else {
+          folder.createFile(autoFileName, JSON.stringify(payload.data, null, 2), MimeType.PLAIN_TEXT);
+        }
       } catch(eDrive) {}
 
       return ContentService.createTextOutput(JSON.stringify({ 
         status: "success", 
-        message: "Seluruh data modul berhasil disinkronkan ke Google Sheet & Drive Backup!" 
+        message: "Seluruh data modul & sheet berhasil disinkronkan ke dalam 1 Folder Google Drive ('" + folder.getName() + "')!",
+        folderName: folder.getName(),
+        folderUrl: folder.getUrl()
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -218,20 +241,21 @@ function doPost(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    // 4. Create Google Doc file from HTML content
+    // 4. Create Google Doc file from HTML content inside the same 1 folder
     if (action === 'createGoogleDoc') {
       var docTitle = payload.title || "Dokumen_Administrasi_Guru";
       var htmlContent = payload.htmlContent || payload.content || "";
-      var docFolder = getBackupFolder();
       var htmlBlob = Utilities.newBlob(htmlContent, 'text/html', docTitle + '.html');
-      var docFile = docFolder.createFile(htmlBlob);
+      var docFile = folder.createFile(htmlBlob);
 
       return ContentService.createTextOutput(JSON.stringify({
         status: "success",
-        message: "Dokumen berhasil disimpan di Google Drive!",
+        message: "Dokumen berhasil disimpan di 1 Folder Google Drive: " + folder.getName(),
         fileId: docFile.getId(),
         docUrl: "https://docs.google.com/document/d/" + docFile.getId() + "/edit",
-        driveUrl: docFile.getUrl()
+        driveUrl: docFile.getUrl(),
+        folderName: folder.getName(),
+        folderUrl: folder.getUrl()
       })).setMimeType(ContentService.MimeType.JSON);
     }
 

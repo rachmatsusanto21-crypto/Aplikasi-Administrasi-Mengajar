@@ -117,6 +117,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   // Handle ESC key, scroll locking, and print event lifecycle
   useEffect(() => {
     if (isOpen) {
+      document.body.classList.add("print-modal-open");
       const originalOverflow = document.body.style.overflow;
       document.body.style.overflow = "hidden";
 
@@ -146,6 +147,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
       window.addEventListener("afterprint", handleAfterPrint);
 
       return () => {
+        document.body.classList.remove("print-modal-open");
         document.body.style.overflow = originalOverflow || "unset";
         window.removeEventListener("keydown", handleKeyDown);
         window.removeEventListener("beforeprint", handleBeforePrint);

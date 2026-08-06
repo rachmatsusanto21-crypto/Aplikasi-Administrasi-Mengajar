@@ -137,7 +137,14 @@ body {
 
 /* Global Print Styles for Clean Multi-Page Document Printing */
 @media print {
-  /* Ensure html, body, and root containers remain visible in document tree */
+  /* When PrintModal is active, strictly hide all non-print-overlay siblings in the app layout */
+  body.print-modal-open #root > div > *:not(.print-overlay),
+  body.is-printing #root > div > *:not(.print-overlay),
+  body:has(.print-overlay) #root > div > *:not(.print-overlay) {
+    display: none !important;
+  }
+
+  /* Reset html, body, #root, and main wrapper for standard print document flow */
   html, body, #root, #root > div {
     display: block !important;
     position: static !important;
@@ -152,7 +159,7 @@ body {
     color: #000000 !important;
   }
 
-  /* Reset modal overlay for standard print document flow */
+  /* Reset modal overlay for clean standard document flow */
   .print-overlay {
     position: static !important;
     top: auto !important;
@@ -167,6 +174,7 @@ body {
     backdrop-filter: none !important;
     display: block !important;
     overflow: visible !important;
+    box-shadow: none !important;
   }
 
   .print-dialog {
@@ -185,6 +193,7 @@ body {
     overflow: visible !important;
   }
 
+  /* Ensure all wrappers inside print-dialog expand naturally without height constraints or scrollbars */
   .print-dialog > div,
   .print-dialog div {
     max-height: none !important;
@@ -226,7 +235,7 @@ body {
     color: #000000 !important;
   }
 
-  /* Strictly hide all no-print controls, headers, buttons, sidebars */
+  /* Strictly hide all no-print controls, headers, toolbars, buttons, sidebars */
   .no-print,
   .no-print *,
   header,
