@@ -81,6 +81,7 @@ export const LearningAnalysisView: React.FC<LearningAnalysisViewProps> = ({
   const [activeTab, setActiveTab] = useState<"barchart" | "heatmap" | "difficult_tps" | "remedial_detail">("remedial_detail");
   const [selectedSubject, setSelectedSubject] = useState<string>(subjects[0] || "Bahasa Indonesia");
   const [heatmapSearch, setHeatmapSearch] = useState("");
+  const [selectedStudentFilterId, setSelectedStudentFilterId] = useState<string>("ALL");
 
   const [isParentReportModalOpen, setIsParentReportModalOpen] = useState(false);
 
@@ -391,6 +392,10 @@ export const LearningAnalysisView: React.FC<LearningAnalysisViewProps> = ({
   // Filtered Student Remedial List
   const filteredStudentRemedialList = useMemo(() => {
     return studentRemedialList.filter((item) => {
+      if (selectedStudentFilterId !== "ALL" && item.student.id !== selectedStudentFilterId) {
+        return false;
+      }
+
       if (remedialFilter === "remedial" && item.isTuntas) return false;
       if (remedialFilter === "tuntas" && !item.isTuntas) return false;
 
@@ -404,7 +409,7 @@ export const LearningAnalysisView: React.FC<LearningAnalysisViewProps> = ({
 
       return true;
     });
-  }, [studentRemedialList, remedialFilter, remedialSearch]);
+  }, [studentRemedialList, selectedStudentFilterId, remedialFilter, remedialSearch]);
 
   const remedialStats = useMemo(() => {
     const totalRecords = studentRemedialList.length;
@@ -424,14 +429,18 @@ export const LearningAnalysisView: React.FC<LearningAnalysisViewProps> = ({
 
   // Filtered heatmap student list
   const filteredHeatmapStudents = useMemo(() => {
-    if (!heatmapSearch) return heatmapMatrix.studentRows;
+    let rows = heatmapMatrix.studentRows;
+    if (selectedStudentFilterId !== "ALL") {
+      rows = rows.filter((r) => r.student.id === selectedStudentFilterId);
+    }
+    if (!heatmapSearch) return rows;
     const q = heatmapSearch.toLowerCase();
-    return heatmapMatrix.studentRows.filter(
+    return rows.filter(
       (r) =>
         r.student.name.toLowerCase().includes(q) ||
         (r.student.nisn && r.student.nisn.includes(q))
     );
-  }, [heatmapMatrix.studentRows, heatmapSearch]);
+  }, [heatmapMatrix.studentRows, selectedStudentFilterId, heatmapSearch]);
 
   // Export CSV
   const handleExportCSV = () => {
@@ -684,6 +693,24 @@ export const LearningAnalysisView: React.FC<LearningAnalysisViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Dropdown Filter Nama Siswa */}
+          <div className="flex items-center space-x-1.5 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-200 text-indigo-900 font-bold text-xs">
+            <Users className="w-3.5 h-3.5 text-indigo-600" />
+            <span>Filter Murid:</span>
+            <select
+              value={selectedStudentFilterId}
+              onChange={(e) => setSelectedStudentFilterId(e.target.value)}
+              className="px-2 py-0.5 border border-indigo-300 rounded-lg bg-white text-xs font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 max-w-[180px] truncate"
+            >
+              <option value="ALL">Semua Murid (Kelas)</option>
+              {students.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} ({s.nis || "No NIS"})
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* KKM Setting */}
           <div className="flex items-center space-x-1.5 bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200 text-amber-900 font-bold text-xs">
             <span>Batas KKM:</span>
@@ -729,6 +756,27 @@ export const LearningAnalysisView: React.FC<LearningAnalysisViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Filter Active Banner */}
+      {selectedStudentFilterId !== "ALL" && (
+        <div className="bg-indigo-600 text-white p-3 rounded-2xl flex items-center justify-between text-xs shadow-md">
+          <div className="flex items-center gap-2 font-bold">
+            <Users className="w-4 h-4 text-indigo-200" />
+            <span>
+              Menampilkan Analisis Hasil Belajar Khusus Murid:{" "}
+              <u className="text-amber-300 underline underline-offset-2">
+                {students.find((s) => s.id === selectedStudentFilterId)?.name || "Murid"}
+              </u>
+            </span>
+          </div>
+          <button
+            onClick={() => setSelectedStudentFilterId("ALL")}
+            className="px-3 py-1 bg-white/20 hover:bg-white/30 text-white font-bold rounded-lg text-xs transition-colors"
+          >
+            Tampilkan Semua Murid
+          </button>
+        </div>
+      )}
 
       {/* Summary Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

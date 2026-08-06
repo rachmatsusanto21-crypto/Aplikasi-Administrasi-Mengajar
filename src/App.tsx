@@ -276,6 +276,35 @@ export default function App() {
     }
   };
 
+  const handleEditCustomSubject = (oldSubject: string, newSubject: string) => {
+    const trimmed = newSubject.trim();
+    if (!trimmed || oldSubject === trimmed) return;
+
+    setSubjects((prev) => prev.map((s) => (s === oldSubject ? trimmed : s)));
+
+    // Sync subject name change across CPTP items
+    setCPTPItems((prev) =>
+      prev.map((item) => (item.subject === oldSubject ? { ...item, subject: trimmed } : item))
+    );
+
+    // Sync subject name change across Prota & Promes
+    setProtaList((prev) =>
+      prev.map((p) => (p.subject === oldSubject ? { ...p, subject: trimmed } : p))
+    );
+    setPromesList((prev) =>
+      prev.map((p) => (p.subject === oldSubject ? { ...p, subject: trimmed } : p))
+    );
+
+    // Sync subject name change across Grades
+    setGrades((prev) =>
+      prev.map((g) => (g.subject === oldSubject ? { ...g, subject: trimmed } : g))
+    );
+  };
+
+  const handleDeleteCustomSubject = (subjectToDelete: string) => {
+    setSubjects((prev) => prev.filter((s) => s !== subjectToDelete));
+  };
+
   useEffect(() => {
     saveToStorage("timetable", timetable);
   }, [timetable]);
@@ -316,13 +345,17 @@ export default function App() {
     saveToStorage("gasConfig", gasConfig);
   }, [gasConfig]);
 
-  const handleRestoreData = (newData: Record<string, any>) => {
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+
+  const handleRestoreData = (newData: Record<string, any>, sourceTimestamp?: string) => {
     if (newData.schoolIdentity) setSchoolIdentity(newData.schoolIdentity);
     if (newData.students) setStudents(newData.students);
     if (newData.attendanceRecords) setAttendanceRecords(newData.attendanceRecords);
     if (newData.cptpItems) setCPTPItems(newData.cptpItems);
     if (newData.incidents) setIncidents(newData.incidents);
     if (newData.grades) setGrades(newData.grades);
+    if (newData.dailyGrades) setDailyGrades(newData.dailyGrades);
+    if (newData.subjects) setSubjects(newData.subjects);
     if (newData.timetable) setTimetable(newData.timetable);
     if (newData.guestBook) setGuestBook(newData.guestBook);
     if (newData.incidentalJournals) setIncidentalJournals(newData.incidentalJournals);
@@ -331,7 +364,123 @@ export default function App() {
     if (newData.protaList) setProtaList(newData.protaList);
     if (newData.promesList) setPromesList(newData.promesList);
     if (newData.teachingModules) setTeachingModules(newData.teachingModules);
+    if (newData.aiSettings) setAiSettings(newData.aiSettings);
+    if (newData.gasConfig) setGasConfig(newData.gasConfig);
+    if (newData.users) setUsers(newData.users);
+    if (newData.savedExams) setSavedExams(newData.savedExams);
+    if (newData.canvaTemplates) setCanvaTemplates(newData.canvaTemplates);
+
+    if (sourceTimestamp) {
+      localStorage.setItem("app_last_saved_timestamp", sourceTimestamp);
+    }
   };
+
+  // Cross-device auto sync & timestamp comparison handler
+  const checkAndRestoreLatestCloudData = async (manual = false) => {
+    try {
+      const res = await fetch("/api/backup/latest");
+      const json = await res.json();
+      if (json.status === "success" && json.data && json.timestamp) {
+        const cloudTime = new Date(json.timestamp).getTime();
+        const localTimeStr = localStorage.getItem("app_last_saved_timestamp");
+        const localTime = localTimeStr ? new Date(localTimeStr).getTime() : 0;
+
+        if (cloudTime > localTime || manual) {
+          handleRestoreData(json.data, json.timestamp);
+          const formattedTime = new Date(json.timestamp).toLocaleString("id-ID", {
+            dateStyle: "medium",
+            timeStyle: "short",
+          });
+          setSyncMessage(`Data otomatis tersinkronisasi dari Cloud (Versi terbaru: ${formattedTime})`);
+          setTimeout(() => setSyncMessage(null), 8000);
+        } else if (manual) {
+          setSyncMessage("Data lokal Anda sudah paling baru dan sinkron dengan Cloud!");
+          setTimeout(() => setSyncMessage(null), 4000);
+        }
+      } else if (manual) {
+        setSyncMessage("Belum ada data cadangan di cloud server.");
+        setTimeout(() => setSyncMessage(null), 4000);
+      }
+    } catch (err) {
+      console.error("Error auto restoring cloud backup:", err);
+    }
+  };
+
+  useEffect(() => {
+    checkAndRestoreLatestCloudData();
+
+    const handleFocus = () => {
+      checkAndRestoreLatestCloudData();
+    };
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, []);
+
+  // Auto-push state changes to server snapshot with timestamp
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const nowISO = new Date().toISOString();
+      localStorage.setItem("app_last_saved_timestamp", nowISO);
+
+      const fullPayload = {
+        schoolIdentity,
+        students,
+        attendanceRecords,
+        cptpItems,
+        incidents,
+        grades,
+        dailyGrades,
+        subjects,
+        timetable,
+        guestBook,
+        incidentalJournals,
+        dailyLogs,
+        calendarEvents,
+        protaList,
+        promesList,
+        teachingModules,
+        aiSettings,
+        gasConfig,
+        users,
+        savedExams,
+        canvaTemplates,
+      };
+
+      fetch("/api/backup/save-latest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          timestamp: nowISO,
+          schoolName: schoolIdentity.schoolName,
+          data: fullPayload,
+        }),
+      }).catch((err) => console.error("Error auto-saving cloud snapshot:", err));
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [
+    schoolIdentity,
+    students,
+    attendanceRecords,
+    cptpItems,
+    incidents,
+    grades,
+    dailyGrades,
+    subjects,
+    timetable,
+    guestBook,
+    incidentalJournals,
+    dailyLogs,
+    calendarEvents,
+    protaList,
+    promesList,
+    teachingModules,
+    aiSettings,
+    gasConfig,
+    users,
+    savedExams,
+    canvaTemplates,
+  ]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col font-sans text-slate-900 dark:text-slate-100 antialiased selection:bg-emerald-500 selection:text-white transition-colors duration-200">
@@ -347,6 +496,22 @@ export default function App() {
         onOpenBackupModal={() => setIsBackupModalOpen(true)}
         onOpenUsersModal={() => setIsUsersModalOpen(true)}
       />
+
+      {/* Cloud Auto-Sync Banner */}
+      {syncMessage && (
+        <div className="bg-emerald-600 text-white px-4 py-2 text-xs font-bold flex items-center justify-between shadow-md z-40 transition-all">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-300 animate-ping" />
+            <span>{syncMessage}</span>
+          </div>
+          <button
+            onClick={() => setSyncMessage(null)}
+            className="text-emerald-200 hover:text-white font-bold text-sm px-1"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       <div className="flex flex-1 overflow-hidden relative">
         {/* Sidebar */}
@@ -417,6 +582,8 @@ export default function App() {
                 aiSettings={aiSettings}
                 subjects={subjects}
                 onAddSubject={handleAddCustomSubject}
+                onEditSubject={handleEditCustomSubject}
+                onDeleteSubject={handleDeleteCustomSubject}
                 onSaveCPTP={setCPTPItems}
                 onOpenPrint={handleOpenPrint}
               />

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { CPTPItem, AISettings } from "../../types";
-import { BookOpen, Sparkles, Plus, Trash2, Edit2, Download, Printer, Search, Check, X } from "lucide-react";
+import { BookOpen, Sparkles, Plus, Trash2, Edit2, Download, Printer, Search, Check, X, Settings } from "lucide-react";
 import { exportToCSV } from "../../lib/storage";
 import { generateAIContent } from "../../lib/aiHelper";
 import { exportCurriculumToExcel } from "../../lib/exportExcel";
@@ -10,6 +10,8 @@ interface CurriculumCPTPViewProps {
   aiSettings: AISettings;
   subjects?: string[];
   onAddSubject?: (subject: string) => void;
+  onEditSubject?: (oldSubject: string, newSubject: string) => void;
+  onDeleteSubject?: (subject: string) => void;
   onSaveCPTP: (updated: CPTPItem[]) => void;
   onOpenPrint: (title: string, subtitle: string, content: React.ReactNode) => void;
 }
@@ -45,6 +47,8 @@ export const CurriculumCPTPView: React.FC<CurriculumCPTPViewProps> = ({
     "Kokurikuler",
   ],
   onAddSubject,
+  onEditSubject,
+  onDeleteSubject,
   onSaveCPTP,
   onOpenPrint,
 }) => {
@@ -55,6 +59,9 @@ export const CurriculumCPTPView: React.FC<CurriculumCPTPViewProps> = ({
   const [isAddModal, setIsAddModal] = useState(false);
   const [newSubjectInput, setNewSubjectInput] = useState("");
   const [isAddSubjectModal, setIsAddSubjectModal] = useState(false);
+  const [isManageSubjectsModal, setIsManageSubjectsModal] = useState(false);
+  const [editingSubjectOldName, setEditingSubjectOldName] = useState<string | null>(null);
+  const [editingSubjectNewName, setEditingSubjectNewName] = useState("");
 
   // AI Generator Modal State
   const [isAiModal, setIsAiModal] = useState(false);
@@ -323,6 +330,14 @@ Format keluaran HARUS berupa JSON murni tanpa markdown lain:
             className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800 hover:bg-emerald-200 whitespace-nowrap transition-all border border-emerald-300"
           >
             + Mapel Baru
+          </button>
+          <button
+            onClick={() => setIsManageSubjectsModal(true)}
+            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-100 hover:bg-slate-900 whitespace-nowrap transition-all flex items-center gap-1 shadow-sm"
+            title="Edit / Hapus Mata Pelajaran"
+          >
+            <Settings className="w-3.5 h-3.5" />
+            Kelola Mapel
           </button>
         </div>
 
@@ -661,6 +676,126 @@ Format keluaran HARUS berupa JSON murni tanpa markdown lain:
                   Simpan Mapel
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal Kelola Mata Pelajaran (Edit & Hapus) */}
+      {isManageSubjectsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
+                <Settings className="w-5 h-5 text-emerald-600" />
+                Kelola & Edit Mata Pelajaran
+              </h3>
+              <button
+                onClick={() => {
+                  setIsManageSubjectsModal(false);
+                  setEditingSubjectOldName(null);
+                }}
+                className="p-1 text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500">
+              Anda dapat mengubah nama mata pelajaran atau menghapusnya dari daftar kurikulum. Mengubah nama mapel akan otomatis memperbarui seluruh data CP/TP terkait.
+            </p>
+
+            <div className="space-y-2">
+              {subjects.map((sub) => {
+                const isEditingThis = editingSubjectOldName === sub;
+                return (
+                  <div
+                    key={sub}
+                    className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs gap-2"
+                  >
+                    {isEditingThis ? (
+                      <div className="flex-1 flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={editingSubjectNewName}
+                          onChange={(e) => setEditingSubjectNewName(e.target.value)}
+                          className="w-full px-2 py-1 border border-emerald-500 rounded-lg text-xs font-semibold focus:outline-none"
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (editingSubjectNewName.trim() && onEditSubject) {
+                              onEditSubject(sub, editingSubjectNewName.trim());
+                              if (selectedSubject === sub) {
+                                setSelectedSubject(editingSubjectNewName.trim());
+                              }
+                              setEditingSubjectOldName(null);
+                            }
+                          }}
+                          className="px-2.5 py-1 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 text-xs shrink-0"
+                        >
+                          Simpan
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingSubjectOldName(null)}
+                          className="px-2 py-1 bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs shrink-0"
+                        >
+                          Batal
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="font-bold text-slate-800">{sub}</span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingSubjectOldName(sub);
+                              setEditingSubjectNewName(sub);
+                            }}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Edit / Rename Mapel"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (
+                                confirm(
+                                  `Apakah Anda yakin ingin menghapus mata pelajaran "${sub}"?`
+                                )
+                              ) {
+                                if (onDeleteSubject) {
+                                  onDeleteSubject(sub);
+                                  if (selectedSubject === sub) {
+                                    setSelectedSubject("Semua");
+                                  }
+                                }
+                              }
+                            }}
+                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            title="Hapus Mapel"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="pt-2 border-t flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsManageSubjectsModal(false)}
+                className="px-4 py-2 bg-slate-800 text-white font-bold text-xs rounded-xl hover:bg-slate-900"
+              >
+                Selesai
+              </button>
             </div>
           </div>
         </div>

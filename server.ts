@@ -86,6 +86,59 @@ app.post("/api/user-config", (req, res) => {
 // DEDICATED APP BACKUP FOLDER API ENDPOINTS
 // ==========================================
 
+const AUTO_SYNC_FILE = path.join(BACKUPS_DIR, "auto_sync_latest.json");
+
+// Fetch the latest global application data snapshot for automatic multi-device restore
+app.get("/api/backup/latest", (req, res) => {
+  try {
+    if (fs.existsSync(AUTO_SYNC_FILE)) {
+      const content = fs.readFileSync(AUTO_SYNC_FILE, "utf-8");
+      const parsed = JSON.parse(content);
+      return res.json({
+        status: "success",
+        timestamp: parsed.timestamp || parsed.backupDate || null,
+        data: parsed.data || null,
+        schoolName: parsed.schoolName || "",
+      });
+    }
+    return res.json({ status: "empty", message: "Belum ada data backup di cloud" });
+  } catch (err: any) {
+    console.error("Error reading latest backup snapshot:", err);
+    return res.status(500).json({ error: "Gagal membaca snapshot data terbaru" });
+  }
+});
+
+// Save / Auto-sync the latest global application data snapshot
+app.post("/api/backup/save-latest", (req, res) => {
+  try {
+    const { timestamp, schoolName, data } = req.body;
+    if (!data) {
+      return res.status(400).json({ error: "Payload data tidak valid" });
+    }
+
+    const payload = {
+      timestamp: timestamp || new Date().toISOString(),
+      schoolName: schoolName || data?.schoolIdentity?.schoolName || "Sekolah",
+      data,
+    };
+
+    if (!fs.existsSync(BACKUPS_DIR)) {
+      fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+    }
+
+    fs.writeFileSync(AUTO_SYNC_FILE, JSON.stringify(payload, null, 2), "utf-8");
+
+    return res.json({
+      status: "success",
+      timestamp: payload.timestamp,
+      message: "Data berhasil tersimpan di server cloud dan siap direstore di perangkat lain!",
+    });
+  } catch (err: any) {
+    console.error("Error saving latest backup snapshot:", err);
+    return res.status(500).json({ error: "Gagal menyimpan snapshot data terbaru ke server" });
+  }
+});
+
 // 1. List backup files in the app's dedicated backup folder
 app.get("/api/backup/list", (req, res) => {
   try {

@@ -220,6 +220,118 @@ export const DisciplineBKView: React.FC<DisciplineBKViewProps> = ({
     });
   };
 
+  // Print Full Detailed Discipline Report for All Students
+  const handlePrintRekapLengkapKedisiplinan = () => {
+    onOpenPrint(
+      "REKAPITULASI LENGKAP LAPORAN KEDISIPLINAN & BIMBINGAN KONSELING SISWA",
+      `Kelas: ${schoolIdentity.gradeClass} | Tahun Ajaran: ${schoolIdentity.academicYear} | Total Catatan: ${incidents.length} Kejadian`,
+      (
+        <div className="space-y-6 text-xs text-slate-900">
+          {/* Section 1: Summary Table */}
+          <div className="space-y-2">
+            <h3 className="font-extrabold text-sm uppercase text-slate-800 border-b pb-1">
+              I. Ringkasan Rekapitulasi Kedisiplinan Klasikal Siswa
+            </h3>
+            <table className="w-full border-collapse border border-slate-300">
+              <thead>
+                <tr className="bg-slate-100 font-bold text-center">
+                  <th className="border border-slate-300 p-2 w-8">No</th>
+                  <th className="border border-slate-300 p-2 text-left">Nama Murid</th>
+                  <th className="border border-slate-300 p-2 w-20">NIS / NISN</th>
+                  <th className="border border-slate-300 p-2 w-24 bg-rose-50 text-rose-900">Total Pelanggaran</th>
+                  <th className="border border-slate-300 p-2 w-24 bg-indigo-50 text-indigo-900">Total Bimbingan BK</th>
+                  <th className="border border-slate-300 p-2 w-24 bg-emerald-50 text-emerald-900">Total Prestasi</th>
+                  <th className="border border-slate-300 p-2 w-28">Status Kedisiplinan</th>
+                </tr>
+              </thead>
+              <tbody>
+                {students.map((s, idx) => {
+                  const sInc = incidents.filter((i) => i.studentId === s.id);
+                  const pel = sInc.filter((i) => i.type === "Pelanggaran").length;
+                  const bk = sInc.filter((i) => i.type === "Bimbingan Konseling").length;
+                  const pres = sInc.filter((i) => i.type === "Prestasi").length;
+                  let status = "Sangat Baik / Disiplin";
+                  if (pel >= 5) status = "⚠️ Perlu Perhatian Khusus";
+                  else if (pel >= 2) status = "⚠️ Bimbingan Rutin";
+
+                  return (
+                    <tr key={s.id} className="odd:bg-white even:bg-slate-50">
+                      <td className="border border-slate-300 p-2 text-center">{idx + 1}</td>
+                      <td className="border border-slate-300 p-2 font-bold">{s.name}</td>
+                      <td className="border border-slate-300 p-2 text-center font-mono">{s.nis || s.nisn || "-"}</td>
+                      <td className={`border border-slate-300 p-2 text-center font-bold ${pel > 0 ? "text-rose-700 bg-rose-50" : "text-slate-400"}`}>{pel}</td>
+                      <td className={`border border-slate-300 p-2 text-center font-bold ${bk > 0 ? "text-indigo-700 bg-indigo-50" : "text-slate-400"}`}>{bk}</td>
+                      <td className={`border border-slate-300 p-2 text-center font-bold ${pres > 0 ? "text-emerald-700 bg-emerald-50" : "text-slate-400"}`}>{pres}</td>
+                      <td className="border border-slate-300 p-2 text-center font-semibold">{status}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Section 2: Individual Student Detailed Breakdown */}
+          <div className="space-y-4 pt-4">
+            <h3 className="font-extrabold text-sm uppercase text-slate-800 border-b pb-1">
+              II. Rincian Pelanggaran & Bimbingan Konseling Per Murid
+            </h3>
+
+            {students.map((s, sIdx) => {
+              const studentLogs = incidents.filter((i) => i.studentId === s.id);
+              if (studentLogs.length === 0) return null;
+
+              return (
+                <div key={s.id} className="border border-slate-300 rounded-lg p-3 space-y-2 bg-white break-inside-avoid">
+                  <div className="flex justify-between items-center bg-slate-100 p-2 rounded border border-slate-200">
+                    <span className="font-extrabold text-xs text-slate-900">
+                      {sIdx + 1}. {s.name} (NIS: {s.nis || "-"} | NISN: {s.nisn || "-"})
+                    </span>
+                    <span className="text-[11px] font-bold text-indigo-700">
+                      Total {studentLogs.length} Catatan Kejadian
+                    </span>
+                  </div>
+
+                  <table className="w-full border-collapse border border-slate-300 text-[11px]">
+                    <thead>
+                      <tr className="bg-slate-50 font-bold text-center">
+                        <th className="border border-slate-300 p-1.5 w-6">No</th>
+                        <th className="border border-slate-300 p-1.5 w-20">Tanggal</th>
+                        <th className="border border-slate-300 p-1.5 w-24">Jenis</th>
+                        <th className="border border-slate-300 p-1.5 w-20">Kategori</th>
+                        <th className="border border-slate-300 p-1.5 text-left">Uraian Perilaku / Kejadian</th>
+                        <th className="border border-slate-300 p-1.5 text-left">Tindakan & Hasil Bimbingan</th>
+                        <th className="border border-slate-300 p-1.5 w-24">Konselor</th>
+                        <th className="border border-slate-300 p-1.5 w-16">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {studentLogs.map((log, lIdx) => (
+                        <tr key={log.id} className="align-top">
+                          <td className="border border-slate-300 p-1.5 text-center">{lIdx + 1}</td>
+                          <td className="border border-slate-300 p-1.5 text-center font-mono">{log.date}</td>
+                          <td className="border border-slate-300 p-1.5 text-center font-bold">
+                            <span className={log.type === "Pelanggaran" ? "text-rose-700" : log.type === "Prestasi" ? "text-emerald-700" : "text-indigo-700"}>
+                              {log.type}
+                            </span>
+                          </td>
+                          <td className="border border-slate-300 p-1.5 text-center">{log.category}</td>
+                          <td className="border border-slate-300 p-1.5">{log.description}</td>
+                          <td className="border border-slate-300 p-1.5 text-emerald-900 font-medium">{log.actionTaken}</td>
+                          <td className="border border-slate-300 p-1.5 text-center">{log.counselorName}</td>
+                          <td className="border border-slate-300 p-1.5 text-center font-bold">{log.status}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )
+    );
+  };
+
   // Printable Classical Rekap Report
   const handlePrintKlasikal = () => {
     const summaryData = students.map((s) => {
@@ -386,6 +498,15 @@ export const DisciplineBKView: React.FC<DisciplineBKViewProps> = ({
           >
             <Plus className="w-4 h-4" />
             Tambah Catatan BK
+          </button>
+
+          <button
+            onClick={handlePrintRekapLengkapKedisiplinan}
+            className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm transition-all"
+            title="Cetak Rekap Lengkap Laporan Kedisiplinan & Bimbingan Konseling Setiap Siswa"
+          >
+            <Printer className="w-4 h-4" />
+            Rekap Lengkap Laporan Kedisiplinan
           </button>
 
           <button
