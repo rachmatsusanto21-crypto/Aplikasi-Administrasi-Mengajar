@@ -1,8 +1,11 @@
 import { SchoolIdentity } from "../types";
+import { getDefaultLogoLeft, getDefaultLogoRight } from "./defaultLogos";
 
 // Helper to convert image URL to Base64 Data URI for native MS Word embedding
-async function getBase64Image(url: string): Promise<string> {
-  if (!url) return "";
+export async function getBase64Image(url: string, fallbackType: "left" | "right" = "left"): Promise<string> {
+  if (!url) {
+    return fallbackType === "left" ? getDefaultLogoLeft() : getDefaultLogoRight();
+  }
   if (url.startsWith("data:")) return url;
 
   return new Promise((resolve) => {
@@ -23,13 +26,35 @@ async function getBase64Image(url: string): Promise<string> {
       } catch (e) {
         // Tainted canvas or CORS failure
       }
-      resolve(url);
+      resolve(fallbackType === "left" ? getDefaultLogoLeft() : getDefaultLogoRight());
     };
     img.onerror = () => {
-      resolve(url);
+      resolve(fallbackType === "left" ? getDefaultLogoLeft() : getDefaultLogoRight());
     };
     img.src = url;
   });
+}
+
+// Helper to scan HTML string and replace external <img src="..."> tags with Base64 URIs
+async function convertAllImagesInHtmlToBase64(html: string): Promise<string> {
+  if (!html) return "";
+  const imgRegex = /<img\s+[^>]*src=["']([^"']+)["'][^>]*>/gi;
+  const matches = [...html.matchAll(imgRegex)];
+
+  let processedHtml = html;
+  for (const match of matches) {
+    const fullTag = match[0];
+    const srcUrl = match[1];
+
+    if (srcUrl && !srcUrl.startsWith("data:")) {
+      const isRight = fullTag.toLowerCase().includes("logo kanan") || fullTag.toLowerCase().includes("right");
+      const base64Data = await getBase64Image(srcUrl, isRight ? "right" : "left");
+      const newTag = fullTag.replace(srcUrl, base64Data);
+      processedHtml = processedHtml.replace(fullTag, newTag);
+    }
+  }
+
+  return processedHtml;
 }
 
 export async function exportHtmlToDoc({
@@ -43,12 +68,18 @@ export async function exportHtmlToDoc({
   title?: string;
   schoolIdentity?: Partial<SchoolIdentity>;
 }): Promise<void> {
-  const rawLogoLeft = schoolIdentity?.logoLeftUrl || schoolIdentity?.logoUrl || "https://lh3.googleusercontent.com/d/1dMJ8rTQxZkcpPe_xtvmMt7aITLYvf_aT";
-  const rawLogoRight = schoolIdentity?.logoRightUrl || "https://lh3.googleusercontent.com/d/1y5lRPtb_K0Z9U8xe-OS4hkRx2zRHq1cU";
+  const fallbackLeft = getDefaultLogoLeft();
+  const fallbackRight = getDefaultLogoRight();
+
+  const rawLogoLeft = schoolIdentity?.logoLeftUrl || schoolIdentity?.logoUrl || fallbackLeft;
+  const rawLogoRight = schoolIdentity?.logoRightUrl || fallbackRight;
 
   // Convert logos to base64 so MS Word renders them locally without external security blocks
-  const logoLeft = await getBase64Image(rawLogoLeft);
-  const logoRight = await getBase64Image(rawLogoRight);
+  const logoLeft = await getBase64Image(rawLogoLeft, "left");
+  const logoRight = await getBase64Image(rawLogoRight, "right");
+
+  // Process all images inside htmlContent to ensure no external URL breaks Word
+  const processedContent = await convertAllImagesInHtmlToBase64(htmlContent);
 
   const schoolName = schoolIdentity?.schoolName || "SDN PISANGCANDI 1";
   const npsn = schoolIdentity?.npsn || "20533686";
@@ -62,6 +93,33 @@ export async function exportHtmlToDoc({
   const academicYear = schoolIdentity?.academicYear || "2025/2026";
   const semester = schoolIdentity?.semester || "Ganjil";
   const gradeClass = schoolIdentity?.gradeClass || "Kelas IV";
+
+  // Check if htmlContent already has a Kop Surat table to avoid duplicating
+  const hasKopInContent = processedContent.includes("kop-table") || processedContent.includes("PEMERINTAH KOTA MALANG");
+
+  const kopHeaderHtml = hasKopInContent
+    ? ""
+    : `
+  <table class="kop-table">
+    <tr>
+      <td style="width: 15%; text-align: left; vertical-align: middle;">
+        <img src="${logoLeft}" width="70" height="70" style="width: 70px; height: 70px; max-width: 70px; max-height: 70px;" alt="Logo Kiri" />
+      </td>
+      <td style="width: 70%;" class="kop-text">
+        <div style="font-size: 10.5pt; font-weight: bold; text-transform: uppercase; margin: 0;">PEMERINTAH KOTA MALANG</div>
+        <div style="font-size: 10.5pt; font-weight: bold; text-transform: uppercase; margin: 0;">DINAS PENDIDIKAN DAN KEBUDAYAAN</div>
+        <div style="font-size: 13pt; font-weight: bold; text-transform: uppercase; margin: 1pt 0;">${schoolName}</div>
+        <div style="font-size: 8.5pt; font-weight: bold; margin: 0;">NPSN: ${npsn}</div>
+        <div style="font-size: 8.5pt; margin: 0;">${address}</div>
+        <div style="font-size: 8.5pt; margin: 0;">Telp. ${phone} &nbsp; email: ${email}</div>
+      </td>
+      <td style="width: 15%; text-align: right; vertical-align: middle;">
+        <img src="${logoRight}" width="70" height="70" style="width: 70px; height: 70px; max-width: 70px; max-height: 70px;" alt="Logo Kanan" />
+      </td>
+    </tr>
+  </table>
+  <div class="kop-line"></div>
+`;
 
   const fullWordHtml = `
 <html xmlns:v="urn:schemas-microsoft-com:vml"
@@ -184,37 +242,17 @@ xmlns="http://www.w3.org/TR/REC-html40">
 </head>
 <body>
 <div class="WordSection1">
-  <!-- Kop Surat Resmi -->
-  <table class="kop-table">
-    <tr>
-      <td style="width: 15%; text-align: left; vertical-align: middle;">
-        <img src="${logoLeft}" width="70" height="70" style="width: 70px; height: 70px; max-width: 70px; max-height: 70px;" alt="Logo Kiri" />
-      </td>
-      <td style="width: 70%;" class="kop-text">
-        <div style="font-size: 10.5pt; font-weight: bold; text-transform: uppercase; margin: 0;">PEMERINTAH KOTA MALANG</div>
-        <div style="font-size: 10.5pt; font-weight: bold; text-transform: uppercase; margin: 0;">DINAS PENDIDIKAN DAN KEBUDAYAAN</div>
-        <div style="font-size: 13pt; font-weight: bold; text-transform: uppercase; margin: 1pt 0;">${schoolName}</div>
-        <div style="font-size: 8.5pt; font-weight: bold; margin: 0;">NPSN: ${npsn}</div>
-        <div style="font-size: 8.5pt; margin: 0;">${address}</div>
-        <div style="font-size: 8.5pt; margin: 0;">Telp. ${phone} &nbsp; email: ${email}</div>
-      </td>
-      <td style="width: 15%; text-align: right; vertical-align: middle;">
-        <img src="${logoRight}" width="70" height="70" style="width: 70px; height: 70px; max-width: 70px; max-height: 70px;" alt="Logo Kanan" />
-      </td>
-    </tr>
-  </table>
-  <div class="kop-line"></div>
+  ${kopHeaderHtml}
 
-  ${title ? `<div class="doc-title">${title}</div>` : ""}
-  <div class="doc-meta">
-    Tahun Pelajaran: ${academicYear} | Semester: ${semester} | Kelas: ${gradeClass}
-  </div>
+  ${title && !hasKopInContent ? `<div class="doc-title">${title}</div>` : ""}
+  ${!hasKopInContent ? `<div class="doc-meta">Tahun Pelajaran: ${academicYear} | Semester: ${semester} | Kelas: ${gradeClass}</div>` : ""}
 
   <!-- Content -->
   <div>
-    ${htmlContent}
+    ${processedContent}
   </div>
 
+  ${!hasKopInContent ? `
   <!-- Tanda Tangan -->
   <table class="signature-table">
     <tr>
@@ -232,6 +270,7 @@ xmlns="http://www.w3.org/TR/REC-html40">
       </td>
     </tr>
   </table>
+  ` : ""}
 </div>
 </body>
 </html>

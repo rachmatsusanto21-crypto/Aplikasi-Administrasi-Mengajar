@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { SchoolIdentity } from "../../types";
-import { Building2, Save, Printer, Image, UserCheck, ShieldCheck, Check } from "lucide-react";
+import { Building2, Save, Printer, Image, UserCheck, ShieldCheck, Check, Upload, RefreshCw } from "lucide-react";
 import { ExportActionBar } from "../ExportActionBar";
+import { getDefaultLogoLeft, getDefaultLogoRight } from "../../lib/defaultLogos";
 
 interface SchoolIdentityViewProps {
   identity: SchoolIdentity;
@@ -17,9 +18,47 @@ export const SchoolIdentityView: React.FC<SchoolIdentityViewProps> = ({
   const [formData, setFormData] = useState<SchoolIdentity>(identity);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
+  const logoLeftInputRef = useRef<HTMLInputElement>(null);
+  const logoRightInputRef = useRef<HTMLInputElement>(null);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, fieldName: "logoLeftUrl" | "logoRightUrl" | "logoUrl") => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64Data = event.target?.result as string;
+      if (base64Data) {
+        setFormData((prev) => ({
+          ...prev,
+          [fieldName]: base64Data,
+          ...(fieldName === "logoLeftUrl" ? { logoUrl: base64Data } : {}),
+        }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleResetLogoLeft = () => {
+    const defaultLeft = getDefaultLogoLeft();
+    setFormData((prev) => ({
+      ...prev,
+      logoLeftUrl: defaultLeft,
+      logoUrl: defaultLeft,
+    }));
+  };
+
+  const handleResetLogoRight = () => {
+    const defaultRight = getDefaultLogoRight();
+    setFormData((prev) => ({
+      ...prev,
+      logoRightUrl: defaultRight,
+    }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -245,31 +284,90 @@ export const SchoolIdentityView: React.FC<SchoolIdentityViewProps> = ({
               </div>
             </div>
 
-            {/* Logo Preview & URL */}
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col items-center justify-center text-center space-y-3">
-              <span className="text-xs font-semibold text-slate-700">Logo Sekolah</span>
-              {formData.logoUrl ? (
-                <img
-                  src={formData.logoUrl}
-                  alt="Logo Preview"
-                  className="w-24 h-24 object-contain rounded-lg border bg-white p-1 shadow-xs"
-                />
-              ) : (
-                <div className="w-24 h-24 rounded-lg border-2 border-dashed border-slate-300 bg-white flex items-center justify-center text-slate-400 text-xs">
-                  Tidak Ada Logo
+            {/* Dual Logo Management (Kiri & Kanan Kop Surat) */}
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col space-y-4">
+              <span className="text-xs font-bold text-slate-800 border-b border-slate-200 pb-1.5 flex items-center gap-1.5">
+                <Image className="w-3.5 h-3.5 text-emerald-600" />
+                Logo Kop Surat (Embedded Base64)
+              </span>
+
+              <div className="grid grid-cols-2 gap-3 text-center">
+                {/* Logo Kiri (Pemkot / Dinas) */}
+                <div className="flex flex-col items-center space-y-2 bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                  <span className="text-[11px] font-bold text-slate-700">Logo Kiri (Pemkot)</span>
+                  <img
+                    src={formData.logoLeftUrl || formData.logoUrl || getDefaultLogoLeft()}
+                    alt="Logo Kiri"
+                    className="w-16 h-16 object-contain rounded-md border bg-slate-50 p-1"
+                  />
+                  <div className="flex items-center gap-1 w-full">
+                    <button
+                      type="button"
+                      onClick={() => logoLeftInputRef.current?.click()}
+                      className="flex-1 py-1 px-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded-md flex items-center justify-center gap-1"
+                      title="Unggah berkas logo kiri dari komputer"
+                    >
+                      <Upload className="w-3 h-3" />
+                      <span>Unggah</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleResetLogoLeft}
+                      className="p-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-md"
+                      title="Reset ke logo standar Pemkot Malang"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                    </button>
+                  </div>
+                  <input
+                    ref={logoLeftInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileUpload(e, "logoLeftUrl")}
+                    className="hidden"
+                  />
                 </div>
-              )}
-              <div className="w-full">
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1 text-left">URL Logo / Image Link</label>
-                <input
-                  type="text"
-                  name="logoUrl"
-                  value={formData.logoUrl}
-                  onChange={handleChange}
-                  placeholder="https://..."
-                  className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-md bg-white"
-                />
+
+                {/* Logo Kanan (Sekolah / Tut Wuri) */}
+                <div className="flex flex-col items-center space-y-2 bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                  <span className="text-[11px] font-bold text-slate-700">Logo Kanan (Sekolah)</span>
+                  <img
+                    src={formData.logoRightUrl || getDefaultLogoRight()}
+                    alt="Logo Kanan"
+                    className="w-16 h-16 object-contain rounded-md border bg-slate-50 p-1"
+                  />
+                  <div className="flex items-center gap-1 w-full">
+                    <button
+                      type="button"
+                      onClick={() => logoRightInputRef.current?.click()}
+                      className="flex-1 py-1 px-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded-md flex items-center justify-center gap-1"
+                      title="Unggah berkas logo kanan dari komputer"
+                    >
+                      <Upload className="w-3 h-3" />
+                      <span>Unggah</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleResetLogoRight}
+                      className="p-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-md"
+                      title="Reset ke logo standar Tut Wuri Handayani"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                    </button>
+                  </div>
+                  <input
+                    ref={logoRightInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileUpload(e, "logoRightUrl")}
+                    className="hidden"
+                  />
+                </div>
               </div>
+
+              <p className="text-[10px] text-slate-500 italic text-left">
+                💡 <b>Tips:</b> Berkas gambar yang diunggah otomatis diubah menjadi <i>Base64 Data URI</i>. Logo langsung tertanam di dalam berkas dokumen Word (.docx) sehingga tidak hilang saat diunduh atau dibuka di Microsoft Word tanpa internet.
+              </p>
             </div>
           </div>
         </div>

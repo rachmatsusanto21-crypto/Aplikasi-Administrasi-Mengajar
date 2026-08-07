@@ -1,5 +1,6 @@
 import React from "react";
 import { SchoolIdentity } from "../types";
+import { getDefaultLogoLeft, getDefaultLogoRight } from "../lib/defaultLogos";
 
 interface KopSuratProps {
   schoolIdentity?: Partial<SchoolIdentity>;
@@ -17,8 +18,11 @@ export const KopSurat: React.FC<KopSuratProps> = ({
   subtitle,
   className = "",
 }) => {
-  const logoLeft = schoolIdentity?.logoLeftUrl || schoolIdentity?.logoUrl || DEFAULT_LOGO_LEFT;
-  const logoRight = schoolIdentity?.logoRightUrl || DEFAULT_LOGO_RIGHT;
+  const fallbackLeft = getDefaultLogoLeft() || DEFAULT_LOGO_LEFT;
+  const fallbackRight = getDefaultLogoRight() || DEFAULT_LOGO_RIGHT;
+
+  const logoLeft = schoolIdentity?.logoLeftUrl || schoolIdentity?.logoUrl || fallbackLeft;
+  const logoRight = schoolIdentity?.logoRightUrl || fallbackRight;
 
   const schoolName = schoolIdentity?.schoolName || "SDN PISANGCANDI 1";
   const npsn = schoolIdentity?.npsn || "20533686";
@@ -36,8 +40,7 @@ export const KopSurat: React.FC<KopSuratProps> = ({
             alt="Logo Kiri"
             className="max-w-full max-h-full object-contain"
             onError={(e) => {
-              // Fallback to default logo left if broken
-              (e.target as HTMLImageElement).src = DEFAULT_LOGO_LEFT;
+              (e.target as HTMLImageElement).src = fallbackLeft;
             }}
           />
         </div>
@@ -71,8 +74,7 @@ export const KopSurat: React.FC<KopSuratProps> = ({
             alt="Logo Kanan"
             className="max-w-full max-h-full object-contain"
             onError={(e) => {
-              // Fallback to default logo right if broken
-              (e.target as HTMLImageElement).src = DEFAULT_LOGO_RIGHT;
+              (e.target as HTMLImageElement).src = fallbackRight;
             }}
           />
         </div>
