@@ -35,26 +35,76 @@ export async function getBase64Image(url: string, fallbackType: "left" | "right"
   });
 }
 
-// Helper to scan HTML string and replace external <img src="..."> tags with Base64 URIs
-async function convertAllImagesInHtmlToBase64(html: string): Promise<string> {
-  if (!html) return "";
-  const imgRegex = /<img\s+[^>]*src=["']([^"']+)["'][^>]*>/gi;
+interface EmbeddedImage {
+  cid: string;
+  contentType: string;
+  base64Data: string;
+}
+
+function parseBase64DataUri(dataUri: string): { contentType: string; base64Data: string } | null {
+  if (!dataUri || !dataUri.startsWith("data:")) return null;
+  const match = dataUri.match(/^data:([^;]+);base64,(.+)$/s);
+  if (!match) return null;
+  return {
+    contentType: match[1] || "image/png",
+    base64Data: match[2].replace(/[\r\n\s]/g, ""),
+  };
+}
+
+/**
+ * Scans HTML content for all <img> tags, converts external URLs to Base64 if needed,
+ * and converts all Base64 data URIs into Content-ID (cid:) references for MHTML MIME embedding.
+ */
+async function processHtmlForMhtml(
+  html: string
+): Promise<{ processedHtml: string; images: EmbeddedImage[] }> {
+  const images: EmbeddedImage[] = [];
+  const imgMap = new Map<string, string>(); // src -> cid
+
+  const imgRegex = /<img\s+([^>]*src=["']([^"']+)["'][^>]*>)/gi;
   const matches = [...html.matchAll(imgRegex)];
 
   let processedHtml = html;
+  let counter = 0;
+
   for (const match of matches) {
     const fullTag = match[0];
-    const srcUrl = match[1];
+    const srcUrl = match[2];
 
-    if (srcUrl && !srcUrl.startsWith("data:")) {
+    if (!srcUrl) continue;
+
+    if (imgMap.has(srcUrl)) {
+      const existingCid = imgMap.get(srcUrl)!;
+      const newTag = fullTag.replace(srcUrl, `cid:${existingCid}`);
+      processedHtml = processedHtml.replace(fullTag, newTag);
+      continue;
+    }
+
+    let base64Uri = srcUrl;
+    if (!srcUrl.startsWith("data:")) {
       const isRight = fullTag.toLowerCase().includes("logo kanan") || fullTag.toLowerCase().includes("right");
-      const base64Data = await getBase64Image(srcUrl, isRight ? "right" : "left");
-      const newTag = fullTag.replace(srcUrl, base64Data);
+      base64Uri = await getBase64Image(srcUrl, isRight ? "right" : "left");
+    }
+
+    const parsed = parseBase64DataUri(base64Uri);
+    if (parsed) {
+      counter++;
+      const ext = parsed.contentType.split("/")[1] || "png";
+      const cid = `image_${counter}.${ext}`;
+
+      imgMap.set(srcUrl, cid);
+      images.push({
+        cid,
+        contentType: parsed.contentType,
+        base64Data: parsed.base64Data,
+      });
+
+      const newTag = fullTag.replace(srcUrl, `cid:${cid}`);
       processedHtml = processedHtml.replace(fullTag, newTag);
     }
   }
 
-  return processedHtml;
+  return { processedHtml, images };
 }
 
 export async function exportHtmlToDoc({
@@ -74,12 +124,8 @@ export async function exportHtmlToDoc({
   const rawLogoLeft = schoolIdentity?.logoLeftUrl || schoolIdentity?.logoUrl || fallbackLeft;
   const rawLogoRight = schoolIdentity?.logoRightUrl || fallbackRight;
 
-  // Convert logos to base64 so MS Word renders them locally without external security blocks
   const logoLeft = await getBase64Image(rawLogoLeft, "left");
   const logoRight = await getBase64Image(rawLogoRight, "right");
-
-  // Process all images inside htmlContent to ensure no external URL breaks Word
-  const processedContent = await convertAllImagesInHtmlToBase64(htmlContent);
 
   const schoolName = schoolIdentity?.schoolName || "SDN PISANGCANDI 1";
   const npsn = schoolIdentity?.npsn || "20533686";
@@ -94,8 +140,7 @@ export async function exportHtmlToDoc({
   const semester = schoolIdentity?.semester || "Ganjil";
   const gradeClass = schoolIdentity?.gradeClass || "Kelas IV";
 
-  // Check if htmlContent already has a Kop Surat table to avoid duplicating
-  const hasKopInContent = processedContent.includes("kop-table") || processedContent.includes("PEMERINTAH KOTA MALANG");
+  const hasKopInContent = htmlContent.includes("kop-table") || htmlContent.includes("PEMERINTAH KOTA MALANG");
 
   const kopHeaderHtml = hasKopInContent
     ? ""
@@ -121,14 +166,14 @@ export async function exportHtmlToDoc({
   <div class="kop-line"></div>
 `;
 
-  const fullWordHtml = `
+  const fullHtmlBody = `
 <html xmlns:v="urn:schemas-microsoft-com:vml"
 xmlns:o="urn:schemas-microsoft-com:office:office"
 xmlns:w="urn:schemas-microsoft-com:office:word"
 xmlns:m="http://schemas.microsoft.com/office/2004/12/omml"
 xmlns="http://www.w3.org/TR/REC-html40">
 <head>
-  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
   <title>${title || filename}</title>
   <!--[if gte mso 9]>
   <xml>
@@ -249,7 +294,7 @@ xmlns="http://www.w3.org/TR/REC-html40">
 
   <!-- Content -->
   <div>
-    ${processedContent}
+    ${htmlContent}
   </div>
 
   ${!hasKopInContent ? `
@@ -276,9 +321,36 @@ xmlns="http://www.w3.org/TR/REC-html40">
 </html>
 `;
 
-  const blob = new Blob(["\ufeff" + fullWordHtml], {
+  // Process HTML to convert all image tags to CID references and collect image MIME attachments
+  const { processedHtml, images } = await processHtmlForMhtml(fullHtmlBody);
+
+  const boundary = "----=_NextPart_MSWORD_DOC_BUILDER_97E74AC1";
+
+  let mhtml = `MIME-Version: 1.0\r\n`;
+  mhtml += `Content-Type: multipart/related; boundary="${boundary}"; type="text/html"\r\n\r\n`;
+
+  // Part 1: Main HTML Document
+  mhtml += `--${boundary}\r\n`;
+  mhtml += `Content-Type: text/html; charset="utf-8"\r\n`;
+  mhtml += `Content-Transfer-Encoding: 8bit\r\n\r\n`;
+  mhtml += `${processedHtml}\r\n\r\n`;
+
+  // Part 2..N: Embedded Images
+  for (const img of images) {
+    mhtml += `--${boundary}\r\n`;
+    mhtml += `Content-Type: ${img.contentType}\r\n`;
+    mhtml += `Content-Transfer-Encoding: base64\r\n`;
+    mhtml += `Content-Location: cid:${img.cid}\r\n`;
+    mhtml += `Content-ID: <${img.cid}>\r\n\r\n`;
+    mhtml += `${img.base64Data}\r\n\r\n`;
+  }
+
+  mhtml += `--${boundary}--\r\n`;
+
+  const blob = new Blob([mhtml], {
     type: "application/msword;charset=utf-8",
   });
+
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -287,4 +359,5 @@ xmlns="http://www.w3.org/TR/REC-html40">
   a.click();
   URL.revokeObjectURL(url);
 }
+
 
