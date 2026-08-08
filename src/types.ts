@@ -237,7 +237,9 @@ export type RubrikSumatifItem = {
 
 export type KisiKisiItem = {
   no: number;
+  tujuanPembelajaran?: string;
   indikator: string;
+  materi?: string;
   levelKognitif?: string;
   bentukSoal: string;
   nomorSoal: string;
@@ -269,10 +271,54 @@ export type TeachingModule = {
   learningModel: string;
   allocationJP: string;
   generalInfo: {
+    instansi?: string;
+    semester?: string;
+    bab?: string;
+    topik?: string;
+    tahunAjaran?: string;
     kompetensiAwal?: string;
     profilPelajarPancasila?: string[] | string;
     saranaPrasarana?: string;
     targetPesertaDidik?: string;
+  };
+  identifikasi?: {
+    kesiapanKognitif?: string;
+    pengetahuanAwal?: string;
+    kebutuhanBelajar?: string;
+    jenisPengetahuan?: string;
+    relevansiKesulitan?: string;
+    strukturMateri?: string;
+    integrasiNilaiKarakter?: string;
+  };
+  desainPembelajaran?: {
+    capaianPembelajaran?: string;
+    tujuanPembelajaran?: string;
+    indikatorTujuanPembelajaran?: string[] | string;
+    lintasDisiplinIlmu?: string;
+    topikPembelajaran?: string;
+    praktikPedagogis?: {
+      pendekatan?: string;
+      model?: string;
+      metode?: string;
+    };
+    saranaPrasaranaDetails?: {
+      sarana?: string;
+      prasarana?: string;
+      media?: string;
+      sumberBelajar?: string;
+    };
+    kemitraanPembelajaran?: string;
+    lingkunganPembelajaran?: {
+      iklimKelas?: string;
+      budayaBelajar?: string;
+      sosioEmosional?: string;
+    };
+    dplSelected?: number[]; // list of DPL numbers selected (1..8)
+    pertanyaanPemantikDetailed?: {
+      afektif?: string;
+      kognitif?: string;
+      psikomotorik?: string;
+    };
   };
   coreComponent: {
     tujuanPembelajaran?: string;
@@ -285,17 +331,45 @@ export type TeachingModule = {
     penutup?: string;
   };
   activitiesTable?: ActivityTableRow[];
+  kegiatanAwalText?: string;
+  kegiatanPenutupText?: string;
   assessment: {
     diagnostik?: string;
     formatif?: string;
     sumatif?: string;
   };
+  assessmentForLearningSummary?: {
+    tujuan?: string;
+    teknik?: string;
+    bentuk?: string;
+    waktu?: string;
+  };
+  assessmentAsLearningSummary?: {
+    tujuan?: string;
+    teknik?: string;
+    bentuk?: string;
+    waktu?: string;
+  };
+  assessmentOfLearningSummary?: {
+    tujuan?: string;
+    teknik?: string;
+    bentuk?: string;
+    waktu?: string;
+  };
   rubrikPenilaian?: string;
   rubrikFormatif?: RubrikFormatifItem[];
   rubrikSumatif?: RubrikSumatifItem[];
+  rubrikAsLearning?: RubrikFormatifItem[];
   kisiKisiSumatif?: KisiKisiItem[];
   soalSumatifList?: SoalItem[];
   lkpdText?: string;
+  bahanAjarText?: string;
+  mediaPembelajaranText?: string;
+  remedialPengayaanText?: {
+    remedial?: string;
+    pengayaan?: string;
+  };
+  glosarium?: string;
   refleksiGuru?: RefleksiItem[];
   refleksiSiswa?: RefleksiItem[];
 };

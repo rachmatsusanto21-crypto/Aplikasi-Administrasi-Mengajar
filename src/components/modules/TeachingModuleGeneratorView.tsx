@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { TeachingModule, AISettings, SchoolIdentity, Student, ActivityTableRow, RubrikFormatifItem, RubrikSumatifItem, KisiKisiItem, SoalItem, RefleksiItem } from "../../types";
-import { Sparkles, Trash2, Download, Printer, Layers, FileText, CheckCircle2, UserCheck, HelpCircle, Palette } from "lucide-react";
+import { Sparkles, Trash2, Download, Printer, Layers, FileText, CheckCircle2, UserCheck, HelpCircle, Palette, Clock } from "lucide-react";
 import { exportDataToJSON } from "../../lib/storage";
 import { generateAIContent } from "../../lib/aiHelper";
 import { exportHtmlToDoc } from "../../lib/exportDoc";
@@ -57,44 +57,70 @@ function safeStringArray(val: any): string[] {
   return [String(val)];
 }
 
-function getDefaultActivitiesTable(act?: { pendahuluan?: string; inti?: string; penutup?: string }, modelName = "Deep Learning"): ActivityTableRow[] {
+function getDefaultActivitiesTable(act?: { pendahuluan?: string; inti?: string; penutup?: string }, modelName = "Problem Based Learning (PBL)"): ActivityTableRow[] {
   return [
     {
       no: 1,
-      tahap: "Kegiatan Pembukaan (Mindful Learning)",
-      kegiatan: act?.pendahuluan || "1. Guru memberikan salam dan pengondisian kelas dengan latihan kesadaran penuh (mindful greeting).\n2. Guru menyampaikan tujuan pembelajaran, memberikan apersepsi, dan mengajukan pertanyaan pemantik.",
-      alokasiWaktu: "10 - 15 Menit",
+      tahap: "Orientasi terhadap Masalah (PBL - Mindful)",
+      kegiatan: "1. Guru menampilkan gambar / video proses perumusan dasar negara atau peristiwa kontekstual.\n2. Guru mengajukan pertanyaan pemantik mendasar: 'Mengapa para pendiri bangsa harus mengadakan sidang untuk menentukan dasar negara?'\n3. Murid mengamati, berdiskusi awal, dan menyampaikan pendapat awal secara percaya diri.",
+      alokasiWaktu: "10 Menit",
     },
     {
       no: 2,
-      tahap: `Kegiatan Inti (Sintaks ${modelName} - Meaningful)`,
-      kegiatan: act?.inti || "1. Siswa membentuk kelompok dan mengamati media / bahan ajar yang disediakan.\n2. Siswa berdiskusi memecahkan masalah, menyusun langkah kerja, dan mengerjakan LKPD.\n3. Setiap kelompok mempresentasikan hasil unjuk karya dan memberikan umpan balik antar teman.",
-      alokasiWaktu: "45 - 50 Menit",
+      tahap: "Mengorganisasi Murid untuk Belajar (PBL - Meaningful)",
+      kegiatan: "1. Guru menjelaskan materi utama menggunakan PowerPoint interaktif / bahan ajar bergambar.\n2. Guru membagi murid menjadi beberapa kelompok heterogen (4-5 orang).\n3. Guru membagikan LKPD dan menjelaskan petunjuk pengerjaan penugasan kelompok.",
+      alokasiWaktu: "10 Menit",
     },
     {
       no: 3,
-      tahap: "Kegiatan Penutup (Joyful Reflection)",
-      kegiatan: act?.penutup || "1. Siswa bersama guru menyimpulkan poin-poin penting pembelajaran hari ini.\n2. Siswa melakukan refleksi emosi dan tingkat pemahaman (Joyful Reflection).\n3. Guru memberikan apresiasi, penyampaian tindak lanjut, serta doa dan salam penutup.",
+      tahap: "Membimbing Penyelidikan Kelompok (PBL - Meaningful & Deep Learning)",
+      kegiatan: "1. Murid membaca bahan ajar dan mengamati timeline kronologi sejarah.\n2. Murid mengidentifikasi tokoh, mengurutkan peristiwa penting pada LKPD, serta mendiskusikan perubahan usulan rumusan dasar negara.\n3. Guru berkeliling membimbing kelompok yang mengalami kesulitan dan memberikan umpan balik langsung.",
+      alokasiWaktu: "15 Menit",
+    },
+    {
+      no: 4,
+      tahap: "Mengembangkan & Menyajikan Hasil Karya (PBL - Joyful)",
+      kegiatan: "1. Ice breaking sejenak 'Yel-Yel Semangat'.\n2. Setiap kelompok mempresentasikan hasil diskusi LKPD dan urutan timeline di depan kelas.\n3. Kelompok lain memberikan tanggapan, apresiasi, dan pertanyaan secara santun.",
+      alokasiWaktu: "10 Menit",
+    },
+    {
+      no: 5,
+      tahap: "Menganalisis & Mengevaluasi Proses Pemecahan Masalah (PBL)",
+      kegiatan: "1. Guru bersama murid menyimpulkan inti materi dan makna nilai-nilai yang dipelajari.\n2. Murid mengerjakan kuis evaluasi/asesmen sumatif secara mandiri.\n3. Guru memberikan penguatan positif terhadap hasil belajar murid.",
       alokasiWaktu: "10 Menit",
     },
   ];
 }
 
-function getDefaultRubrikFormatif(topic = "Materi Pembelajaran"): RubrikFormatifItem[] {
+function getDefaultRubrikFormatif(topic = "Sejarah Lahirnya Pancasila"): RubrikFormatifItem[] {
   return [
     {
-      kriteria: "Pemahaman Konsep & Keaktifan Diskusi",
-      sangatBaik: "Sangat aktif berdiskusi, memahami seluruh konsep dasar, serta mampu memimpin pemecahan masalah dalam kelompok.",
-      baik: "Aktif berdiskusi dan mampu menjelaskan konsep dasar topik dengan tepat.",
-      cukup: "Cukup aktif dalam diskusi namun masih memerlukan bantuan penjelasan konsep dasar.",
-      perluBimbingan: "Pasif dalam kegiatan kelompok dan memerlukan bimbingan penuh dari guru.",
+      kriteria: "Menjelaskan Proses Perumusan hingga Pengesahan Pancasila",
+      sangatBaik: "Menjelaskan seluruh tahapan perumusan hingga pengesahan secara benar, runtut, dan lengkap.",
+      baik: "Menjelaskan sebagian besar tahapan dengan benar, tetapi terdapat sedikit informasi kurang lengkap.",
+      cukup: "Penjelasan masih kurang runtut dan memerlukan sedikit arahan guru.",
+      perluBimbingan: "Belum mampu menjelaskan proses perumusan meskipun telah dibimbing.",
     },
     {
-      kriteria: "Penyelesaian LKPD & Unjuk Kerja",
-      sangatBaik: "Menyelesaikan seluruh tugas LKPD secara akurat, rapi, dan tepat waktu.",
-      baik: "Menyelesaikan LKPD dengan benar dan rapi.",
-      cukup: "Menyelesaikan sebagian besar LKPD tetapi terdapat beberapa kesalahan konsep.",
-      perluBimbingan: "Belum dapat menyelesaikan LKPD secara mandiri dan memerlukan asistensi guru.",
+      kriteria: "Mengurutkan Peristiwa Sejarah berdasarkan Kronologi",
+      sangatBaik: "Mengurutkan seluruh peristiwa secara tepat sesuai urutan waktu tanpa kesalahan.",
+      baik: "Mengurutkan sebagian besar peristiwa dengan benar, hanya terdapat 1-2 kesalahan urutan.",
+      cukup: "Terdapat beberapa kesalahan kronologi dan memerlukan bantuan teman/guru.",
+      perluBimbingan: "Belum mampu mengurutkan peristiwa sesuai kronologi.",
+    },
+    {
+      kriteria: "Menganalisis Peran Tokoh dan Perubahan Rumusan Sila Pertama",
+      sangatBaik: "Menjelaskan peran tokoh dan menganalisis makna perubahan sila pertama dengan tepat disertai alasan logis.",
+      baik: "Menjelaskan peran tokoh dan perubahan sila pertama dengan benar, alasan kurang lengkap.",
+      cukup: "Menjelaskan sebagian peran tokoh tetapi analisis perubahan sila pertama masih sederhana.",
+      perluBimbingan: "Belum mampu menganalisis peran tokoh maupun perubahan rumusan sila pertama.",
+    },
+    {
+      kriteria: "Kemampuan Menyampaikan Jawaban / Presentasi Lisan",
+      sangatBaik: "Menyampaikan jawaban dengan lancar, percaya diri, suara jelas, bahasa santun, dan mampu menanggapi pertanyaan.",
+      baik: "Menyampaikan jawaban dengan cukup lancar, namun masih sedikit ragu-ragu.",
+      cukup: "Menyampaikan jawaban singkat dan memerlukan dorongan dari guru.",
+      perluBimbingan: "Belum mampu menyampaikan hasil diskusi di depan kelas.",
     },
   ];
 }
@@ -102,133 +128,225 @@ function getDefaultRubrikFormatif(topic = "Materi Pembelajaran"): RubrikFormatif
 function getDefaultRubrikSumatif(topic = "Materi Pembelajaran"): RubrikSumatifItem[] {
   return [
     {
-      kriteria: "Penguasaan Materi Tertulis (Soal PG & Isian)",
-      indikator: `Menjawab dengan benar soal pilihan ganda dan isian mengenai ${topic}`,
-      skorMaks: 50,
-      pedoman: "Setiap jawaban pilihan ganda benar diberi skor 10; isian benar diberi skor 20.",
+      kriteria: "Sikap (Ketelitian, Kerja Sama & Tanggung Jawab)",
+      indikator: "Sangat aktif bekerja sama, teliti, bertanggung jawab, dan menyelesaikan tugas kelompok tepat waktu.",
+      skorMaks: 25,
+      pedoman: "Aktif & Tanggung jawab tanpa diingatkan = 25; Perlu sedikit arahan = 20; Kurang aktif = 15; Pasif = 10.",
     },
     {
-      kriteria: "Penalaran & Analisis Uraian (Soal Uraian/HOTS)",
-      indikator: "Memberikan penjelasan logis dan terstruktur pada soal pemecahan masalah",
+      kriteria: "Pengetahuan (Penguasaan Konsep PG & Isian)",
+      indikator: `Mengidentifikasi tokoh, tanggal penting, lembaga perumus, dan konsep ${topic} pada soal tes tertulis.`,
       skorMaks: 50,
-      pedoman: "Penjelasan sangat lengkap & logis = 50; Cukup lengkap = 35; Kurang lengkap = 20; Salah = 5.",
+      pedoman: "Setiap soal Pilihan Ganda benar = 4 poin (5 Soal = 20 Poin); Isian Singkat benar = 10 poin (3 Soal = 30 Poin).",
+    },
+    {
+      kriteria: "Keterampilan (Penyusunan Timeline & Analisis Uraian HOTS)",
+      indikator: "Menyusun kronologi peristiwa secara runtut pada LKPD dan memberikan analisis pemecahan masalah yang logis.",
+      skorMaks: 25,
+      pedoman: "Analisis sangat tepat & logis = 25; Cukup tepat = 18; Kurang tepat = 10; Tidak menjawab = 0.",
     },
   ];
 }
 
-function getDefaultKisiKisi(subject = "Mata Pelajaran", topic = "Materi Utama"): KisiKisiItem[] {
+function getDefaultRubrikAsLearning(): RubrikFormatifItem[] {
   return [
-    { no: 1, indikator: `Menganalisis dan menentukan komposisi pecahan uang rupiah dalam transaksi kontekstual`, levelKognitif: "C3 (L2 - Menerapkan)", bentukSoal: "Pilihan Ganda", nomorSoal: "1", kunciJawaban: "A", skorPerSoal: 4, tingkat: "Sedang" },
-    { no: 2, indikator: `Menghitung sisa uang kembalian pada transaksi pengurangan bilangan cacah`, levelKognitif: "C3 (L2 - Menerapkan)", bentukSoal: "Pilihan Ganda", nomorSoal: "2", kunciJawaban: "B", skorPerSoal: 4, tingkat: "Sedang" },
-    { no: 3, indikator: `Menentukan hasil penjumlahan beruntun ribuan pada masalah kontekstual`, levelKognitif: "C2 (L1 - Memahami)", bentukSoal: "Pilihan Ganda", nomorSoal: "3", kunciJawaban: "A", skorPerSoal: 4, tingkat: "Mudah" },
-    { no: 4, indikator: `Menganalisis sisa barang dengan operasi pengurangan beruntun`, levelKognitif: "C4 (L3 - Menganalisis)", bentukSoal: "Pilihan Ganda", nomorSoal: "4", kunciJawaban: "A", skorPerSoal: 4, tingkat: "Sukar" },
-    { no: 5, indikator: `Menghitung total biaya tiket masuk rombongan dengan perkalian bilangan`, levelKognitif: "C3 (L2 - Menerapkan)", bentukSoal: "Pilihan Ganda", nomorSoal: "5", kunciJawaban: "A", skorPerSoal: 4, tingkat: "Sedang" },
-    { no: 6, indikator: `Menentukan akumulasi jumlah tabungan harian dalam jangka waktu tertentu`, levelKognitif: "C3 (L2 - Menerapkan)", bentukSoal: "Isian Singkat", nomorSoal: "6", kunciJawaban: "Rp 85.000,00", skorPerSoal: 10, tingkat: "Sedang" },
-    { no: 7, indikator: `Menhitung total unit barang dalam kemasan dus (perkalian)`, levelKognitif: "C2 (L1 - Memahami)", bentukSoal: "Isian Singkat", nomorSoal: "7", kunciJawaban: "480 bungkus", skorPerSoal: 10, tingkat: "Mudah" },
-    { no: 8, indikator: `Menghitung total harga belanjaan kombinasi beberapa barang`, levelKognitif: "C3 (L2 - Menerapkan)", bentukSoal: "Isian Singkat", nomorSoal: "8", kunciJawaban: "Rp 18.500,00", skorPerSoal: 10, tingkat: "Sedang" },
-    { no: 9, indikator: `Menganalisis dan memecahkan soal cerita pembagian bantuan secara proporsional`, levelKognitif: "C4 (L3 - Menganalisis)", bentukSoal: "Uraian HOTS", nomorSoal: "9", kunciJawaban: "25 kg per keluarga", skorPerSoal: 25, tingkat: "Sukar" },
-    { no: 10, indikator: `Menghitung dan mengevaluasi keuntungan penjualan barang dalam satuan kodi`, levelKognitif: "C5 (L3 - Mengevaluasi)", bentukSoal: "Uraian HOTS", nomorSoal: "10", kunciJawaban: "Untung Rp 1.000.000,00", skorPerSoal: 25, tingkat: "Sukar" },
+    {
+      kriteria: "Pemahaman Diri (Self-Awareness)",
+      sangatBaik: "Mengisi seluruh lembar refleksi secara jujur, mendalam, dan sesuai kondisi sebenarnya.",
+      baik: "Mengisi sebagian besar lembar refleksi secara jujur tetapi uraian masih singkat.",
+      cukup: "Mengisi refleksi secara umum dan membutuhkan arahan petunjuk guru.",
+      perluBimbingan: "Belum mampu mengisi refleksi diri atau mengisi tidak sesuai kondisi.",
+    },
+    {
+      kriteria: "Partisipasi & Refleksi Belajar",
+      sangatBaik: "Menunjukkan keterlibatan aktif dan mampu merefleksikan pengalaman belajarnya dengan jelas.",
+      baik: "Cukup aktif mengikuti pembelajaran dan refleksi diri cukup lengkap.",
+      cukup: "Kurang aktif dan refleksi belajar belum rinci.",
+      perluBimbingan: "Pasif dalam pembelajaran dan belum mampu merefleksikan proses belajarnya.",
+    },
+    {
+      kriteria: "Rencana Perbaikan Belajar",
+      sangatBaik: "Menuliskan dengan jelas hal yang sudah dipahami dan langkah konkret perbaikan belajar ke depan.",
+      baik: "Menuliskan hal yang sudah dipahami namun rencana perbaikan masih umum.",
+      cukup: "Hanya menuliskan salah satu bagian refleksi saja.",
+      perluBimbingan: "Belum mampu merumuskan rencana perbaikan belajar secara mandiri.",
+    },
   ];
 }
 
-function getDefaultSoalSumatif(topic = "Materi Utama"): SoalItem[] {
+function getDefaultKisiKisi(subject = "Pendidikan Pancasila", topic = "Sejarah Lahirnya Pancasila"): KisiKisiItem[] {
+  return [
+    { no: 1, tujuanPembelajaran: "Murid dapat menjelaskan proses perumusan hingga pengesahan Pancasila sebagai dasar negara Indonesia.", indikator: "Menjelaskan tujuan dibentuknya BPUPKI oleh pemerintah Jepang.", materi: "BPUPKI", levelKognitif: "C2 (Memahami)", nomorSoal: "1", bentukSoal: "Pilihan Ganda", kunciJawaban: "B. Merumuskan dasar negara Indonesia", skorPerSoal: 4, tingkat: "Mudah" },
+    { no: 2, tujuanPembelajaran: "Murid dapat menjelaskan proses perumusan hingga pengesahan Pancasila sebagai dasar negara Indonesia.", indikator: "Menentukan tokoh pendiri bangsa yang pertama kali memperkenalkan istilah 'Pancasila' pada 1 Juni 1945.", materi: "Tokoh Perumus Pancasila", levelKognitif: "C2 (Memahami)", nomorSoal: "2", bentukSoal: "Pilihan Ganda", kunciJawaban: "C. Ir. Soekarno", skorPerSoal: 4, tingkat: "Mudah" },
+    { no: 3, tujuanPembelajaran: "Murid dapat menjelaskan proses perumusan hingga pengesahan Pancasila sebagai dasar negara Indonesia.", indikator: "Menentukan nama panitia kecil yang menyusun naskah Piagam Jakarta pada 22 Juni 1945.", materi: "Panitia Sembilan", levelKognitif: "C2 (Memahami)", nomorSoal: "3", bentukSoal: "Pilihan Ganda", kunciJawaban: "B. Panitia Sembilan", skorPerSoal: 4, tingkat: "Sedang" },
+    { no: 4, tujuanPembelajaran: "Murid dapat menjelaskan proses perumusan hingga pengesahan Pancasila sebagai dasar negara Indonesia.", indikator: "Menentukan lembaga negara yang mengesahkan Pancasila dan UUD 1945 pada 18 Agustus 1945.", materi: "Sidang PPKI", levelKognitif: "C2 (Memahami)", nomorSoal: "4", bentukSoal: "Pilihan Ganda", kunciJawaban: "C. PPKI", skorPerSoal: 4, tingkat: "Sedang" },
+    { no: 5, tujuanPembelajaran: "Murid dapat menjelaskan proses perumusan hingga pengesahan Pancasila sebagai dasar negara Indonesia.", indikator: "Menentukan tanggal resmi pengesahan Pancasila sebagai dasar negara Republik Indonesia.", materi: "Pengesahan Pancasila", levelKognitif: "C2 (Memahami)", nomorSoal: "5", bentukSoal: "Pilihan Ganda", kunciJawaban: "D. 18 Agustus 1945", skorPerSoal: 4, tingkat: "Mudah" },
+    { no: 6, tujuanPembelajaran: "Murid dapat mengurutkan peristiwa penting dalam sejarah lahirnya Pancasila berdasarkan kronologi.", indikator: "Mengurutkan kronologi peristiwa proses lahirnya Pancasila secara tepat (BPUPKI -> Panitia Sembilan -> PPKI).", materi: "Kronologi Sejarah", levelKognitif: "C3 (Menerapkan)", nomorSoal: "6", bentukSoal: "Pilihan Ganda", kunciJawaban: "A. Sidang BPUPKI -> Panitia Sembilan -> Sidang PPKI", skorPerSoal: 4, tingkat: "Sedang" },
+    { no: 7, tujuanPembelajaran: "Murid dapat menganalisis peran tokoh-tokoh serta makna perubahan rumusan sila pertama.", indikator: "Menganalisis alasan perubahan rumusan sila pertama dalam Piagam Jakarta demi persatuan bangsa.", materi: "Piagam Jakarta", levelKognitif: "C4 (Menganalisis)", nomorSoal: "7", bentukSoal: "Pilihan Ganda", kunciJawaban: "B. Menghargai keberagaman dan menjaga persatuan bangsa", skorPerSoal: 4, tingkat: "Sukar" },
+    { no: 8, tujuanPembelajaran: "Murid dapat menganalisis peran tokoh-tokoh serta makna perubahan rumusan sila pertama.", indikator: "Menentukan tokoh pendiri bangsa yang menyampaikan 5 usulan dasar negara dalam sidang BPUPKI.", materi: "Tokoh Perumus Pancasila", levelKognitif: "C4 (Menganalisis)", nomorSoal: "8", bentukSoal: "Pilihan Ganda", kunciJawaban: "D. Mohammad Yamin, Prof. Soepomo, Ir. Soekarno", skorPerSoal: 4, tingkat: "Sedang" },
+    { no: 9, tujuanPembelajaran: "Murid dapat menganalisis peran tokoh-tokoh serta makna perubahan rumusan sila pertama.", indikator: "Menganalisis sikap keteladanan para pendiri bangsa yang mengutamakan musyawarah dan kepentingan bersama.", materi: "Nilai Perjuangan Tokoh", levelKognitif: "C4 (Menganalisis)", nomorSoal: "9", bentukSoal: "Pilihan Ganda", kunciJawaban: "B. Bermusyawarah untuk mencapai mufakat", skorPerSoal: 4, tingkat: "Sedang" },
+    { no: 10, tujuanPembelajaran: "Murid dapat menganalisis peran tokoh-tokoh serta makna perubahan rumusan sila pertama.", indikator: "Menentukan contoh penerapan nilai-nilai perjuangan perumus Pancasila dalam kehidupan sekolah sehari-hari.", materi: "Penerapan Nilai Pancasila", levelKognitif: "C4 (Menganalisis)", nomorSoal: "10", bentukSoal: "Pilihan Ganda", kunciJawaban: "A. Bekerja sama dan menghargai pendapat teman", skorPerSoal: 4, tingkat: "Sedang" },
+    { no: 11, tujuanPembelajaran: "Murid dapat menjelaskan proses perumusan hingga pengesahan Pancasila sebagai dasar negara Indonesia.", indikator: "Jelaskan secara singkat proses perumusan hingga pengesahan Pancasila sebagai dasar negara Indonesia!", materi: "Proses Lahirnya Pancasila", levelKognitif: "C2 (Memahami)", nomorSoal: "1 (Uraian)", bentukSoal: "Uraian", kunciJawaban: "Pancasila dirumuskan melalui sidang BPUPKI (29 Mei - 1 Juni 1945), dilanjutkan pembahasan Panitia Sembilan menghasilkan Piagam Jakarta (22 Juni 1945), dan disahkan oleh PPKI pada 18 Agustus 1945.", skorPerSoal: 12, tingkat: "Sedang" },
+    { no: 12, tujuanPembelajaran: "Murid dapat mengurutkan peristiwa penting dalam sejarah lahirnya Pancasila berdasarkan kronologi.", indikator: "Urutkan peristiwa sejarah lahirnya Pancasila berikut berdasarkan kronologi yang benar!", materi: "Kronologi Sejarah", levelKognitif: "C3 (Menerapkan)", nomorSoal: "2 (Uraian)", bentukSoal: "Uraian", kunciJawaban: "1. Sidang BPUPKI I (29 Mei - 1 Juni 1945)\n2. Pembentukan Panitia Sembilan & Piagam Jakarta (22 Juni 1945)\n3. Proklamasi Kemerdekaan (17 Agustus 1945)\n4. Sidang PPKI & Pengesahan Pancasila (18 Agustus 1945)", skorPerSoal: 12, tingkat: "Sedang" },
+    { no: 13, tujuanPembelajaran: "Murid dapat menganalisis peran tokoh-tokoh serta makna perubahan rumusan sila pertama.", indikator: "Mengapa rumusan sila pertama dalam Piagam Jakarta mengalami perubahan sebelum disahkan? Jelaskan alasannya!", materi: "Piagam Jakarta", levelKognitif: "C4 (Menganalisis)", nomorSoal: "3 (Uraian)", bentukSoal: "Uraian", kunciJawaban: "Perubahan dilakukan atas usul tokoh-tokoh Indonesia timur demi menjaga persatuan, kesatuan, dan toleransi antarumat beragama di Indonesia yang beragam.", skorPerSoal: 12, tingkat: "Sukar" },
+    { no: 14, tujuanPembelajaran: "Murid dapat menganalisis peran tokoh-tokoh serta makna perubahan rumusan sila pertama.", indikator: "Jelaskan peran Ir. Soekarno, Mohammad Yamin, dan Prof. Dr. Soepomo dalam perumusan Pancasila!", materi: "Tokoh Perumus Pancasila", levelKognitif: "C4 (Menganalisis)", nomorSoal: "4 (Uraian)", bentukSoal: "Uraian", kunciJawaban: "Ketiga tokoh menyampaikan gagasan rumusan dasar negara pada sidang BPUPKI. Ir. Soekarno juga memberikan nama 'Pancasila' pada tanggal 1 Juni 1945.", skorPerSoal: 12, tingkat: "Sukar" },
+    { no: 15, tujuanPembelajaran: "Murid dapat menganalisis peran tokoh-tokoh serta makna perubahan rumusan sila pertama.", indikator: "Sebutkan dua contoh penerapan nilai perjuangan para pendiri bangsa yang dapat kamu lakukan di sekolah!", materi: "Nilai-Nilai Pancasila", levelKognitif: "C4 (Menganalisis)", nomorSoal: "5 (Uraian)", bentukSoal: "Uraian", kunciJawaban: "1. Bermusyawarah dalam menentukan ketua kelas atau pembagian tugas kelompok.\n2. Saling menghargai perbedaan pendapat dan membantu teman yang mengalami kesulitan.", skorPerSoal: 12, tingkat: "Sedang" },
+  ];
+}
+
+function getDefaultSoalSumatif(topic = "Sejarah Lahirnya Pancasila"): SoalItem[] {
   return [
     {
       no: 1,
-      pertanyaan: `Jika Andi membeli sebuah sepatu dengan uang yang dia berikan berupa 1 lembar Rp 50.000,00, 2 lembar Rp 10.000,00, dan 1 lembar Rp 5.000,00 tanpa uang kembalian, maka harga sepatu yang dibeli Andi adalah...`,
+      pertanyaan: `Tujuan utama dibentuknya BPUPKI oleh pemerintah Jepang pada tanggal 29 April 1945 adalah...`,
       pilihan: [
-        "A. Rp 75.000,00",
-        "B. Rp 70.000,00",
-        "C. Rp 65.000,00",
-        "D. Rp 80.000,00"
+        "A. Memilih Presiden dan Wakil Presiden pertama",
+        "B. Mempersiapkan dan merumuskan dasar negara Indonesia",
+        "C. Menyusun teks Proklamasi Kemerdekaan",
+        "D. Membentuk angkatan perang Indonesia"
       ],
-      kunciJawaban: "A. Rp 75.000,00 (Perhitungan: 50.000 + 20.000 + 5.000 = 75.000)",
+      kunciJawaban: "B. Mempersiapkan dan merumuskan dasar negara Indonesia",
     },
     {
       no: 2,
-      pertanyaan: `Ibu Rina membawa uang Rp 100.000,00 untuk membeli beras seharga Rp 68.500,00 dan minyak goreng seharga Rp 24.000,00. Sisa uang kembalian yang diterima Ibu Rina adalah...`,
+      pertanyaan: `Tokoh pendiri bangsa yang pertama kali mengusulkan istilah 'Pancasila' sebagai nama dasar negara pada tanggal 1 Juni 1945 adalah...`,
       pilihan: [
-        "A. Rp 6.500,00",
-        "B. Rp 7.500,00",
-        "C. Rp 8.500,00",
-        "D. Rp 9.000,00"
+        "A. Mohammad Yamin",
+        "B. Prof. Dr. Soepomo",
+        "C. Ir. Soekarno",
+        "D. Drs. Mohammad Hatta"
       ],
-      kunciJawaban: "B. Rp 7.500,00 (Total belanja = 92.500, Kembalian = 100.000 - 92.500 = 7.500)",
+      kunciJawaban: "C. Ir. Soekarno",
     },
     {
       no: 3,
-      pertanyaan: `Sebuah perpustakaan sekolah memiliki 3.450 buku cerita dan 2.180 buku pelajaran. Jika hari ini datang kiriman 750 buku baru, total buku di perpustakaan sekarang adalah...`,
+      pertanyaan: `Panitia kecil yang beranggotakan sembilan orang tokoh pendiri bangsa dan berhasil menyusun naskah Piagam Jakarta pada 22 Juni 1945 disebut...`,
       pilihan: [
-        "A. 6.380 buku",
-        "B. 6.280 buku",
-        "C. 5.630 buku",
-        "D. 6.480 buku"
+        "A. Panitia Lapan",
+        "B. Panitia Sembilan",
+        "C. Panitia Persiapan Kemerdekaan",
+        "D. Badan Penyelidik"
       ],
-      kunciJawaban: "A. 6.380 buku (3.450 + 2.180 + 750 = 6.380)",
+      kunciJawaban: "B. Panitia Sembilan",
     },
     {
       no: 4,
-      pertanyaan: `Pak Budi memanen 450 kg mangga. Sebanyak 125 kg dijual ke pasar A dan 210 kg dijual ke pasar B. Sisa mangga Pak Budi yang belum terjual adalah...`,
+      pertanyaan: `Lembaga yang bertugas mengesahkan UUD 1945 dan Pancasila sebagai dasar negara Indonesia pada tanggal 18 Agustus 1945 adalah...`,
       pilihan: [
-        "A. 115 kg",
-        "B. 125 kg",
-        "C. 105 kg",
-        "D. 135 kg"
+        "A. BPUPKI",
+        "B. KNIP",
+        "C. PPKI",
+        "D. DPR"
       ],
-      kunciJawaban: "A. 115 kg (450 - 125 - 210 = 115 kg)",
+      kunciJawaban: "C. PPKI",
     },
     {
       no: 5,
-      pertanyaan: `Di sebuah wahana edukasi, tiket masuk anak seharga Rp 15.000,00. Jika rombongan SD membawa 25 orang siswa, total biaya tiket seluruh siswa adalah...`,
+      pertanyaan: `Pancasila secara resmi disahkan sebagai dasar negara Republik Indonesia pada tanggal...`,
       pilihan: [
-        "A. Rp 375.000,00",
-        "B. Rp 350.000,00",
-        "C. Rp 400.000,00",
-        "D. Rp 325.000,00"
+        "A. 1 Juni 1945",
+        "B. 22 Juni 1945",
+        "C. 17 Agustus 1945",
+        "D. 18 Agustus 1945"
       ],
-      kunciJawaban: "A. Rp 375.000,00 (25 x 15.000 = 375.000)",
+      kunciJawaban: "D. 18 Agustus 1945",
     },
     {
       no: 6,
-      pertanyaan: `Budi memiliki simpanan awal Rp 45.000,00. Setiap hari ia menyisihkan uang saku sebesar Rp 5.000,00. Setelah 8 hari berturut-turut, berapa total uang simpanan Budi sekarang? (Isian Singkat)`,
-      kunciJawaban: "Rp 85.000,00 (45.000 + (8 x 5.000) = 85.000)",
+      pertanyaan: `Urutan kronologi peristiwa sejarah lahirnya Pancasila yang benar adalah...`,
+      pilihan: [
+        "A. Sidang BPUPKI -> Pembentukan Panitia Sembilan -> Sidang PPKI",
+        "B. Sidang PPKI -> Sidang BPUPKI -> Panitia Sembilan",
+        "C. Panitia Sembilan -> Sidang PPKI -> Sidang BPUPKI",
+        "D. Proklamasi -> Sidang BPUPKI -> Panitia Sembilan"
+      ],
+      kunciJawaban: "A. Sidang BPUPKI -> Pembentukan Panitia Sembilan -> Sidang PPKI",
     },
     {
       no: 7,
-      pertanyaan: `Sebuah toko kelontong menerima persediaan 12 dus mi instan. Jika setiap dus berisi 40 bungkus, berapa total seluruh mi instan di toko tersebut? (Isian Singkat)`,
-      kunciJawaban: "480 bungkus (12 x 40 = 480)",
+      pertanyaan: `Perubahan rumusan sila pertama pada Piagam Jakarta dilakukan sebelum disahkan oleh PPKI bertujuan untuk...`,
+      pilihan: [
+        "A. Mempercepat proses kemerdekaan",
+        "B. Menghargai keberagaman dan menjaga persatuan bangsa Indonesia",
+        "C. Mengikuti keinginan penjajah",
+        "D. Mengubah seluruh isi Piagam Jakarta"
+      ],
+      kunciJawaban: "B. Menghargai keberagaman dan menjaga persatuan bangsa Indonesia",
     },
     {
       no: 8,
-      pertanyaan: `Siti membeli 3 buah buku tulis seharga Rp 4.500,00 per buku dan 2 buah pensil seharga Rp 2.500,00 per pensil. Berapa total uang yang harus dibayar Siti? (Isian Singkat)`,
-      kunciJawaban: "Rp 18.500,00 ((3 x 4.500) + (2 x 2.500) = 13.500 + 5.000 = 18.500)",
+      pertanyaan: `Tiga tokoh utama yang menyampaikan gagasan rumusan dasar negara pada sidang BPUPKI adalah...`,
+      pilihan: [
+        "A. Ir. Soekarno, Mohammad Hatta, Sutan Sjahrir",
+        "B. Mohammad Yamin, Ahmad Soebardjo, Ki Hajar Dewantara",
+        "C. Sayuti Melik, B.M. Diah, Latief Hendraningrat",
+        "D. Mohammad Yamin, Prof. Dr. Soepomo, Ir. Soekarno"
+      ],
+      kunciJawaban: "D. Mohammad Yamin, Prof. Dr. Soepomo, Ir. Soekarno",
     },
     {
       no: 9,
-      pertanyaan: `Sebuah panti asuhan mendapat bantuan 5 karung beras. Setiap karung berisi 50 kg beras. Seluruh beras tersebut akan dibagikan sama banyak kepada 10 keluarga kurang mampu di sekitar sekolah. Tuliskan langkah perhitungan runtut dan berapa kg beras yang diterima oleh masing-masing keluarga! (Uraian HOTS)`,
-      kunciJawaban: "1. Total beras = 5 karung x 50 kg = 250 kg. 2. Pembagian per keluarga = 250 kg / 10 keluarga = 25 kg per keluarga.",
+      pertanyaan: `Sikap utama para pendiri bangsa yang patut kita teladani dari peristiwa perubahan rumusan sila pertama adalah...`,
+      pilihan: [
+        "A. Memaksakan kehendak pribadi",
+        "B. Bermusyawarah dan jiwa besar mengutamakan persatuan bangsa",
+        "C. Mementingkan kelompok sendiri",
+        "D. Menolak perbedaan pendapat"
+      ],
+      kunciJawaban: "B. Bermusyawarah dan jiwa besar mengutamakan persatuan bangsa",
     },
     {
       no: 10,
-      pertanyaan: `Pak Ahmad membeli 2 kodi baju kaos seharga total Rp 800.000,00. Jika seluruh baju tersebut habis dijual kembali oleh Pak Ahmad dengan harga Rp 45.000,00 per buah, hitunglah total uang hasil penjualan dan berapa keuntungan yang didapatkan Pak Ahmad! (Uraian HOTS)`,
-      kunciJawaban: "1. Total kaos = 2 kodi x 20 buah = 40 buah. 2. Hasil penjualan = 40 x Rp 45.000 = Rp 1.800.000. 3. Keuntungan = Rp 1.800.000 - Rp 800.000 = Rp 1.000.000.",
+      pertanyaan: `Contoh penerapan nilai-nilai perjuangan para perumus Pancasila dalam kehidupan sekolah sehari-hari adalah...`,
+      pilihan: [
+        "A. Bermusyawarah dalam pembagian tugas kelompok dan menghargai teman",
+        "B. Bersaing secara tidak sehat antar teman kelas",
+        "C. Mementingkan kelompok sendiri saat piket kelas",
+        "D. Memilih-milih teman bermain berdasarkan latar belakang"
+      ],
+      kunciJawaban: "A. Bermusyawarah dalam pembagian tugas kelompok dan menghargai teman",
+    },
+    {
+      no: 11,
+      pertanyaan: `[Soal Uraian 1] Jelaskan secara singkat proses perumusan hingga pengesahan Pancasila sebagai dasar negara Indonesia!`,
+      kunciJawaban: "Pancasila dirumuskan melalui sidang BPUPKI I (29 Mei - 1 Juni 1945), disempurnakan oleh Panitia Sembilan dalam naskah Piagam Jakarta (22 Juni 1945), dan secara resmi disahkan oleh PPKI pada tanggal 18 Agustus 1945 setelah penyesuaian sila pertama.",
+    },
+    {
+      no: 12,
+      pertanyaan: `[Soal Uraian 2] Urutkan peristiwa penting berikut sesuai kronologi sejarah yang benar:\n• Piagam Jakarta\n• Sidang BPUPKI I\n• Sidang PPKI\n• Proklamasi Kemerdekaan Indonesia`,
+      kunciJawaban: "1. Sidang BPUPKI I (29 Mei - 1 Juni 1945)\n2. Piagam Jakarta (22 Juni 1945)\n3. Proklamasi Kemerdekaan Indonesia (17 Agustus 1945)\n4. Sidang PPKI (18 Agustus 1945)",
+    },
+    {
+      no: 13,
+      pertanyaan: `[Soal Uraian 3] Mengapa rumusan sila pertama dalam Piagam Jakarta mengalami perubahan sebelum Pancasila disahkan oleh PPKI? Jelaskan dampaknya bagi persatuan Indonesia!`,
+      kunciJawaban: "Rumusan sila pertama diubah menjadi 'Ketuhanan Yang Maha Esa' atas usul tokoh-tokoh Indonesia timur demi menjaga persatuan bangsa dan menghargai keberagaman agama seluruh rakyat Indonesia.",
+    },
+    {
+      no: 14,
+      pertanyaan: `[Soal Uraian 4] Jelaskan peran Ir. Soekarno, Mohammad Yamin, dan Prof. Dr. Soepomo dalam proses perumusan dasar negara!`,
+      kunciJawaban: "Mohammad Yamin, Prof. Dr. Soepomo, dan Ir. Soekarno menyampaikan gagasan dasar negara pada sidang BPUPKI. Ir. Soekarno juga mengenalkan istilah 'Pancasila' pada tanggal 1 Juni 1945.",
+    },
+    {
+      no: 15,
+      pertanyaan: `[Soal Uraian 5] Sebutkan dua contoh penerapan nilai-nilai perjuangan para pendiri bangsa yang dapat kamu lakukan di lingkungan sekolah!`,
+      kunciJawaban: "1. Saling menghargai pendapat teman saat berdiskusi menentukan kegiatan kelas.\n2. Bekerja sama dengan rukun saat tugas kelompok tanpa membeda-bedakan latar belakang teman.",
     },
   ];
 }
 
 function getDefaultRefleksiGuru(): RefleksiItem[] {
   return [
-    { no: 1, pertanyaan: "Apakah seluruh peserta didik telah mencapai Kriteria Ketercapaian Tujuan Pembelajaran (KKTP)?", catatan: "Sebagian besar murid (sekitar 88%) mencapai KKTP dengan sangat baik, beberapa murid memerlukan bimbingan khusus." },
-    { no: 2, pertanyaan: "Apa kendala utama yang dirasakan selama pelaksanaan kegiatan inti pembelajaran?", catatan: "Manajemen alokasi waktu saat presentasi kelompok perlu ditertibkan agar semua kelompok mendapat porsi yang sama." },
-    { no: 3, pertanyaan: "Langkah perbaikan apa yang akan diterapkan pada modul dan sesi berikutnya?", catatan: "Menggunakan penanda waktu visual (timer) dan variasi media interaktif yang lebih dekat dengan kehidupan murid." },
+    { no: 1, pertanyaan: "Apakah seluruh peserta didik telah memahami proses sejarah lahirnya Pancasila dan tokoh-tokohnya?", catatan: "Sebagian besar murid (sekitar 88%) memahami proses perumusan dan tokoh perumus dengan baik melalui media visual timeline." },
+    { no: 2, pertanyaan: "Apa kendala utama yang dihadapi selama pelaksanaan kegiatan inti pembelajaran berbasis PBL?", catatan: "Manajemen alokasi waktu saat presentasi kelompok perlu ditertibkan agar seluruh kelompok memiliki waktu yang cukup." },
+    { no: 3, pertanyaan: "Langkah perbaikan apa yang akan diterapkan pada sesi pembelajaran berikutnya?", catatan: "Menggunakan penanda waktu visual (timer) dan memperbanyak kartu gambar sejarah interaktif." },
   ];
 }
 
 function getDefaultRefleksiSiswa(): RefleksiItem[] {
   return [
-    { no: 1, pertanyaan: "Bagaimana perasaanmu selama mengikuti pembelajaran hari ini?", catatan: "Sangat senang dan متحمس (bersemangat) karena dapat belajar kelompok dan membuat karya bersama." },
-    { no: 2, pertanyaan: "Bagian mana dari kegiatan pembelajaran yang paling menarik bagimu?", catatan: "Saat berdiskusi menyelesaikan tantangan LKPD dan mempresentasikan hasilnya di depan kelas." },
-    { no: 3, pertanyaan: "Apakah kamu mengalami kesulitan saat memahami materi hari ini?", catatan: "Awalnya sedikit bingung, namun setelah dijelaskan kembali oleh guru dan teman kelompok menjadi paham." },
+    { no: 1, pertanyaan: "Bagaimana perasaan kalian setelah mempelajari sejarah lahirnya Pancasila hari ini?", catatan: "Sangat senang dan bangga karena memahami perjuangan para pendiri bangsa dalam merumuskan dasar negara." },
+    { no: 2, pertanyaan: "Bagian mana dari kegiatan pembelajaran yang paling menarik bagi kalian?", catatan: "Saat mengamati video sejarah, berdiskusi dalam kelompok menyusun timeline, dan presentasi di depan kelas." },
+    { no: 3, pertanyaan: "Hal penting apa yang dapat kalian teladani dari sikap para pendiri bangsa?", catatan: "Sikap bermusyawarah, saling menghargai perbedaan, dan mengutamakan persatuan Indonesia di atas kepentingan pribadi." },
   ];
 }
 
@@ -265,13 +383,13 @@ function getFullStudentGradeList(studentsProps?: Student[]) {
       no: i + 1,
       nisn,
       nama,
-      f1: "",
-      f2: "",
-      f3: "",
-      rataF: "",
-      s1: "",
-      na: "",
-      status: "",
+      f1: "85",
+      f2: "88",
+      f3: "90",
+      rataF: "88",
+      s1: "85",
+      na: "87",
+      status: "Tuntas",
     });
   }
 
@@ -285,16 +403,18 @@ function ensureModuleStructure(mod: any): TeachingModule {
   const core = mod.coreComponent || {};
   const act = mod.activities || {};
   const ass = mod.assessment || {};
+  const iden = mod.identifikasi || {};
+  const desain = mod.desainPembelajaran || {};
 
-  const subject = safeString(mod.subject, "Mata Pelajaran");
-  const topic = safeString(mod.title || core.tujuanPembelajaran, "Topik Pembelajaran");
-  const modelName = safeString(mod.learningModel || mod.modelPembelajaran, "PjBL (Project Based Learning)");
+  const subject = safeString(mod.subject, "Pendidikan Pancasila");
+  const topic = safeString(mod.title || gen.topik || core.tujuanPembelajaran, "Sejarah Lahirnya Pancasila");
+  const modelName = safeString(mod.learningModel || mod.modelPembelajaran || desain.praktikPedagogis?.model, "Problem Based Learning (PBL)");
 
   let actTable: ActivityTableRow[] = Array.isArray(mod.activitiesTable) && mod.activitiesTable.length > 0
     ? mod.activitiesTable.map((r: any, idx: number) => ({
         no: r.no || idx + 1,
         tahap: safeString(r.tahap, `Tahap ${idx + 1}`),
-        kegiatan: safeString(r.kegiatan, "-"),
+        kegiatan: safeString(r.kegiatan || r.kegiatanSiswaGuru, "-"),
         alokasiWaktu: safeString(r.alokasiWaktu, "15 Menit"),
       }))
     : getDefaultActivitiesTable(act, modelName);
@@ -302,10 +422,10 @@ function ensureModuleStructure(mod: any): TeachingModule {
   let rubFormatif: RubrikFormatifItem[] = Array.isArray(mod.rubrikFormatif) && mod.rubrikFormatif.length > 0
     ? mod.rubrikFormatif.map((r: any) => ({
         kriteria: safeString(r.kriteria, "Aspek Penilaian"),
-        sangatBaik: safeString(r.sangatBaik, "Sangat Baik (4)"),
-        baik: safeString(r.baik, "Baik (3)"),
-        cukup: safeString(r.cukup, "Cukup (2)"),
-        perluBimbingan: safeString(r.perluBimbingan, "Perlu Bimbingan (1)"),
+        sangatBaik: safeString(r.sangatBaik || r.skor3, "Sangat Baik (Skor 3 / 4)"),
+        baik: safeString(r.baik || r.skor2, "Baik (Skor 2 / 3)"),
+        cukup: safeString(r.cukup || r.skor1, "Cukup (Skor 1 / 2)"),
+        perluBimbingan: safeString(r.perluBimbingan, "Perlu Bimbingan (Skor 1)"),
       }))
     : getDefaultRubrikFormatif(topic);
 
@@ -313,21 +433,33 @@ function ensureModuleStructure(mod: any): TeachingModule {
     ? mod.rubrikSumatif.map((r: any) => ({
         kriteria: safeString(r.kriteria, "Unsur Penilaian"),
         indikator: safeString(r.indikator, "Indikator KKTP"),
-        skorMaks: typeof r.skorMaks === "number" ? r.skorMaks : 50,
+        skorMaks: typeof r.skorMaks === "number" ? r.skorMaks : 25,
         pedoman: safeString(r.pedoman, "Pedoman Penskoran"),
       }))
     : getDefaultRubrikSumatif(topic);
 
+  let rubAsLearning: RubrikFormatifItem[] = Array.isArray(mod.rubrikAsLearning) && mod.rubrikAsLearning.length > 0
+    ? mod.rubrikAsLearning.map((r: any) => ({
+        kriteria: safeString(r.kriteria, "Aspek Penilaian Diri"),
+        sangatBaik: safeString(r.sangatBaik, "Skor 3 (Baik)"),
+        baik: safeString(r.baik, "Skor 2 (Cukup)"),
+        cukup: safeString(r.cukup, "Skor 1 (Perlu Bimbingan)"),
+        perluBimbingan: safeString(r.perluBimbingan, "Belum Mampu"),
+      }))
+    : getDefaultRubrikAsLearning();
+
   let kisiKisi: KisiKisiItem[] = Array.isArray(mod.kisiKisiSumatif) && mod.kisiKisiSumatif.length > 0
     ? mod.kisiKisiSumatif.map((r: any, idx: number) => ({
         no: r.no || idx + 1,
+        tujuanPembelajaran: safeString(r.tujuanPembelajaran, "Murid dapat menjelaskan proses perumusan hingga pengesahan Pancasila."),
         indikator: safeString(r.indikator, "Indikator Soal"),
-        levelKognitif: safeString(r.levelKognitif || r.tingkat, idx < 5 ? "C3 (L2 - Menerapkan)" : (idx < 8 ? "C3 (L2 - Menerapkan)" : "C4 (L3 - Menganalisis)")),
-        bentukSoal: safeString(r.bentukSoal, idx < 5 ? "Pilihan Ganda" : (idx < 8 ? "Isian Singkat" : "Uraian HOTS")),
+        materi: safeString(r.materi, "Sejarah Lahirnya Pancasila"),
+        levelKognitif: safeString(r.levelKognitif || r.tingkat, idx < 5 ? "C2 (Memahami)" : (idx < 10 ? "C4 (Menganalisis)" : "C3 (Menerapkan)")),
+        bentukSoal: safeString(r.bentukSoal, idx < 10 ? "Pilihan Ganda" : "Uraian"),
         nomorSoal: safeString(r.nomorSoal, `${idx + 1}`),
-        tingkat: safeString(r.tingkat, idx < 5 ? "Sedang" : (idx < 8 ? "Sedang" : "Sukar")),
+        tingkat: safeString(r.tingkat, idx < 5 ? "Mudah" : (idx < 10 ? "Sedang" : "Sukar")),
         kunciJawaban: safeString(r.kunciJawaban, "A"),
-        skorPerSoal: typeof r.skorPerSoal === "number" ? r.skorPerSoal : (idx < 5 ? 4 : (idx < 8 ? 10 : 25)),
+        skorPerSoal: typeof r.skorPerSoal === "number" ? r.skorPerSoal : (idx < 10 ? 4 : 12),
       }))
     : getDefaultKisiKisi(subject, topic);
 
@@ -343,7 +475,7 @@ function ensureModuleStructure(mod: any): TeachingModule {
   let refGuru: RefleksiItem[] = Array.isArray(mod.refleksiGuru) && mod.refleksiGuru.length > 0
     ? mod.refleksiGuru.map((r: any, idx: number) => ({
         no: r.no || idx + 1,
-        pertanyaan: safeString(r.pertanyaan, "Pertanyaan Refleksi"),
+        pertanyaan: safeString(r.pertanyaan, "Pertanyaan Refleksi Evaluasi Guru"),
         catatan: safeString(r.catatan, "-"),
       }))
     : getDefaultRefleksiGuru();
@@ -351,48 +483,177 @@ function ensureModuleStructure(mod: any): TeachingModule {
   let refSiswa: RefleksiItem[] = Array.isArray(mod.refleksiSiswa) && mod.refleksiSiswa.length > 0
     ? mod.refleksiSiswa.map((r: any, idx: number) => ({
         no: r.no || idx + 1,
-        pertanyaan: safeString(r.pertanyaan, "Pertanyaan Refleksi"),
+        pertanyaan: safeString(r.pertanyaan, "Pertanyaan Refleksi Peserta Didik"),
         catatan: safeString(r.catatan, "-"),
       }))
     : getDefaultRefleksiSiswa();
 
   return {
     id: safeString(mod.id, "mod_" + Date.now()),
-    title: safeString(mod.title, "Modul Ajar"),
+    title: safeString(mod.title || gen.topik, "Sejarah Lahirnya Pancasila"),
     moduleType: (safeString(mod.moduleType || mod.category, "Intrakurikuler") === "Kokurikuler" ? "Kokurikuler" : "Intrakurikuler"),
     subject: subject,
-    targetClass: safeString(mod.targetClass || mod.gradeClass, "-"),
+    targetClass: safeString(mod.targetClass || mod.gradeClass, "Kelas V / Fase C"),
     approach: (safeString(mod.approach, "Deep Learning") as "Deep Learning" | "STEM" | "Kombinasi Deep Learning & STEM"),
     learningModel: modelName,
-    allocationJP: safeString(mod.allocationJP || mod.timeAllocation, "-"),
+    allocationJP: safeString(mod.allocationJP || mod.timeAllocation, "2 x 35 Menit (70 Menit)"),
     generalInfo: {
-      kompetensiAwal: safeString(gen.kompetensiAwal || mod.capaianPembelajaran, "-"),
-      profilPelajarPancasila: safeStringArray(gen.profilPelajarPancasila || mod.profilPelajarPancasila),
-      saranaPrasarana: safeString(gen.saranaPrasarana || mod.saranaPrasarana, "-"),
-      targetPesertaDidik: safeString(gen.targetPesertaDidik || mod.targetSiswa, "-"),
+      instansi: safeString(gen.instansi || mod.instansi, "SD Negeri 1 Merdeka"),
+      semester: safeString(gen.semester, "1 (Satu)"),
+      bab: safeString(gen.bab, "1 / Pancasila dalam Kehidupanku"),
+      topik: safeString(gen.topik || mod.title, "Sejarah Lahirnya Pancasila"),
+      tahunAjaran: safeString(gen.tahunAjaran, "2026/2027"),
+      kompetensiAwal: safeString(gen.kompetensiAwal || iden.pengetahuanAwal || "Murid kelas V telah mengenal lima sila Pancasila dan simbol Garuda Pancasila, namun belum memahami kronologi proses lahirnya Pancasila.", "-"),
+      profilPelajarPancasila: safeStringArray(gen.profilPelajarPancasila || ["Keimanan dan Ketakwaan terhadap Tuhan YME", "Kewargaan", "Penalaran Kritis", "Kolaborasi", "Komunikasi", "Kemandirian"]),
+      saranaPrasarana: safeString(gen.saranaPrasarana || "Ruang Kelas, Papan Tulis, Laptop, LCD/Proyektor, Speaker, PowerPoint Interaktif, Video Pembelajaran, LKPD, Bahan Ajar Bergambar", "-"),
+      targetPesertaDidik: safeString(gen.targetPesertaDidik || mod.targetSiswa, "Reguler / Tipikal (26 Murid)"),
+    },
+    identifikasi: {
+      kesiapanKognitif: safeString(iden.kesiapanKognitif, "Murid kelas V berada pada fase operasional konkret menuju operasional formal, sehingga mulai mampu memahami hubungan sebab akibat, menganalisis peristiwa sejarah secara sederhana, serta menghubungkan peristiwa sejarah dengan kehidupan masa kini."),
+      pengetahuanAwal: safeString(iden.pengetahuanAwal, "Sebagian besar murid telah mengenal Pancasila sebagai dasar negara dan menghafalkan lima sila Pancasila. Namun, sebagian besar belum memahami proses lahirnya Pancasila, pembentukan BPUPKI/PPKI, Panitia Sembilan, dan Piagam Jakarta."),
+      kebutuhanBelajar: safeString(iden.kebutuhanBelajar, "Murid membutuhkan media visual berupa video sejarah, gambar tokoh perumus, timeline, PowerPoint interaktif, bahan ajar bergambar, serta kesempatan berdiskusi kelompok (diferensiasi proses & produk)."),
+      jenisPengetahuan: safeString(iden.jenisPengetahuan, "Pengetahuan Faktual (mengenal tokoh perumus, BPUPKI, PPKI, tanggal penting), Konseptual (memahami proses perumusan & pengesahan, makna perubahan sila pertama), dan Prosedural (menyusun kronologi timeline & presentasi)."),
+      relevansiKesulitan: safeString(iden.relevansiKesulitan, "Materi memiliki tingkat relevansi sangat tinggi dalam membentuk karakter nasionalisme dan persatuan. Tingkat kesulitan sedang, dimudahkan melalui media visual, garis waktu, dan diskusi kelompok."),
+      strukturMateri: safeString(iden.strukturMateri, "Disusun menggunakan alur Problem Based Learning (PBL): Mengamati peristiwa sejarah -> Mengidentifikasi masalah -> Berdiskusi usulan dasar negara -> Menganalisis perubahan Piagam Jakarta -> Menyimpulkan makna lahirnya Pancasila."),
+      integrasiNilaiKarakter: safeString(iden.integrasiNilaiKarakter, "Kemerdekaan Indonesia, nasionalisme, gotong royong melalui kerja sama kelompok, bernalar kritis melalui analisis sejarah, komunikatif dalam presentasi, serta menghargai keberagaman."),
+    },
+    desainPembelajaran: {
+      capaianPembelajaran: safeString(desain.capaianPembelajaran, "Pada akhir Fase C, murid mampu memahami kedudukan dan fungsi Pancasila sebagai dasar negara, pandangan hidup bangsa, dan ideologi negara. Murid mampu menjelaskan proses perumusan dan pengesahan Pancasila serta menunjukkan sikap menghargai jasa para pendiri bangsa."),
+      tujuanPembelajaran: safeString(desain.tujuanPembelajaran || core.tujuanPembelajaran, "• Murid dapat menjelaskan proses perumusan hingga pengesahan Pancasila sebagai dasar negara Indonesia (C2).\n• Murid dapat mengurutkan peristiwa penting dalam sejarah lahirnya Pancasila berdasarkan kronologi (C3).\n• Murid dapat menganalisis peran tokoh-tokoh serta makna perubahan rumusan sila pertama dalam Piagam Jakarta terhadap persatuan bangsa Indonesia (C4).\n• Murid dapat menyajikan hasil diskusi tentang sejarah lahirnya Pancasila dalam bentuk timeline atau presentasi kelompok (P3)."),
+      indikatorTujuanPembelajaran: Array.isArray(desain.indikatorTujuanPembelajaran) ? desain.indikatorTujuanPembelajaran : [
+        "Melalui kegiatan mengamati gambar dan video pembelajaran, murid dapat mengidentifikasi tokoh-tokoh perumus Pancasila dan lembaga perumus dengan tepat.",
+        "Melalui kegiatan membaca bahan ajar dan timeline, murid dapat mengurutkan kronologi peristiwa perumusan hingga pengesahan Pancasila secara runtut.",
+        "Melalui kegiatan diskusi kelompok, murid dapat menganalisis alasan perubahan rumusan sila pertama Piagam Jakarta demi persatuan bangsa secara logis.",
+        "Melalui kegiatan presentasi kelompok, murid dapat menyajikan hasil diskusi secara runtut, percaya diri, dan santun."
+      ],
+      lintasDisiplinIlmu: safeString(desain.lintasDisiplinIlmu, "Bahasa Indonesia: Membaca informasi sejarah, menentukan informasi penting dari bacaan, dan menyampaikan hasil diskusi menggunakan bahasa Indonesia yang runtut dan santun."),
+      topikPembelajaran: safeString(desain.topikPembelajaran, "Sejarah Lahirnya Pancasila melalui kegiatan mengamati, berdiskusi, menganalisis kronologi peristiwa, dan menyelesaikan permasalahan secara kolaboratif."),
+      praktikPedagogis: {
+        pendekatan: safeString(desain.praktikPedagogis?.pendekatan, "Deep Learning (Mindful Learning, Meaningful Learning, Joyful Learning)"),
+        model: safeString(desain.praktikPedagogis?.model || modelName, "Problem Based Learning (PBL)"),
+        metode: safeString(desain.praktikPedagogis?.metode, "Observasi, Tanya jawab, Diskusi kelompok, Eksplorasi, Presentasi, Penugasan (LKPD)"),
+      },
+      saranaPrasaranaDetails: {
+        sarana: safeString(desain.saranaPrasaranaDetails?.sarana, "Ruang kelas"),
+        prasarana: safeString(desain.saranaPrasaranaDetails?.prasarana, "Papan tulis, Laptop, Speaker, LCD/Proyektor"),
+        media: safeString(desain.saranaPrasaranaDetails?.media, "PowerPoint Interaktif, Video Pembelajaran, Bahan Ajar Bergambar, LKPD"),
+        sumberBelajar: safeString(desain.saranaPrasaranaDetails?.sumberBelajar, "Buku LKS Pendidikan Pancasila Kelas V Kurikulum Merdeka"),
+      },
+      kemitraanPembelajaran: safeString(desain.kemitraanPembelajaran, "• Murid lain dalam kegiatan kolaborasi kelompok.\n• Orang tua dalam memberikan dukungan belajar di rumah, seperti mendampingi murid membaca kembali materi sejarah lahirnya Pancasila serta berdiskusi mengenai penerapan nilai-nilai Pancasila dalam kehidupan sehari-hari."),
+      lingkunganPembelajaran: {
+        iklimKelas: safeString(desain.lingkunganPembelajaran?.iklimKelas, "Nyaman, aman, interaktif, menyenangkan, dan mendorong rasa ingin tahu murid melalui kegiatan eksplorasi."),
+        budayaBelajar: safeString(desain.lingkunganPembelajaran?.budayaBelajar, "Kolaboratif, komunikatif, dan eksploratif. Murid aktif bertanya, berdiskusi, mengamati, serta menemukan informasi secara mandiri maupun kelompok."),
+        sosioEmosional: safeString(desain.lingkunganPembelajaran?.sosioEmosional, "Guru menciptakan suasana pembelajaran yang menghargai setiap pendapat murid, memberikan penguatan positif, membangun rasa percaya diri, serta menumbuhkan kepedulian terhadap teman."),
+      },
+      dplSelected: Array.isArray(desain.dplSelected) ? desain.dplSelected : [1, 2, 3, 4, 5, 6, 8],
+      pertanyaanPemantikDetailed: {
+        afektif: safeString(desain.pertanyaanPemantikDetailed?.afektif, '"Bagaimana perasaan kalian jika para pendiri bangsa dahulu tidak mau bermusyawarah dan saling menghargai perbedaan dalam merumuskan dasar negara Indonesia?"'),
+        kognitif: safeString(desain.pertanyaanPemantikDetailed?.kognitif, '"Mengapa rumusan sila pertama dalam Piagam Jakarta mengalami perubahan sebelum Pancasila disahkan? Menurut kalian, mengapa perubahan tersebut penting bagi persatuan Indonesia?"'),
+        psikomotorik: safeString(desain.pertanyaanPemantikDetailed?.psikomotorik, '"Jika kalian diminta menyusun kartu-kartu peristiwa sejarah lahirnya Pancasila, bagaimana cara kalian mengurutkannya agar menjadi kronologi yang benar dan mudah dipahami teman-teman?"'),
+      },
     },
     coreComponent: {
-      tujuanPembelajaran: safeString(core.tujuanPembelajaran || mod.tujuanPembelajaran, "-"),
-      pemahamanBermakna: safeString(core.pemahamanBermakna || mod.pemahamanBermakna, "-"),
-      pertanyaanPemantik: safeString(core.pertanyaanPemantik || mod.pertanyaanPemantik, "-"),
+      tujuanPembelajaran: safeString(core.tujuanPembelajaran || "Murid dapat menjelaskan proses perumusan hingga pengesahan Pancasila sebagai dasar negara Indonesia.", "-"),
+      pemahamanBermakna: safeString(core.pemahamanBermakna || "Pancasila lahir melalui musyawarah, kerja sama, dan jiwa besar para pendiri bangsa. Nilai-nilai musyawarah dan persatuan tersebut sangat bermanfaat diterapkan dalam kehidupan sehari-hari.", "-"),
+      pertanyaanPemantik: safeString(core.pertanyaanPemantik || "Mengapa rumusan sila pertama dalam Piagam Jakarta mengalami perubahan sebelum Pancasila disahkan? Mengapa perubahan tersebut penting bagi persatuan Indonesia?", "-"),
     },
     activities: {
-      pendahuluan: safeString(act.pendahuluan || mod.kegiatanPendahuluan, "-"),
-      inti: safeString(act.inti || mod.kegiatanInti, "-"),
-      penutup: safeString(act.penutup || mod.kegiatanPenutup, "-"),
+      pendahuluan: safeString(act.pendahuluan, "1. Pembiasaan Budaya Positif: Salam, Doa, Menanyakan kabar & presensi, Menyanyikan lagu nasional 'Garuda Pancasila'.\n2. Apersepsi: Guru mengajak murid mengingat kembali lambang Garuda Pancasila & lima sila Pancasila.\n3. Eksplorasi & Motivasi: Menyampaikan tujuan pembelajaran dan manfaat mempelajari sejarah lahirnya Pancasila.\n4. Ice Breaking: 'Tepuk Konsentrasi'."),
+      inti: safeString(act.inti, "1. Orientasi terhadap Masalah: Guru menampilkan gambar sidang BPUPKI/PPKI & video singkat lahirnya Pancasila.\n2. Mengorganisasi Murid: Penjelasan materi PowerPoint 'Sejarah Lahirnya Pancasila', pembagian kelompok (4-5 orang), dan pembagian LKPD.\n3. Membimbing Penyelidikan: Murid membaca bahan ajar, mengamati timeline kronologi, menyusun urutan peristiwa, dan mendiskusikan perubahan sila pertama Piagam Jakarta.\n4. Menyajikan Hasil: Ice breaking 'Yel-Yel Pancasila' & Presentasi hasil diskusi kelompok di depan kelas.\n5. Analisis & Evaluasi: Menyimpulkan bersama guru dan mengerjakan kuis evaluasi individu."),
+      penutup: safeString(act.penutup, "1. Kesimpulan bersama murid.\n2. Penguatan nilai-nilai Pancasila dan persatuan.\n3. Umpan balik & Refleksi lembar refleksi emosi murid.\n4. Tindak Lanjut: Informasi materi pertemuan berikutnya.\n5. Penutup: Ice breaking 'Tepuk Panca Indera', Doa & Salam Penutup."),
     },
     activitiesTable: actTable,
+    kegiatanAwalText: safeString(mod.kegiatanAwalText, "• Pembiasaan Budaya Positif:\n  - Murid menjawab salam pembuka dari guru.\n  - Murid berdoa sebelum memulai kegiatan pembelajaran.\n  - Murid menjawab pertanyaan guru tentang kabar hari ini & presensi.\n  - Murid menyanyikan lagu nasional 'Garuda Pancasila' untuk meningkatkan rasa cinta tanah air.\n• Apersepsi:\n  - Guru mengajak murid mengingat kembali materi lambang negara Garuda Pancasila.\n  - Guru mengajukan pertanyaan: 'Siapa yang menciptakan rumusan Pancasila?' & 'Apakah Pancasila langsung menjadi dasar negara setelah merdeka?'\n• Eksplorasi & Motivasi:\n  - Guru menyampaikan tujuan pembelajaran dan motivasi: 'Tahukah kalian bahwa dasar negara Indonesia tidak terbentuk dalam satu hari? Hari ini kita akan menjadi peneliti sejarah.'\n• Ice Breaking: 'Tepuk Konsentrasi'"),
+    kegiatanPenutupText: safeString(mod.kegiatanPenutupText, "1. Kesimpulan: Guru mengajak murid menyimpulkan pembelajaran ('Bagaimana proses lahirnya Pancasila?, Siapa tokoh yang berperan?, Mengapa sila pertama mengalami perubahan?').\n2. Penguatan: Guru menegaskan bahwa lahirnya Pancasila merupakan hasil musyawarah, persatuan, dan sikap saling menghargai.\n3. Umpan Balik / Refleksi: Guru membagikan lembar refleksi diri kepada murid & memberikan apresiasi.\n4. Tindak Lanjut: Guru menyampaikan bahwa pada pertemuan berikutnya murid akan mempelajari nilai teladan perumus Pancasila.\n5. Penutup: Ice breaking 'Tepuk Panca Indera', doa penutup, dan salam."),
     assessment: {
-      diagnostik: safeString(ass.diagnostik, "-"),
-      formatif: safeString(ass.formatif || mod.asesmenFormatifSumatif, "-"),
-      sumatif: safeString(ass.sumatif || mod.asesmenFormatifSumatif, "-"),
+      diagnostik: safeString(ass.diagnostik, "Tes Lisan & Tanya Jawab Apersepsi di awal pembelajaran"),
+      formatif: safeString(ass.formatif, "Penilaian Kinerja / Unjuk Kerja Diskusi Kelompok, Penyusunan Timeline pada LKPD, & Presentasi Lisan"),
+      sumatif: safeString(ass.sumatif, "Tes Tertulis Evaluasi Akhir (Pilihan Ganda & Uraian) pada Lampiran Evaluasi"),
     },
-    rubrikPenilaian: safeString(mod.rubrikPenilaian || mod.pengayaanRemedial, "-"),
+    assessmentForLearningSummary: mod.assessmentForLearningSummary || {
+      tujuan: "Membantu guru dan murid mengetahui pemahaman selama proses belajar.",
+      teknik: "Tes lisan dan Tulis",
+      bentuk: "Tanya jawab dan LKPD",
+      waktu: "Di awal dan saat proses pembelajaran",
+    },
+    assessmentAsLearningSummary: mod.assessmentAsLearningSummary || {
+      tujuan: "Melatih siswa merefleksikan pemahamannya.",
+      teknik: "Penilaian diri (Self-Assessment)",
+      bentuk: "Lembar refleksi",
+      waktu: "Saat / Akhir proses pembelajaran",
+    },
+    assessmentOfLearningSummary: mod.assessmentOfLearningSummary || {
+      tujuan: "Menilai pencapaian akhir siswa sebagai dasar penentuan nilai.",
+      teknik: "Tes Tertulis Evaluasi",
+      bentuk: "Pilihan Ganda dan Uraian",
+      waktu: "Di akhir pembelajaran",
+    },
+    rubrikPenilaian: safeString(mod.rubrikPenilaian, "Rubrik Penilaian Formatif (Tes Lisan & LKPD), Rubrik Penilaian Diri (Refleksi), dan Rubrik Penilaian Evaluasi Sumatif."),
     rubrikFormatif: rubFormatif,
     rubrikSumatif: rubSumatif,
+    rubrikAsLearning: rubAsLearning,
     kisiKisiSumatif: kisiKisi,
     soalSumatifList: soalList,
-    lkpdText: safeString(mod.lkpdText || mod.lampiranLKPD, "-"),
+    lkpdText: safeString(mod.lkpdText, `LEMBAR KERJA PESERTA DIDIK (LKPD) - LINI MASA SEJARAH LAHIRNYA PANCASILA
+
+Materi: Sejarah Lahirnya Pancasila (Bab 1 Pancasila dalam Kehidupanku)
+Nama Kelompok: ........................................
+Anggota Kelompok:
+1. ..................................................... 3. .....................................................
+2. ..................................................... 4. .....................................................
+
+PETUNJUK KERJA:
+1. Bacalah bahan ajar dan amati gambar/video tentang sejarah lahirnya Pancasila dengan cermat!
+2. Diskusikan bersama kelompokmu untuk menyusun garis waktu (timeline) peristiwa penting di bawah ini!
+3. Jawablah pertanyaan analisis di bawah ini dengan tepat dan lengkap!
+
+TUGAS 1: LINI MASA SEJARAH LAHIRNYA PANCASILA
+Silakan tempelkan / tuliskan deskripsi peristiwa pada kotak tanggal berikut:
+• 29 Mei - 1 Juni 1945 : Sidang pertama BPUPKI (Usulan dasar negara oleh Moh. Yamin, Prof. Soepomo, dan Ir. Soekarno).
+• 1 Juni 1945 : Ir. Soekarno menyampaikan pidato memperkenalkan istilah 'Pancasila'.
+• 22 Juni 1945 : Panitia Sembilan merumuskan naskah Piagam Jakarta.
+• 10 - 16 Juli 1945 : Sidang kedua BPUPKI membahas rancangan UUD.
+• 18 Agustus 1945 : PPKI mengesahkan Pancasila sebagai Dasar Negara dengan perubahan rumusan sila pertama.
+
+TUGAS 2: MENGENAL TOKOH PENDIRI BANGSA & PERUBAHAN RUMUSAN SILA PERTAMA
+1. Bagaimana bunyi Sila Pertama Pancasila yang terdapat dalam naskah Piagam Jakarta?
+   Jawaban: "Ketuhanan dengan kewajiban menjalankan syariat Islam bagi pemeluk-pemeluknya"
+2. Mengapa rumusan sila pertama tersebut diubah pada sidang PPKI tanggal 18 Agustus 1945?
+   Jawaban: Demi menjaga persatuan dan kesatuan bangsa Indonesia yang memiliki beragam agama dan suku.
+3. Nilai luhur atau sikap teladan apa yang ditunjukkan oleh para pendiri bangsa saat mereka setuju untuk mengubah rumusan tersebut? Sebutkan minimal dua!
+   Jawaban: Memprioritaskan persatuan nasional, toleransi, jiwa besar, dan bermusyawarah mufakat.`),
+    bahanAjarText: safeString(mod.bahanAjarText, `BAHAN AJAR: SEJARAH LAHIRNYA PANCASILA (DASAR NEGARA REPUBLIK INDONESIA)
+
+1. Latar Belakang Perumusan Pancasila:
+Pancasila lahir melalui proses panjang perjuangan para pendiri bangsa. Pada tanggal 29 April 1945, Jepang membentuk BPUPKI (Badan Penyelidik Usaha-Usaha Persiapan Kemerdekaan Indonesia) untuk mempersiapkan kemerdekaan Indonesia.
+
+2. Tokoh Perumus Pancasila (Sidang BPUPKI I: 29 Mei - 1 Juni 1945):
+Beberapa tokoh memberikan gagasan tentang dasar negara Indonesia:
+- Mohammad Yamin (29 Mei 1945): Mengusulkan Peri Kebangsaan, Peri Kemanusiaan, Peri Ketuhanan, Peri Kerakyatan, Keadilan Rakyat.
+- Prof. Dr. Soepomo (31 Mei 1945): Mengemukakan gagasan tentang negara yang berdasarkan persatuan, kekeluargaan, dan keseimbangan lahir batin.
+- Ir. Soekarno (1 Juni 1945): Mengusulkan lima dasar negara yaitu Kebangsaan Indonesia, Internasionalisme/Perikemanusiaan, Mufakat/Demokrasi, Kesejahteraan Sosial, Ketuhanan yang Berkebudayaan. Ir. Soekarno memperkenalkan istilah "Pancasila".
+
+3. Panitia Sembilan dan Piagam Jakarta (22 Juni 1945):
+Panitia Sembilan dibentuk untuk menyempurnakan usulan dasar negara. Pada tanggal 22 Juni 1945, Panitia Sembilan menghasilkan naskah "Piagam Jakarta" (Jakarta Charter) yang memuat rumusan awal Pancasila.
+
+4. Pengesahan Pancasila (18 Agustus 1945):
+Setelah Indonesia memproklamasikan kemerdekaan pada 17 Agustus 1945, keesokan harinya tanggal 18 Agustus 1945, PPKI mengadakan sidang. Dalam sidang tersebut, rumusan sila pertama dalam Piagam Jakarta diubah menjadi "Ketuhanan Yang Maha Esa" demi menjaga persatuan bangsa Indonesia yang beragam. Sejak saat itu, Pancasila resmi disahkan sebagai dasar negara Republik Indonesia.`),
+    mediaPembelajaranText: safeString(mod.mediaPembelajaranText, `MEDIA PEMBELAJARAN:
+A. Video Pembelajaran Sejarah Lahirnya Pancasila: https://youtu.be/HL2Bbo0ldtM (Proses Lahirnya Pancasila)
+B. Bahan Tayang Presentation (PPT Interactive): https://canva.link/ta161v6jxjz735g
+C. Media Konkret: Kartu Foto Tokoh Pendiri Bangsa (Ir. Soekarno, Moh. Yamin, Prof. Soepomo, Moh. Hatta), Poster Garuda Pancasila, dan Lembar Timeline Sejarah.`),
+    remedialPengayaanText: mod.remedialPengayaanText || {
+      remedial: "Remedial diberikan kepada murid yang belum mencapai tujuan pembelajaran melalui pendampingan khusus guru, penjelasan ulang menggunakan media gambar/video/timeline sejarah, serta latihan mengurutkan kronologi peristiwa perumusan Pancasila.",
+      pengayaan: "Pengayaan diberikan kepada murid yang telah mencapai tujuan pembelajaran melalui tugas membuat peta konsep/infografis sederhana sejarah lahirnya Pancasila serta analisis penerapan nilai-nilai Pancasila dalam kehidupan sehari-hari.",
+    },
+    glosarium: safeString(mod.glosarium, `GLOSARIUM:
+• Pancasila: Dasar negara Republik Indonesia yang menjadi pedoman dalam kehidupan berbangsa dan bernegara.
+• BPUPKI: Badan Penyelidik Usaha-Usaha Persiapan Kemerdekaan Indonesia yang dibentuk untuk mempersiapkan kemerdekaan.
+• Panitia Sembilan: Panitia kecil yang merumuskan dasar negara dan menghasilkan naskah Piagam Jakarta pada 22 Juni 1945.
+• Piagam Jakarta: Naskah perumusan dasar negara hasil Panitia Sembilan sebelum mengalami perubahan sila pertama.
+• PPKI: Panitia Persiapan Kemerdekaan Indonesia yang bertugas mempersiapkan pelaksanaan kemerdekaan dan mengesahkan Pancasila pada 18 Agustus 1945.
+• Musyawarah: Proses berdiskusi bersama untuk mencapai kesepakatan demi kepentingan bersama.
+• Persatuan: Sikap menjaga kebersamaan dan menghargai perbedaan demi keutuhan bangsa Indonesia.`),
     refleksiGuru: refGuru,
     refleksiSiswa: refSiswa,
   };
@@ -633,188 +894,444 @@ Format Output HARUS berupa JSON murni tanpa markdown lain:
   // Render document component shared for Preview and Print
   const renderDocumentContent = (mod: TeachingModule, isForPrintModal = false) => {
     const studentGrades = getFullStudentGradeList(students);
+    const iden = mod.identifikasi || {};
+    const desain = mod.desainPembelajaran || {};
 
     return (
       <div className="space-y-6 text-[12px] font-sans leading-normal text-slate-900 bg-white p-2">
-        {/* Kop Surat Resmi - Only render in preview card if not inside PrintModal (PrintModal handles KopSurat) */}
+        {/* Kop Surat Resmi - Only render in preview card if not inside PrintModal */}
         {!isForPrintModal && (
           <KopSurat
             schoolIdentity={schoolIdentity}
-            title={`MODUL AJAR KURIKULUM MERDEKA (${mod.moduleType.toUpperCase()})`}
+            title={`RENCANA PEMBELAJARAN MENDALAM (RPM)`}
             subtitle={`${mod.subject} • ${mod.targetClass} | ALOKASI WAKTU: ${mod.allocationJP}`}
           />
         )}
 
+        {/* HEADER COVER TITLE */}
+        <div className="border-2 border-slate-900 p-4 text-center space-y-1 rounded bg-slate-50">
+          <h2 className="text-base font-extrabold uppercase tracking-wide text-slate-900">
+            RENCANA PEMBELAJARAN MENDALAM (RPM)
+          </h2>
+          <p className="text-xs font-bold text-slate-800 uppercase">
+            TOPIK: {mod.generalInfo?.topik || mod.title}
+          </p>
+          <p className="text-[11px] text-slate-600 font-medium">
+            {schoolIdentity.schoolName || "SD Negeri 1 Merdeka"} • Tahun Ajaran {mod.generalInfo?.tahunAjaran || "2026/2027"}
+          </p>
+        </div>
+
         {/* I. INFORMASI UMUM */}
-        <div className="border border-slate-300 rounded p-3 space-y-2 bg-slate-50/50">
-          <h3 className="font-bold uppercase text-[12px] border-b border-slate-300 pb-1 text-emerald-900 flex items-center gap-1.5">
+        <div className="border border-slate-300 rounded p-3 space-y-3 bg-white">
+          <h3 className="font-bold uppercase text-[12px] border-b border-slate-300 pb-1 text-slate-900 flex items-center gap-1.5">
             <FileText className="w-4 h-4 text-emerald-700" />
             I. INFORMASI UMUM
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 text-[12px]">
-            <p><b>Nama Penyusun:</b> {schoolIdentity?.teacherName || "-"}</p>
-            <p><b>Satuan Pendidikan:</b> {schoolIdentity?.schoolName || "-"}</p>
-            <p><b>Target Peserta Didik:</b> {mod.generalInfo?.targetPesertaDidik || "Reguler (26 Murid)"}</p>
-            <p><b>Pendekatan Pembelajaran:</b> {mod.approach} (Mindful, Meaningful, Joyful)</p>
-            <p><b>Model Pembelajaran:</b> {mod.learningModel}</p>
-            <p><b>Sarana & Prasarana:</b> {mod.generalInfo?.saranaPrasarana || "-"}</p>
-            <p className="col-span-full"><b>Kompetensi Awal:</b> {mod.generalInfo?.kompetensiAwal || "-"}</p>
-            <p className="col-span-full"><b>Profil Pelajar Pancasila:</b> {Array.isArray(mod.generalInfo?.profilPelajarPancasila) ? mod.generalInfo.profilPelajarPancasila.join(", ") : mod.generalInfo?.profilPelajarPancasila || "-"}</p>
-          </div>
-        </div>
 
-        {/* II. KOMPONEN INTI */}
-        <div className="border border-slate-300 rounded p-3 space-y-2">
-          <h3 className="font-bold uppercase text-[12px] border-b border-slate-300 pb-1 text-indigo-900 flex items-center gap-1.5">
-            <CheckCircle2 className="w-4 h-4 text-indigo-700" />
-            II. KOMPONEN INTI
-          </h3>
-          <div className="space-y-1.5 text-[12px]">
-            <p><b>Tujuan Pembelajaran:</b> {mod.coreComponent?.tujuanPembelajaran || "-"}</p>
-            <p><b>Pemahaman Bermakna (Meaningful):</b> {mod.coreComponent?.pemahamanBermakna || "-"}</p>
-            <p><b>Pertanyaan Pemantik:</b> {mod.coreComponent?.pertanyaanPemantik || "-"}</p>
-          </div>
-        </div>
-
-        {/* III. KEGIATAN PEMBELAJARAN (TABEL) */}
-        <div className="border border-slate-300 rounded p-3 space-y-3">
-          <h3 className="font-bold uppercase text-[12px] border-b border-slate-300 pb-1 text-slate-900 flex items-center gap-1.5">
-            <Layers className="w-4 h-4 text-slate-700" />
-            III. KEGIATAN PEMBELAJARAN (TABEL TAHAP & ALOKASI WAKTU)
-          </h3>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse border border-slate-400 text-[12px]">
-              <thead>
-                <tr className="bg-slate-100 font-bold text-slate-900 text-center">
-                  <th className="border border-slate-400 p-2 w-12">No.</th>
-                  <th className="border border-slate-400 p-2 w-48">Tahap Pembelajaran</th>
-                  <th className="border border-slate-400 p-2">Uraian Kegiatan Pembelajaran (Mindful, Meaningful, Joyful)</th>
-                  <th className="border border-slate-400 p-2 w-28">Alokasi Waktu</th>
-                </tr>
-              </thead>
               <tbody>
-                {mod.activitiesTable && mod.activitiesTable.length > 0 ? (
-                  mod.activitiesTable.map((row) => (
-                    <tr key={row.no} className="border border-slate-300 align-top">
-                      <td className="border border-slate-400 p-2 text-center font-bold">{row.no}</td>
-                      <td className="border border-slate-400 p-2 font-semibold text-slate-900">{row.tahap}</td>
-                      <td className="border border-slate-400 p-2 whitespace-pre-line text-slate-800">{row.kegiatan}</td>
-                      <td className="border border-slate-400 p-2 text-center font-medium whitespace-nowrap">{row.alokasiWaktu}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={4} className="p-3 text-center text-slate-500">Data kegiatan pembelajaran tidak tersedia.</td>
-                  </tr>
-                )}
+                <tr className="border-b border-slate-300">
+                  <td className="p-2 border-r border-slate-300 font-bold bg-slate-50 w-44">Nama Penyusun</td>
+                  <td className="p-2">{schoolIdentity?.teacherName || "-"}</td>
+                  <td className="p-2 border-r border-slate-300 font-bold bg-slate-50 w-40">Semester</td>
+                  <td className="p-2">{mod.generalInfo?.semester || "1 (Satu)"}</td>
+                </tr>
+                <tr className="border-b border-slate-300">
+                  <td className="p-2 border-r border-slate-300 font-bold bg-slate-50">Instansi / Satuan Pendidikan</td>
+                  <td className="p-2">{schoolIdentity?.schoolName || "-"}</td>
+                  <td className="p-2 border-r border-slate-300 font-bold bg-slate-50">Bab / Tema</td>
+                  <td className="p-2">{mod.generalInfo?.bab || "Bab 1"}</td>
+                </tr>
+                <tr className="border-b border-slate-300">
+                  <td className="p-2 border-r border-slate-300 font-bold bg-slate-50">Jenjang Sekolah / Kelas</td>
+                  <td className="p-2">SD / {mod.targetClass}</td>
+                  <td className="p-2 border-r border-slate-300 font-bold bg-slate-50">Topik Pembelajaran</td>
+                  <td className="p-2">{mod.generalInfo?.topik || mod.title}</td>
+                </tr>
+                <tr className="border-b border-slate-300">
+                  <td className="p-2 border-r border-slate-300 font-bold bg-slate-50">Fase / Tahun Ajaran</td>
+                  <td className="p-2">Fase C / {mod.generalInfo?.tahunAjaran || "2026/2027"}</td>
+                  <td className="p-2 border-r border-slate-300 font-bold bg-slate-50">Alokasi Waktu</td>
+                  <td className="p-2">{mod.allocationJP}</td>
+                </tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* IV. ASESMEN & RUBRIK PENILAIAN */}
-        <div className="border border-slate-300 rounded p-3 space-y-4">
+        {/* II. IDENTIFIKASI */}
+        <div className="border border-slate-300 rounded p-3 space-y-3 bg-slate-50/50">
           <h3 className="font-bold uppercase text-[12px] border-b border-slate-300 pb-1 text-slate-900 flex items-center gap-1.5">
-            <UserCheck className="w-4 h-4 text-emerald-700" />
-            IV. ASESMEN & RUBRIK PENILAIAN
+            <CheckCircle2 className="w-4 h-4 text-indigo-700" />
+            II. IDENTIFIKASI
           </h3>
 
-          <div className="space-y-1 bg-slate-50 p-2.5 rounded border border-slate-200">
-            <p><b>Asesmen Diagnostik:</b> {mod.assessment?.diagnostik || "-"}</p>
-            <p><b>Asesmen Formatif:</b> {mod.assessment?.formatif || "-"}</p>
-            <p><b>Asesmen Sumatif:</b> {mod.assessment?.sumatif || "-"}</p>
-          </div>
-
-          {/* Rubrik Formatif */}
-          <div className="space-y-1.5">
-            <h4 className="font-bold text-slate-900">A. Rubrik Penilaian Formatif (Observasi & Unjuk Kerja)</h4>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse border border-slate-400 text-[12px]">
-                <thead>
-                  <tr className="bg-emerald-100 text-emerald-950 font-bold text-center">
-                    <th className="border border-slate-400 p-2 w-40">Kriteria Penilaian</th>
-                    <th className="border border-slate-400 p-2">Sangat Baik (Skor 4)</th>
-                    <th className="border border-slate-400 p-2">Baik (Skor 3)</th>
-                    <th className="border border-slate-400 p-2">Cukup (Skor 2)</th>
-                    <th className="border border-slate-400 p-2">Perlu Bimbingan (Skor 1)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {mod.rubrikFormatif?.map((rf, idx) => (
-                    <tr key={idx} className="align-top border border-slate-300">
-                      <td className="border border-slate-400 p-2 font-bold text-slate-900 bg-slate-50">{rf.kriteria}</td>
-                      <td className="border border-slate-400 p-2">{rf.sangatBaik}</td>
-                      <td className="border border-slate-400 p-2">{rf.baik}</td>
-                      <td className="border border-slate-400 p-2">{rf.cukup}</td>
-                      <td className="border border-slate-400 p-2">{rf.perluBimbingan}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="space-y-3 text-[12px]">
+            <div>
+              <h4 className="font-bold text-slate-900 mb-1">A. Identifikasi Murid:</h4>
+              <ul className="list-disc pl-5 space-y-1 text-slate-800">
+                <li><b>Kesiapan Kognitif:</b> {iden.kesiapanKognitif}</li>
+                <li><b>Pengetahuan Awal:</b> {iden.pengetahuanAwal}</li>
+                <li><b>Kebutuhan Belajar Murid:</b> {iden.kebutuhanBelajar}</li>
+              </ul>
             </div>
-          </div>
 
-          {/* Rubrik Sumatif */}
-          <div className="space-y-1.5 pt-2">
-            <h4 className="font-bold text-slate-900">B. Rubrik Penilaian Sumatif (Kriteria & Pedoman Penskoran)</h4>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse border border-slate-400 text-[12px]">
-                <thead>
-                  <tr className="bg-indigo-100 text-indigo-950 font-bold text-center">
-                    <th className="border border-slate-400 p-2 w-44">Kriteria Penilaian</th>
-                    <th className="border border-slate-400 p-2">Indikator Ketercapaian (KKTP)</th>
-                    <th className="border border-slate-400 p-2 w-24">Skor Maksimal</th>
-                    <th className="border border-slate-400 p-2">Pedoman Penskoran</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {mod.rubrikSumatif?.map((rs, idx) => (
-                    <tr key={idx} className="align-top border border-slate-300">
-                      <td className="border border-slate-400 p-2 font-bold text-slate-900 bg-slate-50">{rs.kriteria}</td>
-                      <td className="border border-slate-400 p-2">{rs.indikator}</td>
-                      <td className="border border-slate-400 p-2 text-center font-bold">{rs.skorMaks}</td>
-                      <td className="border border-slate-400 p-2">{rs.pedoman}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div>
+              <h4 className="font-bold text-slate-900 mb-1">B. Identifikasi Materi Pembelajaran:</h4>
+              <ul className="list-disc pl-5 space-y-1 text-slate-800">
+                <li><b>Jenis Pengetahuan:</b> {iden.jenisPengetahuan}</li>
+                <li><b>Relevansi & Tingkat Kesulitan:</b> {iden.relevansiKesulitan}</li>
+                <li><b>Struktur Materi:</b> {iden.strukturMateri}</li>
+                <li><b>Integrasi Nilai & Karakter:</b> {iden.integrasiNilaiKarakter}</li>
+              </ul>
             </div>
           </div>
         </div>
 
-        {/* V. ASESMEN SUMATIF: KISI-KISI & CETAK NASKAH SOAL */}
-        <div className="border border-slate-300 rounded p-3 space-y-4 bg-slate-50/30">
+        {/* III. DESAIN PEMBELAJARAN */}
+        <div className="border border-slate-300 rounded p-3 space-y-3 bg-white">
           <h3 className="font-bold uppercase text-[12px] border-b border-slate-300 pb-1 text-slate-900 flex items-center gap-1.5">
-            <HelpCircle className="w-4 h-4 text-indigo-700" />
-            V. ASESMEN SUMATIF: KISI-KISI & CETAK NASKAH SOAL
+            <Layers className="w-4 h-4 text-slate-700" />
+            III. DESAIN PEMBELAJARAN
           </h3>
 
-          {/* Kisi-Kisi Soal */}
+          <div className="space-y-3 text-[12px]">
+            <p><b>A. Capaian Pembelajaran (CP):</b> {desain.capaianPembelajaran}</p>
+            
+            <div>
+              <p className="font-bold text-slate-900">B. Tujuan Pembelajaran (TP):</p>
+              <div className="whitespace-pre-line pl-3 pt-0.5 text-slate-800">{desain.tujuanPembelajaran}</div>
+            </div>
+
+            <div>
+              <p className="font-bold text-slate-900">C. Indikator Tujuan Pembelajaran (IKTP):</p>
+              <ul className="list-disc pl-5 space-y-0.5 text-slate-800">
+                {Array.isArray(desain.indikatorTujuanPembelajaran)
+                  ? desain.indikatorTujuanPembelajaran.map((iktp, idx) => (
+                      <li key={idx}>{iktp}</li>
+                    ))
+                  : <li>{String(desain.indikatorTujuanPembelajaran || "-")}</li>
+                }
+              </ul>
+            </div>
+
+            <p><b>D. Lintas Disiplin Ilmu:</b> {desain.lintasDisiplinIlmu}</p>
+            <p><b>E. Topik Pembelajaran:</b> {desain.topikPembelajaran}</p>
+
+            <div>
+              <p className="font-bold text-slate-900">F. Praktik Pedagogis:</p>
+              <ul className="list-disc pl-5 space-y-0.5 text-slate-800">
+                <li><b>Pendekatan:</b> {desain.praktikPedagogis?.pendekatan || mod.approach}</li>
+                <li><b>Model Pembelajaran:</b> {desain.praktikPedagogis?.model || mod.learningModel}</li>
+                <li><b>Metode Pembelajaran:</b> {desain.praktikPedagogis?.metode}</li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="font-bold text-slate-900">G. Sarana & Prasarana:</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pl-3 pt-1">
+                <p><b>Sarana:</b> {desain.saranaPrasaranaDetails?.sarana}</p>
+                <p><b>Prasarana:</b> {desain.saranaPrasaranaDetails?.prasarana}</p>
+                <p><b>Media Pembelajaran:</b> {desain.saranaPrasaranaDetails?.media}</p>
+                <p><b>Sumber Belajar:</b> {desain.saranaPrasaranaDetails?.sumberBelajar}</p>
+              </div>
+            </div>
+
+            <p><b>H. Kemitraan Pembelajaran:</b> {desain.kemitraanPembelajaran}</p>
+
+            <div>
+              <p className="font-bold text-slate-900">I. Lingkungan Pembelajaran:</p>
+              <ul className="list-disc pl-5 space-y-0.5 text-slate-800">
+                <li><b>Iklim Kelas:</b> {desain.lingkunganPembelajaran?.iklimKelas}</li>
+                <li><b>Budaya Belajar:</b> {desain.lingkunganPembelajaran?.budayaBelajar}</li>
+                <li><b>Sosio-Emosional:</b> {desain.lingkunganPembelajaran?.sosioEmosional}</li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="font-bold text-slate-900">J. Dimensi Profil Lulusan (DPL):</p>
+              <div className="overflow-x-auto pt-1">
+                <table className="w-full border-collapse border border-slate-400 text-[11px] text-center">
+                  <thead>
+                    <tr className="bg-slate-100 font-bold text-slate-900">
+                      <th className="border border-slate-400 p-1">DPL 1</th>
+                      <th className="border border-slate-400 p-1">DPL 2</th>
+                      <th className="border border-slate-400 p-1">DPL 3</th>
+                      <th className="border border-slate-400 p-1">DPL 4</th>
+                      <th className="border border-slate-400 p-1">DPL 5</th>
+                      <th className="border border-slate-400 p-1">DPL 6</th>
+                      <th className="border border-slate-400 p-1">DPL 7</th>
+                      <th className="border border-slate-400 p-1">DPL 8</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="border border-slate-400 p-1 font-bold text-emerald-800">✓ Keimanan</td>
+                      <td className="border border-slate-400 p-1 font-bold text-emerald-800">✓ Kewargaan</td>
+                      <td className="border border-slate-400 p-1 font-bold text-emerald-800">✓ Kritis</td>
+                      <td className="border border-slate-400 p-1 font-bold text-emerald-800">✓ Kreativitas</td>
+                      <td className="border border-slate-400 p-1 font-bold text-emerald-800">✓ Kolaborasi</td>
+                      <td className="border border-slate-400 p-1 font-bold text-emerald-800">✓ Mandiri</td>
+                      <td className="border border-slate-400 p-1 text-slate-400">-</td>
+                      <td className="border border-slate-400 p-1 font-bold text-emerald-800">✓ Komunikasi</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div>
+              <p className="font-bold text-slate-900">K. Pertanyaan Pemantik:</p>
+              <ul className="list-disc pl-5 space-y-1 text-slate-800">
+                <li><b>Pertanyaan Afektif:</b> {desain.pertanyaanPemantikDetailed?.afektif}</li>
+                <li><b>Pertanyaan Kognitif:</b> {desain.pertanyaanPemantikDetailed?.kognitif}</li>
+                <li><b>Pertanyaan Psikomotorik:</b> {desain.pertanyaanPemantikDetailed?.psikomotorik}</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* IV. KEGIATAN PEMBELAJARAN */}
+        <div className="border border-slate-300 rounded p-3 space-y-3 bg-white">
+          <h3 className="font-bold uppercase text-[12px] border-b border-slate-300 pb-1 text-slate-900 flex items-center gap-1.5">
+            <Clock className="w-4 h-4 text-emerald-700" />
+            IV. KEGIATAN PEMBELAJARAN
+          </h3>
+
+          <div className="space-y-3 text-[12px]">
+            <div>
+              <h4 className="font-bold text-slate-900">A. KEGIATAN AWAL (10 Menit)</h4>
+              <p className="whitespace-pre-line pl-3 text-slate-800 pt-0.5">{mod.kegiatanAwalText || mod.activities?.pendahuluan}</p>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-slate-900 mb-1.5">B. KEGIATAN INTI (50 Menit) - TABEL SINTAKS MODEL {mod.learningModel.toUpperCase()}</h4>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-slate-400 text-[12px]">
+                  <thead>
+                    <tr className="bg-slate-100 font-bold text-slate-900 text-center">
+                      <th className="border border-slate-400 p-2 w-12">No.</th>
+                      <th className="border border-slate-400 p-2 w-52">Sintaks Model Pembelajaran</th>
+                      <th className="border border-slate-400 p-2">Rincian Kegiatan Guru & Murid (Mindful, Meaningful, Joyful)</th>
+                      <th className="border border-slate-400 p-2 w-28">Alokasi Waktu</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mod.activitiesTable?.map((row) => (
+                      <tr key={row.no} className="border border-slate-300 align-top">
+                        <td className="border border-slate-400 p-2 text-center font-bold">{row.no}</td>
+                        <td className="border border-slate-400 p-2 font-semibold text-slate-900 bg-slate-50">{row.tahap}</td>
+                        <td className="border border-slate-400 p-2 whitespace-pre-line text-slate-800">{row.kegiatan}</td>
+                        <td className="border border-slate-400 p-2 text-center font-medium whitespace-nowrap">{row.alokasiWaktu}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-slate-900">C. KEGIATAN PENUTUP (10 Menit)</h4>
+              <p className="whitespace-pre-line pl-3 text-slate-800 pt-0.5">{mod.kegiatanPenutupText || mod.activities?.penutup}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* V. ASESMEN / PENILAIAN */}
+        <div className="border border-slate-300 rounded p-3 space-y-4 bg-white">
+          <h3 className="font-bold uppercase text-[12px] border-b border-slate-300 pb-1 text-slate-900 flex items-center gap-1.5">
+            <UserCheck className="w-4 h-4 text-indigo-700" />
+            V. ASESMEN / PENILAIAN
+          </h3>
+
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse border border-slate-400 text-[11px]">
+              <thead>
+                <tr className="bg-slate-200 text-slate-950 font-bold text-center">
+                  <th className="border border-slate-400 p-2 w-32">Jenis Asesmen</th>
+                  <th className="border border-slate-400 p-2">Tujuan Penilaian</th>
+                  <th className="border border-slate-400 p-2 w-28">Teknik</th>
+                  <th className="border border-slate-400 p-2 w-32">Bentuk Instrumen</th>
+                  <th className="border border-slate-400 p-2 w-32">Waktu Penilaian</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="align-top border border-slate-300">
+                  <td className="border border-slate-400 p-2 font-bold bg-slate-50 text-slate-900">Assesmen for Learning</td>
+                  <td className="border border-slate-400 p-2">{mod.assessmentForLearningSummary?.tujuan}</td>
+                  <td className="border border-slate-400 p-2 text-center">{mod.assessmentForLearningSummary?.teknik}</td>
+                  <td className="border border-slate-400 p-2 text-center">{mod.assessmentForLearningSummary?.bentuk}</td>
+                  <td className="border border-slate-400 p-2 text-center">{mod.assessmentForLearningSummary?.waktu}</td>
+                </tr>
+                <tr className="align-top border border-slate-300">
+                  <td className="border border-slate-400 p-2 font-bold bg-slate-50 text-slate-900">Assesmen as Learning</td>
+                  <td className="border border-slate-400 p-2">{mod.assessmentAsLearningSummary?.tujuan}</td>
+                  <td className="border border-slate-400 p-2 text-center">{mod.assessmentAsLearningSummary?.teknik}</td>
+                  <td className="border border-slate-400 p-2 text-center">{mod.assessmentAsLearningSummary?.bentuk}</td>
+                  <td className="border border-slate-400 p-2 text-center">{mod.assessmentAsLearningSummary?.waktu}</td>
+                </tr>
+                <tr className="align-top border border-slate-300">
+                  <td className="border border-slate-400 p-2 font-bold bg-slate-50 text-slate-900">Assesmen of Learning</td>
+                  <td className="border border-slate-400 p-2">{mod.assessmentOfLearningSummary?.tujuan}</td>
+                  <td className="border border-slate-400 p-2 text-center">{mod.assessmentOfLearningSummary?.teknik}</td>
+                  <td className="border border-slate-400 p-2 text-center">{mod.assessmentOfLearningSummary?.bentuk}</td>
+                  <td className="border border-slate-400 p-2 text-center">{mod.assessmentOfLearningSummary?.waktu}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div>
+            <h4 className="font-bold text-slate-900 mb-1">REMEDIAL & PENGAYAAN:</h4>
+            <div className="space-y-1 pl-3 text-[12px] text-slate-800">
+              <p><b>1. Remedial:</b> {mod.remedialPengayaanText?.remedial}</p>
+              <p><b>2. Pengayaan:</b> {mod.remedialPengayaanText?.pengayaan}</p>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="font-bold text-slate-900 mb-1">GLOSARIUM:</h4>
+            <p className="whitespace-pre-line pl-3 font-mono text-[11px] text-slate-800 bg-slate-50 p-2 rounded border border-slate-300">{mod.glosarium}</p>
+          </div>
+        </div>
+
+        {/* LAMPIRAN 1: BAHAN BACAAN / AJAR */}
+        {mod.bahanAjarText && (
+          <div className="border border-slate-300 rounded p-3 space-y-2 bg-slate-50">
+            <h3 className="font-bold uppercase text-[12px] border-b border-slate-300 pb-1 text-slate-900">
+              LAMPIRAN 1: BAHAN BACAAN / AJAR GURU & PESERTA DIDIK
+            </h3>
+            <div className="whitespace-pre-line text-[11px] text-slate-800 bg-white p-3 rounded border border-slate-300 leading-relaxed">
+              {mod.bahanAjarText}
+            </div>
+          </div>
+        )}
+
+        {/* LAMPIRAN 2: MEDIA PEMBELAJARAN */}
+        {mod.mediaPembelajaranText && (
+          <div className="border border-slate-300 rounded p-3 space-y-2 bg-slate-50">
+            <h3 className="font-bold uppercase text-[12px] border-b border-slate-300 pb-1 text-slate-900">
+              LAMPIRAN 2: MEDIA PEMBELAJARAN & BAHAN TAYANG
+            </h3>
+            <div className="whitespace-pre-line text-[11px] text-slate-800 bg-white p-3 rounded border border-slate-300 leading-relaxed">
+              {mod.mediaPembelajaranText}
+            </div>
+          </div>
+        )}
+
+        {/* LAMPIRAN 3: ASSESMEN FOR LEARNING (FORMATIF) */}
+        <div className="border border-slate-300 rounded p-3 space-y-3 bg-white">
+          <h3 className="font-bold uppercase text-[12px] border-b border-slate-300 pb-1 text-slate-900">
+            LAMPIRAN 3: ASSESMEN FOR LEARNING (FORMATIF)
+          </h3>
+          <p className="font-bold text-slate-900 text-[12px]">A. TABEL RUBRIK PENILAIAN TES LISAN / FORMATIF:</p>
+
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse border border-slate-400 text-[11px]">
+              <thead>
+                <tr className="bg-emerald-100 text-emerald-950 font-bold text-center">
+                  <th className="border border-slate-400 p-2 w-48">Aspek yang Dinilai</th>
+                  <th className="border border-slate-400 p-2">Skor 3 / 4 (Sangat Baik)</th>
+                  <th className="border border-slate-400 p-2">Skor 2 / 3 (Baik)</th>
+                  <th className="border border-slate-400 p-2">Skor 1 / 2 (Cukup)</th>
+                  <th className="border border-slate-400 p-2">Skor 1 (Perlu Bimbingan)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mod.rubrikFormatif?.map((rf, idx) => (
+                  <tr key={idx} className="align-top border border-slate-300">
+                    <td className="border border-slate-400 p-2 font-bold text-slate-900 bg-slate-50">{rf.kriteria}</td>
+                    <td className="border border-slate-400 p-2">{rf.sangatBaik}</td>
+                    <td className="border border-slate-400 p-2">{rf.baik}</td>
+                    <td className="border border-slate-400 p-2">{rf.cukup}</td>
+                    <td className="border border-slate-400 p-2">{rf.perluBimbingan}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* LAMPIRAN 4: ASSESMEN AS LEARNING (PENILAIAN DIRI) */}
+        <div className="border border-slate-300 rounded p-3 space-y-3 bg-white">
+          <h3 className="font-bold uppercase text-[12px] border-b border-slate-300 pb-1 text-slate-900">
+            LAMPIRAN 4: ASSESMEN AS LEARNING (PENILAIAN DIRI & REFLEKSI)
+          </h3>
+          <p className="font-bold text-slate-900 text-[12px]">A. TABEL RUBRIK PENILAIAN DIRI / REFLEKSI:</p>
+
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse border border-slate-400 text-[11px]">
+              <thead>
+                <tr className="bg-indigo-100 text-indigo-950 font-bold text-center">
+                  <th className="border border-slate-400 p-2 w-48">Aspek Penilaian Diri</th>
+                  <th className="border border-slate-400 p-2">Skor 3 (Baik)</th>
+                  <th className="border border-slate-400 p-2">Skor 2 (Cukup)</th>
+                  <th className="border border-slate-400 p-2">Skor 1 (Perlu Bimbingan)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mod.rubrikAsLearning?.map((ra, idx) => (
+                  <tr key={idx} className="align-top border border-slate-300">
+                    <td className="border border-slate-400 p-2 font-bold text-slate-900 bg-slate-50">{ra.kriteria}</td>
+                    <td className="border border-slate-400 p-2">{ra.sangatBaik}</td>
+                    <td className="border border-slate-400 p-2">{ra.baik}</td>
+                    <td className="border border-slate-400 p-2">{ra.cukup}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="space-y-2 pt-2 bg-slate-50 p-3 rounded border border-slate-300">
+            <h4 className="font-bold text-slate-900 text-[12px]">B. Lembar Refleksi Diri Murid:</h4>
+            <div className="grid grid-cols-2 gap-2 text-[11px]">
+              <p><b>Nama:</b> ...................................................</p>
+              <p><b>Kelas:</b> {mod.targetClass}</p>
+            </div>
+            <div className="space-y-2 text-[11px] pt-1">
+              {mod.refleksiSiswa?.map((rs) => (
+                <div key={rs.no} className="border-b border-dashed border-slate-300 pb-2">
+                  <p className="font-semibold text-slate-900">{rs.no}. {rs.pertanyaan}</p>
+                  <p className="text-slate-600 italic mt-0.5">Jawaban / Tanggapan: .................................................................................................................</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* LAMPIRAN 5: ASSESMEN OF LEARNING (SUMATIF & KISI-KISI) */}
+        <div className="border border-slate-300 rounded p-3 space-y-4 bg-white">
+          <h3 className="font-bold uppercase text-[12px] border-b border-slate-300 pb-1 text-slate-900">
+            LAMPIRAN 5: ASSESMEN OF LEARNING (EVALUASI SUMATIF & KISI-KISI)
+          </h3>
+
+          {/* TABEL KISI-KISI SOAL */}
           <div className="space-y-1.5">
-            <h4 className="font-bold text-slate-900">A. Tabel Kisi-Kisi Soal Tes Tertulis Sumatif (Bloom & Anderson)</h4>
+            <h4 className="font-bold text-slate-900 text-[12px]">A. TABEL KISI-KISI SOAL EVALUASI SUMATIF:</h4>
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse border border-slate-400 text-[12px]">
+              <table className="w-full border-collapse border border-slate-400 text-[11px]">
                 <thead>
                   <tr className="bg-slate-200 font-bold text-slate-900 text-center">
-                    <th className="border border-slate-400 p-2 w-10">No.</th>
-                    <th className="border border-slate-400 p-2">Indikator Capaian Soal</th>
-                    <th className="border border-slate-400 p-2 w-36">Level Kognitif (Bloom)</th>
-                    <th className="border border-slate-400 p-2 w-28">Bentuk Soal</th>
-                    <th className="border border-slate-400 p-2 w-16">No. Soal</th>
-                    <th className="border border-slate-400 p-2 w-32">Kunci Jawaban</th>
-                    <th className="border border-slate-400 p-2 w-20">Skor</th>
+                    <th className="border border-slate-400 p-1.5 w-8">No.</th>
+                    <th className="border border-slate-400 p-1.5 w-44">Tujuan Pembelajaran</th>
+                    <th className="border border-slate-400 p-1.5">Indikator Soal</th>
+                    <th className="border border-slate-400 p-1.5 w-24">Materi</th>
+                    <th className="border border-slate-400 p-1.5 w-24">Level Kognitif</th>
+                    <th className="border border-slate-400 p-1.5 w-16">No. Soal</th>
+                    <th className="border border-slate-400 p-1.5 w-24">Bentuk Soal</th>
                   </tr>
                 </thead>
                 <tbody>
                   {mod.kisiKisiSumatif?.map((kk) => (
                     <tr key={kk.no} className="border border-slate-300 align-top">
-                      <td className="border border-slate-400 p-2 text-center font-bold">{kk.no}</td>
-                      <td className="border border-slate-400 p-2">{kk.indikator}</td>
-                      <td className="border border-slate-400 p-2 text-center font-medium bg-slate-50">{kk.levelKognitif || kk.tingkat || "C3 (L2)"}</td>
-                      <td className="border border-slate-400 p-2 text-center font-medium">{kk.bentukSoal}</td>
-                      <td className="border border-slate-400 p-2 text-center font-bold">{kk.nomorSoal}</td>
-                      <td className="border border-slate-400 p-2 text-center font-medium font-mono text-[11px]">{kk.kunciJawaban || "-"}</td>
-                      <td className="border border-slate-400 p-2 text-center font-bold text-emerald-800">{kk.skorPerSoal ?? (kk.no <= 5 ? 4 : (kk.no <= 8 ? 10 : 25))}</td>
+                      <td className="border border-slate-400 p-1.5 text-center font-bold">{kk.no}</td>
+                      <td className="border border-slate-400 p-1.5">{kk.tujuanPembelajaran || "Murid dapat menjelaskan proses perumusan Pancasila."}</td>
+                      <td className="border border-slate-400 p-1.5">{kk.indikator}</td>
+                      <td className="border border-slate-400 p-1.5 text-center bg-slate-50">{kk.materi || "Pancasila"}</td>
+                      <td className="border border-slate-400 p-1.5 text-center font-medium">{kk.levelKognitif || "C2 (Memahami)"}</td>
+                      <td className="border border-slate-400 p-1.5 text-center font-bold">{kk.nomorSoal}</td>
+                      <td className="border border-slate-400 p-1.5 text-center font-medium">{kk.bentukSoal}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -822,12 +1339,11 @@ Format Output HARUS berupa JSON murni tanpa markdown lain:
             </div>
 
             {/* Pedoman Penskoran / Perhitungan Skor Akhir */}
-            <div className="mt-3 p-3 bg-slate-50 border border-slate-300 rounded text-[11px] space-y-1.5 leading-relaxed text-slate-800">
+            <div className="mt-3 p-3 bg-slate-50 border border-slate-300 rounded text-[11px] space-y-1 leading-relaxed text-slate-800">
               <p className="font-bold text-slate-900 uppercase">PEDOMAN PENSKORAN & RUMUS PERHITUNGAN SKOR AKHIR:</p>
               <ul className="list-disc pl-5 space-y-0.5 text-slate-700">
-                <li><b>Pilihan Ganda (Soal 1–5):</b> 5 Soal x 4 Poin = Maksimal 20 Poin</li>
-                <li><b>Isian Singkat (Soal 6–8):</b> 3 Soal x 10 Poin = Maksimal 30 Poin</li>
-                <li><b>Uraian HOTS (Soal 9–10):</b> 2 Soal x 25 Poin = Maksimal 50 Poin</li>
+                <li><b>Pilihan Ganda (Soal 1–10):</b> 10 Soal x 4 Poin = Maksimal 40 Poin</li>
+                <li><b>Uraian (Soal 1–5):</b> 5 Soal x 12 Poin = Maksimal 60 Poin</li>
                 <li><b>Total Skor Maksimal:</b> 100 Poin</li>
               </ul>
               <div className="pt-1 text-emerald-900 font-bold border-t border-slate-200">
@@ -836,11 +1352,11 @@ Format Output HARUS berupa JSON murni tanpa markdown lain:
             </div>
           </div>
 
-          {/* Cetak Soal Sumatif */}
+          {/* Cetak Naskah Soal Sumatif */}
           <div className="space-y-3 pt-2 bg-white p-4 border border-slate-400 rounded">
             <div className="border-b-2 border-slate-900 pb-2 text-center">
-              <h4 className="font-bold text-sm uppercase">NASKAH SOAL TES TERTULIS SUMATIF</h4>
-              <p className="text-[12px]">{mod.subject} • {mod.targetClass} • T.A. 2025/2026</p>
+              <h4 className="font-bold text-sm uppercase">NASKAH SOAL EVALUASI SUMATIF</h4>
+              <p className="text-[12px]">{mod.subject} • {mod.targetClass} • T.A. 2026/2027</p>
             </div>
 
             <div className="grid grid-cols-2 gap-2 text-[12px] border-b border-slate-200 pb-2">
@@ -877,7 +1393,7 @@ Format Output HARUS berupa JSON murni tanpa markdown lain:
 
             {/* Kunci Jawaban & Pedoman */}
             <div className="mt-4 p-2.5 bg-slate-100 rounded border border-slate-300 text-[11px] space-y-1">
-              <h5 className="font-bold text-slate-900 uppercase">Kunci Jawaban & Pedoman Penskoran:</h5>
+              <h5 className="font-bold text-slate-900 uppercase">Kunci Jawaban Evaluasi:</h5>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
                 {mod.soalSumatifList?.map((s) => (
                   <div key={s.no}>
@@ -889,98 +1405,33 @@ Format Output HARUS berupa JSON murni tanpa markdown lain:
           </div>
         </div>
 
-        {/* LAMPIRAN 1: LKPD */}
-        {mod.lkpdText && (
-          <div className="border border-slate-300 rounded p-3 space-y-2 bg-slate-50">
-            <h3 className="font-bold uppercase text-[12px] border-b border-slate-300 pb-1 text-slate-900">
-              LAMPIRAN 1: LEMBAR KERJA PESERTA DIDIK (LKPD)
-            </h3>
-            <p className="whitespace-pre-line font-mono text-[11px] text-slate-800 bg-white p-3 rounded border border-slate-300">
-              {mod.lkpdText}
-            </p>
-          </div>
-        )}
-
-        {/* LAMPIRAN 2: LEMBAR REFLEKSI */}
-        <div className="border border-slate-300 rounded p-3 space-y-4">
+        {/* LAMPIRAN 6: DAFTAR NILAI FORMATIF & SUMATIF (26 PESERTA DIDIK) */}
+        <div className="border border-slate-300 rounded p-3 space-y-3 bg-white">
           <h3 className="font-bold uppercase text-[12px] border-b border-slate-300 pb-1 text-slate-900">
-            LAMPIRAN 2: LEMBAR REFLEKSI (GURU & PESERTA DIDIK)
-          </h3>
-
-          {/* Refleksi Guru */}
-          <div className="space-y-1.5">
-            <h4 className="font-bold text-slate-900">A. Lembar Refleksi Guru</h4>
-            <table className="w-full border-collapse border border-slate-400 text-[12px]">
-              <thead>
-                <tr className="bg-slate-200 font-bold text-slate-900 text-center">
-                  <th className="border border-slate-400 p-2 w-12">No.</th>
-                  <th className="border border-slate-400 p-2">Pertanyaan Refleksi Evaluasi Guru</th>
-                  <th className="border border-slate-400 p-2">Hasil Catatan & Evaluasi Pembelajaran</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mod.refleksiGuru?.map((rg) => (
-                  <tr key={rg.no} className="border border-slate-300 align-top">
-                    <td className="border border-slate-400 p-2 text-center font-bold">{rg.no}</td>
-                    <td className="border border-slate-400 p-2 font-medium">{rg.pertanyaan}</td>
-                    <td className="border border-slate-400 p-2">{rg.catatan}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Refleksi Peserta Didik */}
-          <div className="space-y-1.5 pt-2">
-            <h4 className="font-bold text-slate-900">B. Lembar Refleksi Peserta Didik</h4>
-            <table className="w-full border-collapse border border-slate-400 text-[12px]">
-              <thead>
-                <tr className="bg-slate-200 font-bold text-slate-900 text-center">
-                  <th className="border border-slate-400 p-2 w-12">No.</th>
-                  <th className="border border-slate-400 p-2">Pertanyaan Refleksi Peserta Didik</th>
-                  <th className="border border-slate-400 p-2">Respon / Tanggapan Perasaan Murid</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mod.refleksiSiswa?.map((rs) => (
-                  <tr key={rs.no} className="border border-slate-300 align-top">
-                    <td className="border border-slate-400 p-2 text-center font-bold">{rs.no}</td>
-                    <td className="border border-slate-400 p-2 font-medium">{rs.pertanyaan}</td>
-                    <td className="border border-slate-400 p-2">{rs.catatan}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* LAMPIRAN 3: DAFTAR NILAI FORMATIF & SUMATIF (25+ MURID) */}
-        <div className="border border-slate-300 rounded p-3 space-y-3">
-          <h3 className="font-bold uppercase text-[12px] border-b border-slate-300 pb-1 text-slate-900">
-            LAMPIRAN 3: REKAPITULASI DAFTAR NILAI FORMATIF & SUMATIF ({studentGrades.length} PESERTA DIDIK)
+            LAMPIRAN 6: REKAPITULASI DAFTAR NILAI FORMATIF & SUMATIF ({studentGrades.length} PESERTA DIDIK)
           </h3>
 
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-slate-400 text-[12px]">
+            <table className="w-full border-collapse border border-slate-400 text-[11px]">
               <thead>
                 <tr className="bg-slate-200 text-slate-950 font-bold text-center">
                   <th className="border border-slate-400 p-1.5 w-10">No.</th>
                   <th className="border border-slate-400 p-1.5 w-24">NISN</th>
                   <th className="border border-slate-400 p-1.5">Nama Peserta Didik</th>
-                  <th className="border border-slate-400 p-1.5 w-14">F1</th>
-                  <th className="border border-slate-400 p-1.5 w-14">F2</th>
-                  <th className="border border-slate-400 p-1.5 w-14">F3</th>
+                  <th className="border border-slate-400 p-1.5 w-12">F1</th>
+                  <th className="border border-slate-400 p-1.5 w-12">F2</th>
+                  <th className="border border-slate-400 p-1.5 w-12">F3</th>
                   <th className="border border-slate-400 p-1.5 w-16 bg-slate-300">Rata F</th>
                   <th className="border border-slate-400 p-1.5 w-16">Sumatif</th>
                   <th className="border border-slate-400 p-1.5 w-16 bg-emerald-200 text-emerald-950">N. Akhir</th>
-                  <th className="border border-slate-400 p-1.5 w-28">Keterangan</th>
+                  <th className="border border-slate-400 p-1.5 w-24">Keterangan</th>
                 </tr>
               </thead>
               <tbody>
                 {studentGrades.map((sg) => (
                   <tr key={sg.no} className="border border-slate-300 hover:bg-slate-50">
                     <td className="border border-slate-400 p-1.5 text-center font-bold">{sg.no}</td>
-                    <td className="border border-slate-400 p-1.5 text-center font-mono text-[11px]">{sg.nisn}</td>
+                    <td className="border border-slate-400 p-1.5 text-center font-mono text-[10px]">{sg.nisn}</td>
                     <td className="border border-slate-400 p-1.5 font-semibold text-slate-900">{sg.nama}</td>
                     <td className="border border-slate-400 p-1.5 text-center">{sg.f1}</td>
                     <td className="border border-slate-400 p-1.5 text-center">{sg.f2}</td>
@@ -988,14 +1439,8 @@ Format Output HARUS berupa JSON murni tanpa markdown lain:
                     <td className="border border-slate-400 p-1.5 text-center font-bold bg-slate-100">{sg.rataF}</td>
                     <td className="border border-slate-400 p-1.5 text-center font-bold">{sg.s1}</td>
                     <td className="border border-slate-400 p-1.5 text-center font-bold bg-emerald-50 text-emerald-900">{sg.na}</td>
-                    <td className="border border-slate-400 p-1.5 text-center text-[11px] font-semibold">
-                      {sg.status ? (
-                        <span className={Number(sg.na) >= 75 ? "text-emerald-700" : "text-amber-700"}>
-                          {sg.status}
-                        </span>
-                      ) : (
-                        ""
-                      )}
+                    <td className="border border-slate-400 p-1.5 text-center text-[10px] font-semibold text-emerald-700">
+                      {sg.status || "Tuntas"}
                     </td>
                   </tr>
                 ))}
@@ -1004,7 +1449,7 @@ Format Output HARUS berupa JSON murni tanpa markdown lain:
           </div>
         </div>
 
-        {/* SIGNATURE BLOCK - Only render in preview card if not inside PrintModal (PrintModal handles signature block) */}
+        {/* SIGNATURE BLOCK */}
         {!isForPrintModal && (
           <div className="pt-8 grid grid-cols-2 text-[12px] text-slate-900 leading-normal font-sans">
             <div className="text-center space-y-12">
